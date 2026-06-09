@@ -27,7 +27,6 @@ jobs:
           php-version: '8.3'
           extensions: mbstring, pdo_mysql, gd, exif, fileinfo
 
-      # Composer first — Ziggy lives in vendor/ and is needed by Vite
       - name: Install Composer dependencies
         run: composer install --no-dev --optimize-autoloader --no-interaction
 
@@ -36,41 +35,21 @@ jobs:
           npm ci
           npm run build
 
-      # ─── Deploy via rsync over SSH ─────────────────────────────────────
-      - name: Deploy app files (above public_html)
-        uses: burnett01/rsync-deployments@7.0.1
+      # ─── Deploy via FTP ────────────────────────────────────────────
+      - name: Deploy to Hostinger via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          switches: -avzr --delete --exclude='.env' --exclude='.git' --exclude='node_modules' --exclude='tests' --exclude='public'
-          path: ./
-          remote_path: ~/domains/vakil.chepti.com/
-          remote_host: ${{ secrets.SSH_HOST }}
-          remote_port: ${{ secrets.SSH_PORT }}
-          remote_user: ${{ secrets.SSH_USER }}
-          remote_key: ${{ secrets.SSH_KEY }}
-
-      - name: Deploy public/ → public_html/
-        uses: burnett01/rsync-deployments@7.0.1
-        with:
-          switches: -avzr --delete
-          path: ./public/
-          remote_path: ~/domains/vakil.chepti.com/public_html/
-          remote_host: ${{ secrets.SSH_HOST }}
-          remote_port: ${{ secrets.SSH_PORT }}
-          remote_user: ${{ secrets.SSH_USER }}
-          remote_key: ${{ secrets.SSH_KEY }}
-
-      # ─── Run Laravel commands on server ───────────────────────────────
-      - name: Migrate & cache
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            cd ~/domains/vakil.chepti.com
-            php artisan migrate --force
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-            php artisan storage:link
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASS }}
+          port: 21
+          protocol: ftps
+          local-dir: ./
+          server-dir: /domains/vakil.chepti.com/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            .env
+            tests/**
+            public/hot
