@@ -4,63 +4,29 @@ on:
   push:
     branches: [main]
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '24'
-          cache: 'npm'
+          node-version: '20'
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
           extensions: mbstring, pdo_mysql, gd, exif, fileinfo
 
-      - name: Install Composer dependencies
-        run: composer install --no-dev --optimize-autoloader --no-interaction
-
-      - name: Build frontend assets
+      - name: Install & build
         run: |
+          composer install --no-dev --optimize-autoloader --no-interaction
           npm ci
           npm run build
 
-      - name: Write SSH key
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          echo "StrictHostKeyChecking no" >> ~/.ssh/config
-          echo "UserKnownHostsFile /dev/null" >> ~/.ssh/config
-
-      - name: Deploy app files (above public_html)
-        run: |
-          rsync -avzr --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=no" \
-            --exclude='.env' \
-            --exclude='.git' \
-            --exclude='node_modules' \
-            --exclude='tests' \
-            --exclude='public' \
-            ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/domains/vakil.chepti.com/
-
-      - name: Deploy public/ → public_html/
-        run: |
-          rsync -avzr --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=no" \
-            ./public/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/domains/vakil.chepti.com/public_html/
-
-      - name: Migrate & cache on server
+      - name: Deploy via SSH (git pull + artisan)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -69,7 +35,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd ~/domains/vakil.chepti.com
+            git pull origin main
             /opt/alt/php83/usr/bin/php artisan migrate --force
             /opt/alt/php83/usr/bin/php artisan config:cache
-            /opt/alt/php83/usr/bin/php artisan route:cache
             /opt/alt/php83/usr/bin/php artisan view:cache
