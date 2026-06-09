@@ -115,16 +115,38 @@ class PersonController extends Controller
 
     public function show(Person $person)
     {
-        $person->load(['parents', 'children', 'photos', 'events.blessings.user']);
+        $person->load(['parents', 'children', 'photos']);
 
         $spouses = $person->spouses()->get();
 
+        $allPeople = Person::where('id', '!=', $person->id)
+            ->select('id', 'first_name', 'last_name')
+            ->orderBy('first_name')
+            ->get()
+            ->map(fn($p) => ['id' => $p->id, 'label' => $p->full_name]);
+
         return Inertia::render('People/Show', [
-            'person'  => $this->formatPerson($person),
-            'parents' => $person->parents->map(fn($p) => ['id' => $p->id, 'full_name' => $p->full_name, 'photo_url' => $p->profile_photo_url]),
-            'children' => $person->children->map(fn($p) => ['id' => $p->id, 'full_name' => $p->full_name, 'photo_url' => $p->profile_photo_url, 'gender' => $p->gender]),
-            'spouses' => $spouses->map(fn($p) => ['id' => $p->id, 'full_name' => $p->full_name, 'photo_url' => $p->profile_photo_url]),
+            'person'    => $this->formatPerson($person),
+            'parents'   => $person->parents->map(fn($p) => ['id' => $p->id, 'full_name' => $p->full_name, 'photo_url' => $p->profile_photo_url]),
+            'children'  => $person->children->map(fn($p) => ['id' => $p->id, 'full_name' => $p->full_name, 'photo_url' => $p->profile_photo_url, 'gender' => $p->gender]),
+            'spouses'   => $spouses->map(fn($p) => ['id' => $p->id, 'full_name' => $p->full_name, 'photo_url' => $p->profile_photo_url]),
+            'allPeople' => $allPeople,
         ]);
+    }
+
+    public function addSpouse(Request $request, Person $person)
+    {
+        $data = $request->validate([
+            'spouse_id' => 'required|integer|exists:people,id',
+        ]);
+
+        Relationship::firstOrCreate([
+            'person1_id' => min($person->id, $data['spouse_id']),
+            'person2_id' => max($person->id, $data['spouse_id']),
+            'type'       => 'spouse',
+        ]);
+
+        return redirect()->route('people.show', $person)->with('success', 'בן/בת הזוג נוסף/ה');
     }
 
     public function edit(Person $person)

@@ -37,6 +37,7 @@ Route::get('/dashboard', function () {
 // People CRUD
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('people', PersonController::class);
+    Route::post('/people/{person}/spouse', [PersonController::class, 'addSpouse'])->name('people.spouse');
 });
 
 // Profile
