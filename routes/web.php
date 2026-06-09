@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\FamilyTreeController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\ProfileController;
@@ -34,10 +35,11 @@ Route::get('/dashboard', function () {
     return redirect()->route('people.index');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-// People CRUD
+// People CRUD + Family Tree
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('people', PersonController::class);
     Route::post('/people/{person}/spouse', [PersonController::class, 'addSpouse'])->name('people.spouse');
+    Route::get('/family-tree', [FamilyTreeController::class, 'index'])->name('family-tree');
 });
 
 // Profile

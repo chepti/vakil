@@ -11,6 +11,7 @@
 
         <!-- ניווט ראשי -->
         <div class="nav-links">
+          <Link href="/family-tree" :class="['nav-link', { active: $page.url === '/family-tree' }]">🌳 עץ משפחה</Link>
           <Link href="/people" :class="['nav-link', { active: $page.url.startsWith('/people') }]">בני המשפחה</Link>
           <Link href="/people/create" class="nav-link-btn">+ הוסף דמות</Link>
         </div>
@@ -32,6 +33,7 @@
 
       <!-- תפריט מובייל -->
       <div v-if="mobileOpen" class="mobile-menu" dir="rtl">
+        <Link href="/family-tree" class="mobile-link" @click="mobileOpen = false">🌳 עץ משפחה</Link>
         <Link href="/people" class="mobile-link" @click="mobileOpen = false">בני המשפחה</Link>
         <Link href="/people/create" class="mobile-link" @click="mobileOpen = false">הוסף דמות</Link>
         <Link href="/profile" class="mobile-link" @click="mobileOpen = false">פרופיל</Link>
