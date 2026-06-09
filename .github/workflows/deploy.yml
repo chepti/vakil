@@ -36,6 +36,7 @@ jobs:
           script: |
             cd ~/domains/vakil.chepti.com
             git pull origin main
+            cp -rf public/. public_html/
             /opt/alt/php83/usr/bin/php artisan migrate --force
             /opt/alt/php83/usr/bin/php artisan config:cache
             /opt/alt/php83/usr/bin/php artisan view:cache
