@@ -16,8 +16,10 @@ class FamilyTreeController extends Controller
         $nodes = $this->buildTreeData();
 
         return Inertia::render('FamilyTree', [
-            'nodes'       => $nodes,
-            'totalPeople' => count($nodes),
+            'nodes'        => $nodes,
+            'totalPeople'  => count($nodes),
+            'isAdmin'      => Auth::user()->role === 'admin',
+            'rootPersonId' => $this->findRootPersonId($nodes),
         ]);
     }
 
@@ -58,13 +60,35 @@ class FamilyTreeController extends Controller
             ]);
 
             // קשרי משפחה מתוך rels (IDs הם DB IDs אמיתיים של דמויות קיימות)
+            $explicitParentIds = [];
             foreach ($datum['rels']['parents'] ?? [] as $pid) {
                 if (is_numeric($pid) && (int)$pid > 0) {
+                    $parentId = (int)$pid;
                     Relationship::firstOrCreate([
-                        'person1_id' => (int)$pid,
+                        'person1_id' => $parentId,
                         'person2_id' => $person->id,
                         'type'       => 'parent_child',
                     ]);
+                    $explicitParentIds[] = $parentId;
+                }
+            }
+
+            // אם נוסף ילד לאחד מבני הזוג, מחבר אוטומטית גם את בן/בת הזוג כהורה
+            foreach ($explicitParentIds as $parentId) {
+                $spouseRel = Relationship::where('type', 'spouse')
+                    ->where(fn($q) => $q->where('person1_id', $parentId)->orWhere('person2_id', $parentId))
+                    ->first();
+                if ($spouseRel) {
+                    $spouseId = $spouseRel->person1_id == $parentId
+                        ? $spouseRel->person2_id
+                        : $spouseRel->person1_id;
+                    if (!in_array($spouseId, $explicitParentIds)) {
+                        Relationship::firstOrCreate([
+                            'person1_id' => $spouseId,
+                            'person2_id' => $person->id,
+                            'type'       => 'parent_child',
+                        ]);
+                    }
                 }
             }
             foreach ($datum['rels']['spouses'] ?? [] as $sid) {
@@ -116,7 +140,7 @@ class FamilyTreeController extends Controller
             'id', 'first_name', 'last_name', 'gender',
             'birth_date_gregorian', 'birth_date_hebrew',
             'death_date_gregorian', 'is_deceased',
-            'current_occupation', 'city', 'profile_photo'
+            'current_occupation', 'city', 'email', 'profile_photo'
         )->get();
 
         $relationships = Relationship::all();
@@ -161,7 +185,7 @@ class FamilyTreeController extends Controller
             }
         }
 
-        return $people->map(function ($p) use ($children, $parents, $spouses) {
+        $nodes = $people->map(function ($p) use ($children, $parents, $spouses) {
             $id = (string) $p->id;
             return [
                 'id'   => $id,
@@ -175,6 +199,7 @@ class FamilyTreeController extends Controller
                     'is_deceased' => $p->is_deceased,
                     'occupation'  => $p->current_occupation,
                     'city'        => $p->city,
+                    'email'       => $p->email,
                     'avatar'      => $p->profile_photo
                         ? asset('storage/' . $p->profile_photo)
                         : null,
@@ -186,5 +211,17 @@ class FamilyTreeController extends Controller
                 ],
             ];
         })->values()->toArray();
+
+        return $nodes;
+    }
+
+    private function findRootPersonId(array $nodes): string
+    {
+        foreach ($nodes as $node) {
+            if (empty($node['rels']['parents'])) {
+                return $node['id'];
+            }
+        }
+        return $nodes[0]['id'] ?? '1';
     }
 }

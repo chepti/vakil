@@ -50,6 +50,7 @@ class PersonController extends Controller
             'current_occupation'    => 'nullable|string|max:255',
             'bio'                   => 'nullable|string',
             'city'                  => 'nullable|string|max:100',
+            'email'                 => 'nullable|email|max:255',
             'parent_ids'            => 'nullable|array|max:2',
             'parent_ids.*'          => 'integer|exists:people,id',
             'spouse_id'             => 'nullable|integer|exists:people,id',
@@ -72,6 +73,7 @@ class PersonController extends Controller
             'current_occupation'   => $data['current_occupation'] ?? null,
             'bio'                  => $data['bio'] ?? null,
             'city'                 => $data['city'] ?? null,
+            'email'                => $data['email'] ?? null,
             'created_by'           => Auth::id(),
         ]);
 
@@ -179,6 +181,7 @@ class PersonController extends Controller
             'current_occupation'   => 'nullable|string|max:255',
             'bio'                  => 'nullable|string',
             'city'                 => 'nullable|string|max:100',
+            'email'                => 'nullable|email|max:255',
             'parent_ids'           => 'nullable|array|max:2',
             'parent_ids.*'         => 'integer|exists:people,id',
             'spouse_id'            => 'nullable|integer|exists:people,id',
@@ -243,6 +246,7 @@ class PersonController extends Controller
             'current_occupation'   => $person->current_occupation,
             'bio'                  => $person->bio,
             'city'                 => $person->city,
+            'email'                => $person->email,
             'photo_url'            => $person->profile_photo_url,
         ];
     }

@@ -26,6 +26,7 @@
               </span>
               <span v-if="person.city" class="chip">📍 {{ person.city }}</span>
               <span v-if="person.current_occupation" class="chip">💼 {{ person.current_occupation }}</span>
+              <span v-if="person.email" class="chip" dir="ltr">✉️ {{ person.email }}</span>
             </div>
             <p v-if="person.bio" class="bio-text">{{ person.bio }}</p>
           </div>

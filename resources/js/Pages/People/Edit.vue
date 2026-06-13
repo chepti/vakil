@@ -50,6 +50,10 @@
               <label>עיר מגורים</label>
               <input v-model="form.city" type="text" />
             </div>
+            <div class="form-group">
+              <label>אימייל</label>
+              <input v-model="form.email" type="email" dir="ltr" />
+            </div>
           </div>
 
           <div class="form-group">
@@ -143,6 +147,7 @@ const form = useForm({
   current_occupation:    props.person.current_occupation ?? '',
   bio:                   props.person.bio ?? '',
   city:                  props.person.city ?? '',
+  email:                 props.person.email ?? '',
   parent_ids:            [...(props.parentIds || [])],
   spouse_id:             props.spouseId,
 })

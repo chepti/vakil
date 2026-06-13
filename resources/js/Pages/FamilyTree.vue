@@ -10,7 +10,8 @@
         </div>
         <div class="tree-controls">
           <button class="ctrl-btn" @click="centerTree">⊕ מרכז</button>
-          <Link href="/people/create" class="ctrl-btn-primary">+ הוסף דמות</Link>
+          <button v-if="rootPersonId" class="ctrl-btn" @click="goToRoot" title="הצג את כל העץ מהאב הקדמון">🌳 שורש</button>
+          <Link v-if="isAdmin" href="/people/create" class="ctrl-btn-primary">+ הוסף דמות</Link>
         </div>
       </div>
 
@@ -61,6 +62,10 @@
               <span class="detail-icon">📍</span>
               <span>{{ selectedPerson.city }}</span>
             </div>
+            <div v-if="selectedPerson.email" class="detail-row">
+              <span class="detail-icon">✉️</span>
+              <span>{{ selectedPerson.email }}</span>
+            </div>
           </div>
 
           <div class="panel-actions">
@@ -82,8 +87,10 @@ import { createChart } from 'family-chart'
 import 'family-chart/styles/family-chart.css'
 
 const props = defineProps({
-  nodes:       { type: Array,  default: () => [] },
-  totalPeople: { type: Number, default: 0 },
+  nodes:        { type: Array,   default: () => [] },
+  totalPeople:  { type: Number,  default: 0 },
+  isAdmin:      { type: Boolean, default: false },
+  rootPersonId: { type: String,  default: null },
 })
 
 const chartContainer = ref(null)
@@ -126,7 +133,6 @@ function initChart() {
 
   chartInstance = createChart(cont, props.nodes)
 
-  // card_display functions receive a Datum: { id, data: { 'first name', ... }, rels }
   chartInstance
     .setCardHtml()
     .setCardDisplay([
@@ -141,14 +147,13 @@ function initChart() {
       chartInstance.updateMainId(d.data.id)
     })
 
-  // ── כפתורי + להוספת קרובי משפחה מתוך העץ ──────────────────
+  // ── כפתורי + להוספה ועריכה ישירות בעץ ─────────────────────────
   chartInstance.editTree()
-    .setNoEdit()   // עריכה דרך עמוד עריכה — הוספה בלבד מתוך העץ
     .setFields([
-      { type: 'text', label: 'שם פרטי',  id: 'first name' },
-      { type: 'text', label: 'שם משפחה', id: 'last name' },
+      { type: 'text', label: 'שם פרטי',    id: 'first name' },
+      { type: 'text', label: 'שם משפחה',   id: 'last name' },
       { type: 'date', label: 'תאריך לידה', id: 'birthday' },
-      { type: 'text', label: 'עיסוק',    id: 'occupation' },
+      { type: 'text', label: 'עיסוק',      id: 'occupation' },
     ])
     .setAddRelLabels({
       father:  'הוסף אב',
@@ -157,6 +162,7 @@ function initChart() {
       son:     'הוסף בן',
       daughter:'הוסף בת',
     })
+    .setCanDelete(() => props.isAdmin)
     .setOnSubmit(async (e, datum, applyChanges, postSubmit) => {
       try {
         const freshNodes = await apiPost('/api/family-tree/person', datum)
@@ -183,13 +189,20 @@ function initChart() {
   chartInstance
     .setTransitionTime(500)
     .setShowSiblingsOfMain(true)
-    .setAncestryDepth(3)
-    .setProgenyDepth(3)
+    .setAncestryDepth(4)
+    .setProgenyDepth(4)
     .updateTree({ initial: true })
 }
 
 function centerTree() {
   if (chartInstance) chartInstance.updateTree({ initial: true })
+}
+
+function goToRoot() {
+  if (chartInstance && props.rootPersonId) {
+    chartInstance.updateMainId(props.rootPersonId)
+    selectedPerson.value = null
+  }
 }
 
 // helpers
@@ -205,10 +218,10 @@ function formatDate(d) {
 <style>
 /* ── Override family-chart CSS variables for light theme + Rubik ── */
 #FamilyChart.f3 {
-  --male-color:      #93c5fd;
-  --female-color:    #c4b5fd;
+  --male-color:       #93c5fd;
+  --female-color:     #c4b5fd;
   --background-color: transparent;
-  --text-color:      #1a3a6b;
+  --text-color:       #1a3a6b;
   font-family: 'Rubik', sans-serif !important;
 }
 
@@ -216,7 +229,7 @@ function formatDate(d) {
   font-family: 'Rubik', sans-serif !important;
 }
 
-/* Card label text — RTL + Rubik */
+/* Card label text */
 #FamilyChart .card-label {
   direction: rtl;
   text-align: right;
@@ -233,14 +246,45 @@ function formatDate(d) {
   max-width: 100%;
 }
 
-/* Card inner background — male/female */
-#FamilyChart .card-male   .card-body-rect,
-#FamilyChart .card-male   .card-inner { background-color: #dbeafe; }
-#FamilyChart .card-female .card-body-rect,
-#FamilyChart .card-female .card-inner { background-color: #ede9fe; }
+/* Suppress dark SVG background; allow overflow so edge-card "+" buttons show */
+#FamilyChart svg.main_svg {
+  background: transparent !important;
+  overflow: visible !important;
+}
 
-/* Suppress dark SVG background */
-#FamilyChart svg.main_svg { background: transparent !important; }
+/* ── Add-relative "+" buttons — make blue (default is white, invisible on light bg) ── */
+#FamilyChart .card_add_relative {
+  color: #2d6be4 !important;
+}
+#FamilyChart .card_add_relative circle {
+  fill: rgba(45, 107, 228, 0.08) !important;
+  stroke: #2d6be4 !important;
+  stroke-width: 1.5 !important;
+}
+#FamilyChart .card_add_relative:hover {
+  color: #1a3a6b !important;
+}
+#FamilyChart .card_add_relative:hover circle {
+  fill: rgba(45, 107, 228, 0.18) !important;
+}
+
+/* ── Edit pencil icon ── */
+#FamilyChart .card_edit {
+  color: #2d6be4 !important;
+}
+#FamilyChart .card_edit circle {
+  fill: rgba(45, 107, 228, 0.08) !important;
+}
+
+/* ── Temporary "new person" placeholder card ── */
+#FamilyChart .card_add .card-body-rect {
+  fill: #dbeafe !important;
+  stroke: #2d6be4 !important;
+  stroke-width: 2 !important;
+}
+#FamilyChart g.card_add text {
+  fill: #2d6be4 !important;
+}
 
 /* Full height */
 #FamilyChart       { width: 100%; height: 100%; }
