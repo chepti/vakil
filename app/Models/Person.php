@@ -90,12 +90,14 @@ class Person extends Model
     /** Spouses */
     public function spouses()
     {
-        return Person::whereHas('relationships', function ($q) {
-            $q->where(function ($inner) {
-                $inner->where('person1_id', $this->id)
-                      ->orWhere('person2_id', $this->id);
-            })->where('type', 'spouse');
-        })->where('id', '!=', $this->id);
+        $id = $this->id;
+        $spouseIds = Relationship::where('type', 'spouse')
+            ->where(fn($q) => $q->where('person1_id', $id)->orWhere('person2_id', $id))
+            ->get()
+            ->map(fn($r) => $r->person1_id == $id ? $r->person2_id : $r->person1_id)
+            ->unique();
+
+        return Person::whereIn('id', $spouseIds);
     }
 
     public function relationships(): HasMany

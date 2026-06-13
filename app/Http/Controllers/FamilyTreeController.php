@@ -48,6 +48,31 @@ class FamilyTreeController extends Controller
             }
         }
 
+        // הנחה: בני זוג תמיד הורים משותפים של כל ילדיהם.
+        // pass שני — מאחד ילדים של שני בני הזוג ומוודא שכל ילד מקושר לשניהם.
+        foreach ($spouses as $pid => $mySpouseIds) {
+            foreach ($mySpouseIds as $spouseId) {
+                $sid = (int) $spouseId;
+                if ($pid >= $sid) continue; // מעבד כל זוג פעם אחת בלבד
+
+                $allChildren = array_values(array_unique(array_merge(
+                    $children[$pid] ?? [],
+                    $children[$sid] ?? []
+                )));
+
+                $children[$pid] = $allChildren;
+                $children[$sid] = $allChildren;
+
+                foreach ($allChildren as $childId) {
+                    $cid = (int) $childId;
+                    $parents[$cid] = array_values(array_unique(array_merge(
+                        $parents[$cid] ?? [],
+                        [(string) $pid, (string) $sid]
+                    )));
+                }
+            }
+        }
+
         return $people->map(function ($p) use ($children, $parents, $spouses) {
             $id = (string) $p->id;
             return [
