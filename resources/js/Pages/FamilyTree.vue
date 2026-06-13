@@ -97,12 +97,35 @@ onMounted(() => {
 
 onUnmounted(() => { chartInstance = null })
 
+function csrfToken() {
+  return document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
+}
+
+async function apiPost(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
+async function apiDelete(url) {
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { 'X-CSRF-TOKEN': csrfToken() },
+  })
+  if (res.status === 403) throw new Error('403')
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
 function initChart() {
   const cont = chartContainer.value
 
   chartInstance = createChart(cont, props.nodes)
 
-  // setCardHtml() returns CardHtml instance (v0.9 API — no argument)
   // card_display functions receive a Datum: { id, data: { 'first name', ... }, rels }
   chartInstance
     .setCardHtml()
@@ -114,9 +137,47 @@ function initChart() {
     .setStyle('imageCircleRect')
     .setCardImageField('avatar')
     .setOnCardClick((e, d) => {
-      // d is TreeDatum: d.data is Datum, d.data.id is person id, d.data.data has person fields
       selectedPerson.value = { id: d.data.id, ...d.data.data }
       chartInstance.updateMainId(d.data.id)
+    })
+
+  // ── כפתורי + להוספת קרובי משפחה מתוך העץ ──────────────────
+  chartInstance.editTree()
+    .setNoEdit()   // עריכה דרך עמוד עריכה — הוספה בלבד מתוך העץ
+    .setFields([
+      { type: 'text', label: 'שם פרטי',  id: 'first name' },
+      { type: 'text', label: 'שם משפחה', id: 'last name' },
+      { type: 'date', label: 'תאריך לידה', id: 'birthday' },
+      { type: 'text', label: 'עיסוק',    id: 'occupation' },
+    ])
+    .setAddRelLabels({
+      father:  'הוסף אב',
+      mother:  'הוסף אם',
+      spouse:  'הוסף בן/בת זוג',
+      son:     'הוסף בן',
+      daughter:'הוסף בת',
+    })
+    .setOnSubmit(async (e, datum, applyChanges, postSubmit) => {
+      try {
+        const freshNodes = await apiPost('/api/family-tree/person', datum)
+        chartInstance.updateData(freshNodes).updateTree({ tree_position: 'inherit' })
+        postSubmit()
+      } catch (err) {
+        alert('שגיאה בשמירה')
+        console.error(err)
+      }
+    })
+    .setOnDelete(async (datum, _deleteFn, postSubmit) => {
+      const name = `${datum.data['first name'] || ''} ${datum.data['last name'] || ''}`.trim()
+      if (!confirm(`למחוק את ${name}?`)) return
+      try {
+        const freshNodes = await apiDelete(`/api/family-tree/person/${datum.id}`)
+        chartInstance.updateData(freshNodes).updateTree({ tree_position: 'inherit' })
+        postSubmit({})
+      } catch (err) {
+        if (err.message === '403') alert('רק מנהל יכול למחוק')
+        else alert('שגיאה במחיקה')
+      }
     })
 
   chartInstance

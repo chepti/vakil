@@ -121,13 +121,21 @@
         <div class="form-section">
           <div class="section-header">
             <h2>ילדים</h2>
-            <button type="button" class="btn-add-child" @click="addChild">
-              + הוסף ילד
-            </button>
+            <div class="bulk-add-row">
+              <input
+                v-model.number="bulkCount"
+                type="number" min="1" max="20"
+                class="bulk-input"
+                @keydown.enter.prevent
+              />
+              <button type="button" class="btn-bulk-add" @click="addBulkChildren">
+                הוסף {{ bulkCount }} ילדים
+              </button>
+            </div>
           </div>
 
           <p class="section-hint" v-if="form.children.length === 0">
-            אפשר להוסיף מספר ילדים בבת אחת — כל ילד בכרטיס נפרד
+            הוסף ילדים ריקים — לחץ על כל כרטיס להזין פרטים
           </p>
 
           <div v-for="(child, i) in form.children" :key="i" class="child-card">
@@ -177,13 +185,15 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { Link, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 const props = defineProps({
   allPeople: { type: Array, default: () => [] },
 })
+
+const bulkCount = ref(3)
 
 const form = useForm({
   first_name: '',
@@ -220,6 +230,13 @@ function addParent(e) {
 
 function addChild() {
   form.children.push({ first_name: '', last_name: '', gender: '', birth_date_gregorian: '' })
+}
+
+function addBulkChildren() {
+  const n = Math.max(1, Math.min(20, bulkCount.value || 1))
+  for (let i = 0; i < n; i++) {
+    form.children.push({ first_name: '', last_name: '', gender: '', birth_date_gregorian: '' })
+  }
 }
 
 function submit() {
@@ -421,6 +438,38 @@ textarea { resize: vertical; }
   flex: 1;
   min-width: 160px;
 }
+
+.bulk-add-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bulk-input {
+  width: 60px;
+  padding: 0.45rem 0.5rem;
+  border: 1.5px solid #d1dce8;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  text-align: center;
+  font-family: 'Rubik', sans-serif;
+}
+
+.btn-bulk-add {
+  background: #2d6be4;
+  color: white;
+  border: none;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Rubik', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.btn-bulk-add:hover { background: #1a55c8; }
 
 .btn-add-child {
   background: none;
