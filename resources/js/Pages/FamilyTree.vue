@@ -9,7 +9,7 @@
           <span class="people-count">{{ totalPeople }} דמויות</span>
         </div>
         <div class="tree-controls">
-          <button class="ctrl-btn" title="מרכז מחדש" @click="centerTree">⊕ מרכז</button>
+          <button class="ctrl-btn" @click="centerTree">⊕ מרכז</button>
           <Link href="/people/create" class="ctrl-btn-primary">+ הוסף דמות</Link>
         </div>
       </div>
@@ -27,7 +27,7 @@
         <div ref="chartContainer" id="FamilyChart" class="f3"></div>
       </div>
 
-      <!-- Side panel — פרטי דמות -->
+      <!-- Side panel -->
       <Transition name="panel-slide">
         <div v-if="selectedPerson" class="side-panel" dir="rtl">
           <button class="panel-close" @click="selectedPerson = null">×</button>
@@ -79,6 +79,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { createChart } from 'family-chart'
+import 'family-chart/styles/family-chart.css'
 
 const props = defineProps({
   nodes:       { type: Array,  default: () => [] },
@@ -89,7 +90,6 @@ const chartContainer = ref(null)
 const selectedPerson = ref(null)
 let chartInstance    = null
 
-// ─── init chart ─────────────────────────────────────────
 onMounted(() => {
   if (!chartContainer.value || props.nodes.length === 0) return
   initChart()
@@ -102,48 +102,36 @@ function initChart() {
 
   chartInstance = createChart(cont, props.nodes)
 
+  // setCardHtml() returns CardHtml instance (v0.9 API — no argument)
+  // card_display functions receive a Datum: { id, data: { 'first name', ... }, rels }
   chartInstance
     .setCardHtml()
     .setCardDisplay([
-      d => `${d.data['first name']} ${d.data['last name']}`,
+      d => `${d.data['first name'] || ''} ${d.data['last name'] || ''}`.trim(),
       d => d.data.birthday ? formatDate(d.data.birthday) : '',
-      d => d.data.occupation || '',
     ])
-    .setCardDim({ width: 180, height: 100, text_x: 90, text_y: 22, img_x: 8, img_y: 8, img_w: 66, img_h: 66 })
+    .setCardDim({ width: 200, height: 80, text_x: 75, text_y: 18, img_x: 6, img_y: 6, img_w: 56, img_h: 56 })
     .setStyle('imageCircleRect')
     .setCardImageField('avatar')
     .setOnCardClick((e, d) => {
-      selectedPerson.value = { id: d.id, ...d.data }
-      chartInstance.updateMainId(d.id)
+      // d is TreeDatum: d.data is Datum, d.data.id is person id, d.data.data has person fields
+      selectedPerson.value = { id: d.data.id, ...d.data.data }
+      chartInstance.updateMainId(d.data.id)
     })
 
   chartInstance
-    .setTransitionTime(600)
+    .setTransitionTime(500)
+    .setShowSiblingsOfMain(true)
+    .setAncestryDepth(3)
+    .setProgenyDepth(3)
     .updateTree({ initial: true })
-
-  applyRtlStyles()
 }
 
 function centerTree() {
-  if (chartInstance) chartInstance.updateTree({ initial: false })
+  if (chartInstance) chartInstance.updateTree({ initial: true })
 }
 
-// ─── RTL & gender color overrides ───────────────────────
-function applyRtlStyles() {
-  const style = document.createElement('style')
-  style.textContent = `
-    #FamilyChart .card-inner { direction: rtl; text-align: right; }
-    #FamilyChart .card-body-text { font-family: 'Rubik', sans-serif; }
-    #FamilyChart .card-body-text tspan { font-family: 'Rubik', sans-serif; }
-    #FamilyChart .card[data-gender="M"] .card-rect { fill: #dbeafe; stroke: #2d6be4; }
-    #FamilyChart .card[data-gender="F"] .card-rect { fill: #ede9fe; stroke: #8b5cf6; }
-    #FamilyChart .card[data-gender="M"] .card-main-rect { fill: #2d6be4; }
-    #FamilyChart .card[data-gender="F"] .card-main-rect { fill: #8b5cf6; }
-  `
-  document.head.appendChild(style)
-}
-
-// ─── helpers ────────────────────────────────────────────
+// helpers
 function fullName(d) { return `${d['first name'] || ''} ${d['last name'] || ''}`.trim() }
 function initials(name) { return (name || '').split(' ').map(w => w[0]).join('').slice(0, 2) }
 function formatDate(d) {
@@ -154,8 +142,47 @@ function formatDate(d) {
 </script>
 
 <style>
-/* global — family-chart needs unscoped styles */
-#FamilyChart { width: 100%; height: 100%; }
+/* ── Override family-chart CSS variables for light theme + Rubik ── */
+#FamilyChart.f3 {
+  --male-color:      #93c5fd;
+  --female-color:    #c4b5fd;
+  --background-color: transparent;
+  --text-color:      #1a3a6b;
+  font-family: 'Rubik', sans-serif !important;
+}
+
+#FamilyChart .f3 {
+  font-family: 'Rubik', sans-serif !important;
+}
+
+/* Card label text — RTL + Rubik */
+#FamilyChart .card-label {
+  direction: rtl;
+  text-align: right;
+  font-family: 'Rubik', sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  overflow: hidden;
+}
+
+#FamilyChart .card-label div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Card inner background — male/female */
+#FamilyChart .card-male   .card-body-rect,
+#FamilyChart .card-male   .card-inner { background-color: #dbeafe; }
+#FamilyChart .card-female .card-body-rect,
+#FamilyChart .card-female .card-inner { background-color: #ede9fe; }
+
+/* Suppress dark SVG background */
+#FamilyChart svg.main_svg { background: transparent !important; }
+
+/* Full height */
+#FamilyChart       { width: 100%; height: 100%; }
 #FamilyChart .f3-cont { width: 100%; height: 100%; }
 </style>
 
