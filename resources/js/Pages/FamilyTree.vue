@@ -78,7 +78,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { createChart, cardHtml } from 'family-chart'
+import { createChart } from 'family-chart'
 
 const props = defineProps({
   nodes:       { type: Array,  default: () => [] },
@@ -103,20 +103,21 @@ function initChart() {
   chartInstance = createChart(cont, props.nodes)
 
   chartInstance
-    .setCardHtml(cardHtml(cont)
-      .setCardDisplay([
-        d => `${d.data['first name']} ${d.data['last name']}`,
-        d => d.data.birthday ? formatDate(d.data.birthday) : '',
-        d => d.data.occupation || '',
-      ])
-      .setCardDim({ width: 180, height: 100, text_x: 90, text_y: 22, img_x: 8, img_y: 8, img_w: 66, img_h: 66 })
-      .setStyle('imageCircleRect')
-      .setCardImageField('avatar')
-      .setOnCardClick((e, d) => {
-        selectedPerson.value = { id: d.id, ...d.data }
-        chartInstance.updateMainId(d.id)
-      })
-    )
+    .setCardHtml()
+    .setCardDisplay([
+      d => `${d.data['first name']} ${d.data['last name']}`,
+      d => d.data.birthday ? formatDate(d.data.birthday) : '',
+      d => d.data.occupation || '',
+    ])
+    .setCardDim({ width: 180, height: 100, text_x: 90, text_y: 22, img_x: 8, img_y: 8, img_w: 66, img_h: 66 })
+    .setStyle('imageCircleRect')
+    .setCardImageField('avatar')
+    .setOnCardClick((e, d) => {
+      selectedPerson.value = { id: d.id, ...d.data }
+      chartInstance.updateMainId(d.id)
+    })
+
+  chartInstance
     .setTransitionTime(600)
     .updateTree({ initial: true })
 
