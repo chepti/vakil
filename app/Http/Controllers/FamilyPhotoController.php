@@ -65,8 +65,10 @@ class FamilyPhotoController extends Controller
                     'person_id'   => $t->person_id,
                     'person_name' => $t->person->full_name,
                     'person_url'  => '/people/' . $t->person_id,
-                    'x_percent'   => $t->x_percent,
-                    'y_percent'   => $t->y_percent,
+                    'x_percent'   => (float) $t->x_percent,
+                    'y_percent'   => (float) $t->y_percent,
+                    'w_percent'   => (float) ($t->w_percent ?? 10),
+                    'h_percent'   => (float) ($t->h_percent ?? 10),
                 ]),
             ],
             'allPeople' => $allPeople,
@@ -79,6 +81,8 @@ class FamilyPhotoController extends Controller
             'person_id' => 'required|integer|exists:people,id',
             'x_percent' => 'required|numeric|min:0|max:100',
             'y_percent' => 'required|numeric|min:0|max:100',
+            'w_percent' => 'nullable|numeric|min:1|max:100',
+            'h_percent' => 'nullable|numeric|min:1|max:100',
         ]);
 
         $tag = PhotoTag::create([
@@ -86,6 +90,8 @@ class FamilyPhotoController extends Controller
             'person_id'       => $data['person_id'],
             'x_percent'       => $data['x_percent'],
             'y_percent'       => $data['y_percent'],
+            'w_percent'       => $data['w_percent'] ?? 10,
+            'h_percent'       => $data['h_percent'] ?? 10,
         ]);
 
         $tag->load('person');
@@ -95,8 +101,10 @@ class FamilyPhotoController extends Controller
             'person_id'   => $tag->person_id,
             'person_name' => $tag->person->full_name,
             'person_url'  => '/people/' . $tag->person_id,
-            'x_percent'   => $tag->x_percent,
-            'y_percent'   => $tag->y_percent,
+            'x_percent'   => (float) $tag->x_percent,
+            'y_percent'   => (float) $tag->y_percent,
+            'w_percent'   => (float) $tag->w_percent,
+            'h_percent'   => (float) $tag->h_percent,
         ]);
     }
 

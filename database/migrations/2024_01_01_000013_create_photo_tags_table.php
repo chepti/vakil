@@ -10,6 +10,8 @@ return new class extends Migration {
             $table->foreignId('person_id')->constrained()->cascadeOnDelete();
             $table->float('x_percent', 5, 2);
             $table->float('y_percent', 5, 2);
+            $table->float('w_percent', 5, 2)->default(10);
+            $table->float('h_percent', 5, 2)->default(10);
             $table->timestamps();
         });
     }
