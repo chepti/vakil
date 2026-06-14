@@ -77,6 +77,9 @@
                 <div v-else class="mini-initials">{{ initials(p.full_name) }}</div>
               </div>
               <span>{{ p.full_name }}</span>
+              <span v-if="p.marriage_date_gregorian || p.marriage_date_hebrew" class="mini-marriage">
+                💍 {{ p.marriage_date_gregorian ? formatDate(p.marriage_date_gregorian) : '' }}{{ p.marriage_date_hebrew ? ' / ' + p.marriage_date_hebrew : '' }}
+              </span>
             </Link>
             <div v-if="spouses.length === 0" class="empty-family">לא הוגדר</div>
           </div>
@@ -359,6 +362,16 @@
               <input v-model="spouseForm.birth_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' />
             </div>
           </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>תאריך נישואין (לועזי)</label>
+              <input v-model="spouseForm.marriage_date_gregorian" type="date" />
+            </div>
+            <div class="form-group">
+              <label>תאריך נישואין עברי</label>
+              <input v-model="spouseForm.marriage_date_hebrew" type="text" placeholder='כ"ב אייר תש"פ' />
+            </div>
+          </div>
         </div>
 
         <div v-if="spouseTab === 'existing'">
@@ -377,6 +390,16 @@
               {{ p.label }}
             </button>
             <div v-if="filteredForSpouse.length === 0" class="empty-family">לא נמצאו תוצאות</div>
+          </div>
+          <div class="form-row" style="margin-top: 0.75rem">
+            <div class="form-group">
+              <label>תאריך נישואין (לועזי)</label>
+              <input v-model="spouseForm.marriage_date_gregorian" type="date" />
+            </div>
+            <div class="form-group">
+              <label>תאריך נישואין עברי</label>
+              <input v-model="spouseForm.marriage_date_hebrew" type="text" placeholder='כ"ב אייר תש"פ' />
+            </div>
           </div>
         </div>
 
@@ -636,7 +659,8 @@ const spouseTab     = ref('new')
 const spouseSearch  = ref('')
 const savingSpouse  = ref(false)
 const spouseForm    = reactive({
-  first_name: '', last_name: '', gender: '', birth_date_gregorian: '', birth_date_hebrew: '', existing_id: null,
+  first_name: '', last_name: '', gender: '', birth_date_gregorian: '', birth_date_hebrew: '',
+  marriage_date_gregorian: '', marriage_date_hebrew: '', existing_id: null,
 })
 
 const filteredForSpouse = computed(() => {
@@ -656,18 +680,24 @@ const canSubmitSpouse = computed(() => {
 function submitSpouse() {
   savingSpouse.value = true
   if (spouseTab.value === 'existing') {
-    router.post(`/people/${props.person.id}/spouse`, { spouse_id: spouseForm.existing_id }, {
+    router.post(`/people/${props.person.id}/spouse`, {
+      spouse_id:               spouseForm.existing_id,
+      marriage_date_gregorian: spouseForm.marriage_date_gregorian || null,
+      marriage_date_hebrew:    spouseForm.marriage_date_hebrew    || null,
+    }, {
       onSuccess: () => { showAddSpouse.value = false },
       onFinish:  () => { savingSpouse.value = false },
     })
   } else {
     router.post('/people', {
-      first_name:           spouseForm.first_name,
-      last_name:            spouseForm.last_name || '',
-      gender:               spouseForm.gender,
-      birth_date_gregorian: spouseForm.birth_date_gregorian || null,
-      birth_date_hebrew:    spouseForm.birth_date_hebrew || null,
-      spouse_id:            props.person.id,
+      first_name:              spouseForm.first_name,
+      last_name:               spouseForm.last_name || '',
+      gender:                  spouseForm.gender,
+      birth_date_gregorian:    spouseForm.birth_date_gregorian    || null,
+      birth_date_hebrew:       spouseForm.birth_date_hebrew       || null,
+      marriage_date_gregorian: spouseForm.marriage_date_gregorian || null,
+      marriage_date_hebrew:    spouseForm.marriage_date_hebrew    || null,
+      spouse_id:               props.person.id,
     }, {
       onSuccess: () => { showAddSpouse.value = false },
       onFinish:  () => { savingSpouse.value = false },
@@ -832,6 +862,7 @@ h2 { font-size: 1rem; color: #2d4a7a; margin: 0; font-weight: 600; }
 .mini-avatar { width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background: #e8f0fe; display: flex; align-items: center; justify-content: center; }
 .mini-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .mini-initials { font-size: 1rem; font-weight: 700; color: #2d6be4; }
+.mini-marriage { font-size: 0.75rem; color: #7c5a8a; opacity: 0.85; }
 
 /* ─── Photos section ─── */
 .photos-section { margin-top: 0; }

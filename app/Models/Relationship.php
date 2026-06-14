@@ -7,7 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Relationship extends Model
 {
-    protected $fillable = ['person1_id', 'person2_id', 'type'];
+    protected $fillable = ['person1_id', 'person2_id', 'type', 'marriage_date_gregorian', 'marriage_date_hebrew'];
+
+    protected $casts = [
+        'marriage_date_gregorian' => 'date',
+    ];
 
     public function person1(): BelongsTo
     {

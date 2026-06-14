@@ -78,6 +78,13 @@
               <span class="detail-icon">✉️</span>
               <span dir="ltr">{{ selectedPerson.email }}</span>
             </div>
+            <template v-if="selectedPerson.marriages">
+              <div v-for="(m, sid) in selectedPerson.marriages" :key="sid"
+                   v-if="m.date || m.date_he" class="detail-row">
+                <span class="detail-icon">💍</span>
+                <span>{{ m.date ? formatDate(m.date) : '' }}<span v-if="m.date_he" class="detail-sub"> / {{ m.date_he }}</span></span>
+              </div>
+            </template>
           </div>
 
           <!-- ─── Add relative ─── -->
@@ -96,6 +103,10 @@
               <input v-model="addRelForm.last_name" type="text" placeholder="שם משפחה" class="rel-input" />
               <input v-model="addRelForm.birth_date_gregorian" type="date" class="rel-input" />
               <input v-model="addRelForm.birth_date_hebrew" type="text" placeholder='תאריך לידה עברי (כ"ה תשרי תשפ"ה)' class="rel-input" />
+              <template v-if="addRelType === 'spouse'">
+                <input v-model="addRelForm.marriage_date_gregorian" type="date" class="rel-input" />
+                <input v-model="addRelForm.marriage_date_hebrew" type="text" placeholder='תאריך נישואין עברי (כ"ב אייר תש"פ)' class="rel-input" />
+              </template>
               <div class="rel-gender">
                 <button type="button" :class="{ active: addRelForm.gender === 'M' }" @click="addRelForm.gender = 'M'">זכר</button>
                 <button type="button" :class="{ active: addRelForm.gender === 'F' }" @click="addRelForm.gender = 'F'">נקבה</button>
@@ -159,7 +170,7 @@ const relTypes = [
 ]
 const addRelType    = ref(null)
 const addRelSaving  = ref(false)
-const addRelForm    = ref({ first_name: '', last_name: '', birth_date_gregorian: '', birth_date_hebrew: '', gender: '' })
+const addRelForm    = ref({ first_name: '', last_name: '', birth_date_gregorian: '', birth_date_hebrew: '', marriage_date_gregorian: '', marriage_date_hebrew: '', gender: '' })
 
 function openAddRel(rel) {
   if (addRelType.value === rel.key) { addRelType.value = null; return }
@@ -172,10 +183,12 @@ function openAddRel(rel) {
   }
 
   addRelForm.value = {
-    first_name:           '',
-    last_name:            selectedPerson.value?.['last name'] ?? '',
-    birth_date_gregorian: '',
-    birth_date_hebrew:    '',
+    first_name:              '',
+    last_name:               selectedPerson.value?.['last name'] ?? '',
+    birth_date_gregorian:    '',
+    birth_date_hebrew:       '',
+    marriage_date_gregorian: '',
+    marriage_date_hebrew:    '',
     gender,
   }
 }
@@ -193,10 +206,12 @@ async function submitAddRel() {
     'first name': addRelForm.value.first_name,
     'last name':  addRelForm.value.last_name,
     gender:       addRelForm.value.gender,
-    birthday:     addRelForm.value.birth_date_gregorian || '',
-    birthday_he:  addRelForm.value.birth_date_hebrew || '',
-    occupation:   '',
-    city:         '',
+    birthday:         addRelForm.value.birth_date_gregorian    || '',
+    birthday_he:      addRelForm.value.birth_date_hebrew       || '',
+    marriage_date:    addRelForm.value.marriage_date_gregorian || '',
+    marriage_date_he: addRelForm.value.marriage_date_hebrew    || '',
+    occupation:       '',
+    city:             '',
   }
 
   if (addRelType.value === 'sibling') {

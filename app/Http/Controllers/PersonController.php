@@ -54,7 +54,9 @@ class PersonController extends Controller
             'email'                 => 'nullable|email|max:255',
             'parent_ids'            => 'nullable|array|max:2',
             'parent_ids.*'          => 'integer|exists:people,id',
-            'spouse_id'             => 'nullable|integer|exists:people,id',
+            'spouse_id'              => 'nullable|integer|exists:people,id',
+            'marriage_date_gregorian'=> 'nullable|date',
+            'marriage_date_hebrew'   => 'nullable|string|max:50',
             'children'              => 'nullable|array',
             'children.*.first_name' => 'required_with:children|string|max:100',
             'children.*.last_name'  => 'nullable|string|max:100',
@@ -90,11 +92,17 @@ class PersonController extends Controller
 
         // קשר בן/בת זוג
         if (!empty($data['spouse_id'])) {
-            Relationship::firstOrCreate([
-                'person1_id' => min($person->id, $data['spouse_id']),
-                'person2_id' => max($person->id, $data['spouse_id']),
-                'type'       => 'spouse',
-            ]);
+            Relationship::updateOrCreate(
+                [
+                    'person1_id' => min($person->id, $data['spouse_id']),
+                    'person2_id' => max($person->id, $data['spouse_id']),
+                    'type'       => 'spouse',
+                ],
+                [
+                    'marriage_date_gregorian' => $data['marriage_date_gregorian'] ?? null,
+                    'marriage_date_hebrew'    => $data['marriage_date_hebrew'] ?? null,
+                ]
+            );
         }
 
         // הוספת ילדים bulk
@@ -121,6 +129,18 @@ class PersonController extends Controller
     {
         $person->load(['parents', 'children']);
         $spouses = $person->spouses()->get();
+
+        // תאריכי נישואין לפי בן/בת זוג
+        $spouseRels = Relationship::where('type', 'spouse')
+            ->where(fn($q) => $q->where('person1_id', $person->id)->orWhere('person2_id', $person->id))
+            ->get()
+            ->mapWithKeys(function ($r) use ($person) {
+                $sid = $r->person1_id == $person->id ? $r->person2_id : $r->person1_id;
+                return [$sid => [
+                    'marriage_date_gregorian' => $r->marriage_date_gregorian?->toDateString(),
+                    'marriage_date_hebrew'    => $r->marriage_date_hebrew,
+                ]];
+            });
 
         // Siblings: people who share at least one parent with this person
         $parentIds = $person->parents->pluck('id');
@@ -163,7 +183,12 @@ class PersonController extends Controller
             'person'       => $this->formatPerson($person),
             'parents'      => $person->parents->map(fn($p) => $this->formatMini($p)),
             'children'     => $person->children->map(fn($p) => $this->formatMini($p)),
-            'spouses'      => $spouses->map(fn($p) => $this->formatMini($p)),
+            'spouses'      => $spouses->map(function ($p) use ($spouseRels) {
+                $mini = $this->formatMini($p);
+                $mini['marriage_date_gregorian'] = $spouseRels[$p->id]['marriage_date_gregorian'] ?? null;
+                $mini['marriage_date_hebrew']    = $spouseRels[$p->id]['marriage_date_hebrew']    ?? null;
+                return $mini;
+            }),
             'siblings'     => $siblings->map(fn($p) => $this->formatMini($p)),
             'photosTagged' => $photosTagged,
             'allPeople'    => $allPeople,
@@ -244,14 +269,22 @@ class PersonController extends Controller
     public function addSpouse(Request $request, Person $person)
     {
         $data = $request->validate([
-            'spouse_id' => 'required|integer|exists:people,id',
+            'spouse_id'              => 'required|integer|exists:people,id',
+            'marriage_date_gregorian'=> 'nullable|date',
+            'marriage_date_hebrew'   => 'nullable|string|max:50',
         ]);
 
-        Relationship::firstOrCreate([
-            'person1_id' => min($person->id, $data['spouse_id']),
-            'person2_id' => max($person->id, $data['spouse_id']),
-            'type'       => 'spouse',
-        ]);
+        Relationship::updateOrCreate(
+            [
+                'person1_id' => min($person->id, $data['spouse_id']),
+                'person2_id' => max($person->id, $data['spouse_id']),
+                'type'       => 'spouse',
+            ],
+            [
+                'marriage_date_gregorian' => $data['marriage_date_gregorian'] ?? null,
+                'marriage_date_hebrew'    => $data['marriage_date_hebrew'] ?? null,
+            ]
+        );
 
         return redirect()->route('people.show', $person)->with('success', 'בן/בת הזוג נוסף/ה');
     }
@@ -291,7 +324,9 @@ class PersonController extends Controller
             'phone'                => 'nullable|string|max:30',
             'parent_ids'           => 'nullable|array|max:2',
             'parent_ids.*'         => 'integer|exists:people,id',
-            'spouse_id'            => 'nullable|integer|exists:people,id',
+            'spouse_id'              => 'nullable|integer|exists:people,id',
+            'marriage_date_gregorian'=> 'nullable|date',
+            'marriage_date_hebrew'   => 'nullable|string|max:50',
         ]);
 
         $person->update($data);
@@ -308,9 +343,11 @@ class PersonController extends Controller
             ->delete();
         if (!empty($data['spouse_id'])) {
             Relationship::create([
-                'person1_id' => min($person->id, $data['spouse_id']),
-                'person2_id' => max($person->id, $data['spouse_id']),
-                'type'       => 'spouse',
+                'person1_id'              => min($person->id, $data['spouse_id']),
+                'person2_id'              => max($person->id, $data['spouse_id']),
+                'type'                    => 'spouse',
+                'marriage_date_gregorian' => $data['marriage_date_gregorian'] ?? null,
+                'marriage_date_hebrew'    => $data['marriage_date_hebrew'] ?? null,
             ]);
         }
 

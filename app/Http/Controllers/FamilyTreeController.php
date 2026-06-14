@@ -108,11 +108,17 @@ class FamilyTreeController extends Controller
             }
             foreach ($datum['rels']['spouses'] ?? [] as $sid) {
                 if (is_numeric($sid) && (int)$sid > 0) {
-                    Relationship::firstOrCreate([
-                        'person1_id' => min($person->id, (int)$sid),
-                        'person2_id' => max($person->id, (int)$sid),
-                        'type'       => 'spouse',
-                    ]);
+                    Relationship::updateOrCreate(
+                        [
+                            'person1_id' => min($person->id, (int)$sid),
+                            'person2_id' => max($person->id, (int)$sid),
+                            'type'       => 'spouse',
+                        ],
+                        [
+                            'marriage_date_gregorian' => ($datum['data']['marriage_date']    ?? '') ?: null,
+                            'marriage_date_hebrew'    => ($datum['data']['marriage_date_he'] ?? '') ?: null,
+                        ]
+                    );
                 }
             }
             foreach ($datum['rels']['children'] ?? [] as $cid) {
@@ -161,9 +167,10 @@ class FamilyTreeController extends Controller
         $relationships = Relationship::all();
 
         // בנה אינדקסים מהירים
-        $children = [];   // parent_id → [child_id, ...]
-        $parents  = [];   // child_id  → [parent_id, ...]
-        $spouses  = [];   // person_id → [spouse_id, ...]
+        $children  = [];   // parent_id → [child_id, ...]
+        $parents   = [];   // child_id  → [parent_id, ...]
+        $spouses   = [];   // person_id → [spouse_id, ...]
+        $marriages = [];   // person_id → {spouse_id → {date, date_he}}
 
         foreach ($relationships as $rel) {
             if ($rel->type === 'parent_child') {
@@ -172,6 +179,12 @@ class FamilyTreeController extends Controller
             } elseif ($rel->type === 'spouse') {
                 $spouses[$rel->person1_id][] = (string) $rel->person2_id;
                 $spouses[$rel->person2_id][] = (string) $rel->person1_id;
+                $mData = [
+                    'date'    => $rel->marriage_date_gregorian?->format('Y-m-d'),
+                    'date_he' => $rel->marriage_date_hebrew,
+                ];
+                $marriages[$rel->person1_id][(string) $rel->person2_id] = $mData;
+                $marriages[$rel->person2_id][(string) $rel->person1_id] = $mData;
             }
         }
 
@@ -200,7 +213,7 @@ class FamilyTreeController extends Controller
             }
         }
 
-        $nodes = $people->map(function ($p) use ($children, $parents, $spouses) {
+        $nodes = $people->map(function ($p) use ($children, $parents, $spouses, $marriages) {
             $id = (string) $p->id;
             return [
                 'id'   => $id,
@@ -215,6 +228,7 @@ class FamilyTreeController extends Controller
                     'occupation'  => $p->current_occupation,
                     'city'        => $p->city,
                     'email'       => $p->email,
+                    'marriages'   => (object) ($marriages[$p->id] ?? []),
                     'avatar'      => $p->profile_photo
                         ? asset('storage/' . $p->profile_photo)
                         : null,
