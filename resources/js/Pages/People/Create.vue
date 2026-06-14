@@ -22,6 +22,10 @@
               <input v-model="form.last_name" type="text" :class="{ 'is-error': errors.last_name }" />
               <span class="error-msg" v-if="errors.last_name">{{ errors.last_name }}</span>
             </div>
+            <div v-if="form.gender === 'female'" class="form-group">
+              <label>שם נעורים</label>
+              <input v-model="form.maiden_name" type="text" placeholder="שם לפני הנישואין" />
+            </div>
           </div>
 
           <div class="form-row">
@@ -198,6 +202,7 @@ const bulkCount = ref(3)
 const form = useForm({
   first_name: '',
   last_name: '',
+  maiden_name: '',
   gender: '',
   birth_date_gregorian: '',
   birth_date_hebrew: '',

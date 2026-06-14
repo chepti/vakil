@@ -21,6 +21,10 @@
               <label>שם משפחה *</label>
               <input v-model="form.last_name" type="text" />
             </div>
+            <div v-if="form.gender === 'female'" class="form-group">
+              <label>שם נעורים</label>
+              <input v-model="form.maiden_name" type="text" placeholder="שם לפני הנישואין" />
+            </div>
           </div>
 
           <div class="form-row">
@@ -162,6 +166,7 @@ const props = defineProps({
 const form = useForm({
   first_name:            props.person.first_name,
   last_name:             props.person.last_name,
+  maiden_name:           props.person.maiden_name ?? '',
   gender:                props.person.gender,
   birth_date_gregorian:  props.person.birth_date_gregorian ?? '',
   birth_date_hebrew:     props.person.birth_date_hebrew ?? '',

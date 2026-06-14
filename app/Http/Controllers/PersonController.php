@@ -41,6 +41,7 @@ class PersonController extends Controller
         $data = $request->validate([
             'first_name'            => 'required|string|max:100',
             'last_name'             => 'required|string|max:100',
+            'maiden_name'           => 'nullable|string|max:100',
             'gender'                => 'required|in:male,female',
             'birth_date_gregorian'  => 'nullable|date',
             'birth_date_hebrew'     => 'nullable|string|max:50',
@@ -64,6 +65,7 @@ class PersonController extends Controller
         $person = Person::create([
             'first_name'           => $data['first_name'],
             'last_name'            => $data['last_name'],
+            'maiden_name'          => $data['maiden_name'] ?? null,
             'gender'               => $data['gender'],
             'birth_date_gregorian' => $data['birth_date_gregorian'] ?? null,
             'birth_date_hebrew'    => $data['birth_date_hebrew'] ?? null,
@@ -271,6 +273,7 @@ class PersonController extends Controller
         $data = $request->validate([
             'first_name'           => 'required|string|max:100',
             'last_name'            => 'required|string|max:100',
+            'maiden_name'          => 'nullable|string|max:100',
             'gender'               => 'required|in:male,female',
             'birth_date_gregorian' => 'nullable|date',
             'birth_date_hebrew'    => 'nullable|string|max:50',
@@ -361,6 +364,7 @@ class PersonController extends Controller
             'id'                   => $person->id,
             'first_name'           => $person->first_name,
             'last_name'            => $person->last_name,
+            'maiden_name'          => $person->maiden_name,
             'full_name'            => $person->full_name,
             'gender'               => $person->gender,
             'birth_date_gregorian' => $person->birth_date_gregorian?->toDateString(),

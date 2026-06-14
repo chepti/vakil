@@ -29,6 +29,7 @@
               </span>
               <span v-if="person.city" class="chip">📍 {{ person.city }}</span>
               <span v-if="person.current_occupation" class="chip">💼 {{ person.current_occupation }}</span>
+              <span v-if="person.maiden_name" class="chip">👰 שם נעורים: {{ person.maiden_name }}</span>
               <span v-if="person.email" class="chip" dir="ltr">✉️ {{ person.email }}</span>
               <span v-if="person.phone" class="chip" dir="ltr">📞 {{ person.phone }}</span>
             </div>
