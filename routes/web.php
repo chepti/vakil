@@ -73,4 +73,11 @@ Route::get('/invite/{token}', [InvitationController::class, 'accept'])->name('in
 Route::post('/invite/{token}', [InvitationController::class, 'register'])->name('invitation.register');
 Route::middleware(['auth'])->post('/invitations', [InvitationController::class, 'send'])->name('invitation.send');
 
+// Temporary: run pending migrations via browser (delete this route after use)
+Route::get('/run-migrations-now', function () {
+    if (request('key') !== 'vakil-migrate-2026') abort(403);
+    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+    return '<pre>' . htmlspecialchars(\Illuminate\Support\Facades\Artisan::output()) . '</pre><p style="color:red">Done! Remove this route from routes/web.php now.</p>';
+});
+
 require __DIR__.'/auth.php';
