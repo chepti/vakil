@@ -9,6 +9,36 @@
           <span class="people-count">{{ totalPeople }} דמויות</span>
         </div>
         <div class="tree-controls">
+          <!-- Search -->
+          <div class="search-wrap">
+            <div class="search-box">
+              <input
+                v-model="searchQuery"
+                @focus="searchOpen = true"
+                @blur="searchOpen = false"
+                type="text"
+                placeholder="חיפוש דמות..."
+                class="search-input"
+                dir="rtl"
+                autocomplete="off"
+              />
+              <span class="search-icon">🔍</span>
+            </div>
+            <div v-if="searchOpen && searchResults.length" class="search-dropdown">
+              <div
+                v-for="r in searchResults" :key="r.id"
+                class="search-result"
+                @mousedown.prevent="goToPerson(r.id)"
+              >
+                <div class="search-result-avatar">
+                  <img v-if="r.avatar" :src="r.avatar" />
+                  <span v-else>{{ initials(r.name) }}</span>
+                </div>
+                <span>{{ r.name }}</span>
+              </div>
+            </div>
+          </div>
+
           <button class="ctrl-btn" @click="centerTree" title="חזור למרכז">⊕ מרכז</button>
           <button class="ctrl-btn" @click="goToRoot" title="הצג מהאב הקדמון">🌳 שורש</button>
           <button class="ctrl-btn" :class="{ active: showSiblings }" @click="toggleSiblings" title="הצג/הסתר אחים">
@@ -19,7 +49,7 @@
             <span class="depth-label">{{ depth }} דורות</span>
             <button class="ctrl-btn icon-btn" @click="changeDepth(1)" title="יותר דורות" :disabled="depth >= 7">+</button>
           </div>
-          <button class="ctrl-btn" :class="{ active: compactMode }" @click="toggleCompactMode" title="כרטיסים מתכווצים — רחף מעל דמות להרחיב">
+          <button class="ctrl-btn" :class="{ active: compactMode }" @click="toggleCompactMode" title="פסים אנכיים — מכווץ את הרוחב, רחף להרחיב">
             {{ compactMode ? '⊠ מצב רגיל' : '⊟ קומפקטי' }}
           </button>
           <Link v-if="isAdmin" href="/people/create" class="ctrl-btn-primary">+ הוסף דמות</Link>
@@ -136,7 +166,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { createChart } from 'family-chart'
@@ -157,9 +187,37 @@ const depth            = ref(4)
 const showSiblings     = ref(true)
 const compactMode      = ref(false)
 let chartInstance      = null
-let adjacencyMap       = null
 
-// ─── Add relative ─────────────────────────────────────────
+// ─── Search ────────────────────────────────────────────────────
+const searchQuery = ref('')
+const searchOpen  = ref(false)
+
+const searchResults = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return []
+  return props.nodes
+    .filter(n => {
+      const name = `${n.data?.['first name'] || ''} ${n.data?.['last name'] || ''}`.toLowerCase()
+      return name.includes(q)
+    })
+    .slice(0, 10)
+    .map(n => ({
+      id: n.id,
+      name: `${n.data?.['first name'] || ''} ${n.data?.['last name'] || ''}`.trim(),
+      avatar: n.data?.avatar || null,
+    }))
+})
+
+function goToPerson(id) {
+  searchQuery.value = ''
+  searchOpen.value  = false
+  if (!chartInstance) return
+  chartInstance.updateMainId(id)
+  const node = props.nodes.find(n => n.id === id)
+  if (node) selectedPerson.value = { id: node.id, ...node.data }
+}
+
+// ─── Add relative ─────────────────────────────────────────────
 const relTypes = [
   { key: 'father',  label: '+ אב',          gender: 'M', relsKey: 'children' },
   { key: 'mother',  label: '+ אם',          gender: 'F', relsKey: 'children' },
@@ -200,7 +258,6 @@ async function submitAddRel() {
   const selfId  = String(selectedPerson.value.id)
   const relMeta = relTypes.find(r => r.key === addRelType.value)
 
-  // For sibling: find parent IDs from nodes
   let datum
   const baseData = {
     'first name': addRelForm.value.first_name,
@@ -249,7 +306,6 @@ async function submitAddRel() {
 onMounted(() => {
   if (!chartContainer.value || props.nodes.length === 0) return
   initChart()
-  setupProximityHover()
 })
 
 onUnmounted(() => { chartInstance = null })
@@ -295,10 +351,6 @@ function initChart() {
       selectedPerson.value = { id: d.data.id, ...d.data.data }
       addRelType.value = null
       chartInstance.updateMainId(d.data.id)
-    })
-    .setOnCardUpdate(function(d) {
-      const card = this.querySelector('.card')
-      if (card && d.data && d.data.id) card.dataset.personId = String(d.data.id)
     })
 
   // ── כפתורי + ועריכה inline ────────────────────────────────────
@@ -392,67 +444,24 @@ async function setAsDefault(personId) {
   }
 }
 
-// ── Compact mode + proximity hover ──────────────────────────────
-function buildAdjacencyMap(nodes) {
-  const adj = new Map()
-  nodes.forEach(n => {
-    const nid = String(n.id)
-    if (!adj.has(nid)) adj.set(nid, new Set())
-    const rels = n.rels || {}
-    ;[...(rels.parents||[]), ...(rels.children||[]), ...(rels.spouses||[])]
-      .forEach(relId => {
-        const rid = String(relId)
-        adj.get(nid).add(rid)
-        if (!adj.has(rid)) adj.set(rid, new Set())
-        adj.get(rid).add(nid)
-      })
-  })
-  return adj
-}
-
-function getNodesWithinDistance(adj, startId, maxDist) {
-  const sid = String(startId)
-  const visited = new Set([sid])
-  let frontier = [sid]
-  for (let i = 0; i < maxDist; i++) {
-    const next = []
-    frontier.forEach(id => {
-      ;(adj.get(id) || new Set()).forEach(nb => {
-        if (!visited.has(nb)) { visited.add(nb); next.push(nb) }
-      })
-    })
-    frontier = next
-  }
-  return visited
-}
-
-function setupProximityHover() {
-  adjacencyMap = buildAdjacencyMap(props.nodes)
-  const container = chartContainer.value
-  if (!container) return
-
-  container.addEventListener('mouseover', e => {
-    if (!compactMode.value) return
-    const card = e.target.closest('.card[data-person-id]')
-    if (!card) return
-    const near = getNodesWithinDistance(adjacencyMap, card.dataset.personId, 2)
-    container.querySelectorAll('.card[data-person-id]').forEach(el => {
-      el.classList.toggle('card-near', near.has(el.dataset.personId))
-    })
-  })
-
-  container.addEventListener('mouseleave', () => {
-    container.querySelectorAll('.card-near').forEach(el => el.classList.remove('card-near'))
-  })
-}
-
+// ── Compact mode ─────────────────────────────────────────────
 function toggleCompactMode() {
   compactMode.value = !compactMode.value
+  if (!chartInstance) return
   const container = chartContainer.value
-  if (!container) return
-  container.classList.toggle('compact-mode', compactMode.value)
-  if (!compactMode.value) {
-    container.querySelectorAll('.card-near').forEach(el => el.classList.remove('card-near'))
+
+  if (compactMode.value) {
+    chartInstance
+      .setCardDim({ width: 36, height: 90, text_x: 0, text_y: 0, img_w: 0, img_h: 0 })
+      .setStyle('rect')
+      .updateTree({})
+    container?.classList.add('compact-mode')
+  } else {
+    chartInstance
+      .setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 })
+      .setStyle('imageCircleRect')
+      .updateTree({})
+    container?.classList.remove('compact-mode')
   }
 }
 
@@ -487,7 +496,18 @@ function formatDate(d) {
 /* Transparent SVG background — allow edge-card button overflow */
 #FamilyChart svg.main_svg { background: transparent !important; overflow: visible !important; }
 
-/* ── Add-relative "+" buttons — blue on light bg (default=white, invisible) ── */
+/* ── Connector lines — visible gray ── */
+#FamilyChart .link {
+  stroke: #9eb8d4 !important;
+  stroke-width: 1.8px !important;
+  opacity: 1 !important;
+}
+#FamilyChart .link.f3-path-to-main {
+  stroke: #2d6be4 !important;
+  stroke-width: 3px !important;
+}
+
+/* ── Add-relative "+" buttons — blue on light bg ── */
 #FamilyChart .card_add_relative             { color: #2d6be4 !important; }
 #FamilyChart .card_add_relative circle      { fill: rgba(45,107,228,.08) !important; stroke: #2d6be4 !important; stroke-width: 1.5 !important; }
 #FamilyChart .card_add_relative:hover       { color: #1a3a6b !important; }
@@ -505,60 +525,111 @@ function formatDate(d) {
 #FamilyChart       { width: 100%; height: 100%; }
 #FamilyChart .f3-cont { width: 100%; height: 100%; }
 
-/* ── Selected / hover card shadow — lighten to 5% ── */
+/* ── Card hover shadow — subtle blue ── */
 #FamilyChart .card-main .card-inner,
 #FamilyChart .card:hover .card-inner {
-  box-shadow: 0 0 20px 0 rgba(0, 50, 150, 0.05) !important;
+  box-shadow: 0 4px 18px 0 rgba(0, 50, 150, 0.18) !important;
 }
 
-/* ── Photo cards: keep rectangular, photo as small corner badge ── */
+/* ── Photo cards: flex row — image 33% left, name 67% right ── */
 #FamilyChart .card-image-circle {
   border-radius: 10px !important;
-  overflow: visible !important;
-  position: relative !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: stretch !important;
+  padding: 0 !important;
 }
 #FamilyChart .card-image-circle img {
-  position: absolute !important;
-  top: -10px !important;
-  right: -10px !important;
-  left: unset !important;
-  width: 38px !important;
-  height: 38px !important;
-  border-radius: 50% !important;
-  border: 2.5px solid white !important;
-  box-shadow: 0 2px 6px rgba(0, 50, 150, 0.22) !important;
+  /* override inline width/height from getCardImageStyle */
+  width: 33% !important;
+  height: 100% !important;
+  min-width: 33% !important;
+  flex-shrink: 0 !important;
+  border-radius: 0 !important;
   object-fit: cover !important;
+  /* clear the library's absolute-style left/top */
+  position: static !important;
+  left: unset !important;
+  top: unset !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 #FamilyChart .card-image-circle .card-label {
-  position: static !important;
-  transform: none !important;
-  text-align: right !important;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
   background: none !important;
   color: inherit !important;
-  padding: 5px 10px !important;
-  min-height: unset !important;
-  max-width: 100% !important;
-  border-radius: 0 !important;
+  padding: 0 8px !important;
+  position: static !important;
+  transform: none !important;
   bottom: auto !important;
   left: auto !important;
+  min-height: unset !important;
   white-space: normal !important;
+  font-size: 0.78rem !important;
   line-height: 1.35 !important;
+  direction: rtl !important;
+}
+#FamilyChart .card-image-circle .card-label div {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100% !important;
 }
 
-/* ── Compact mode: cards collapse to thin strips, expand near hover ── */
-#FamilyChart .card-inner {
-  transition: transform 0.2s ease-in-out, height 0.25s ease, min-height 0.25s ease !important;
-}
+/* ── Compact mode: narrow vertical strips, name rotated ── */
 #FamilyChart.compact-mode .card-inner {
-  min-height: 20px !important;
-  height: 20px !important;
   overflow: hidden !important;
 }
-#FamilyChart.compact-mode .card-near .card-inner,
-#FamilyChart.compact-mode .card-main .card-inner {
-  min-height: 90px !important;
-  height: 90px !important;
+#FamilyChart.compact-mode .card-label {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 2px !important;
+  direction: ltr !important;
+}
+#FamilyChart.compact-mode .card-label div:first-child {
+  writing-mode: vertical-rl !important;
+  transform: rotate(180deg) !important;
+  font-size: 0.66rem !important;
+  line-height: 1 !important;
+  max-height: 82px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+  direction: rtl !important;
+}
+#FamilyChart.compact-mode .card-label div:not(:first-child) {
+  display: none !important;
+}
+/* Peek on hover in compact mode: visually expand without affecting layout */
+#FamilyChart.compact-mode .card:hover .card-inner {
+  position: relative !important;
+  width: 180px !important;
+  z-index: 100 !important;
   overflow: visible !important;
+  box-shadow: 0 4px 18px rgba(0,50,150,0.22) !important;
+}
+#FamilyChart.compact-mode .card:hover .card-label {
+  direction: rtl !important;
+}
+#FamilyChart.compact-mode .card:hover .card-label div:first-child {
+  writing-mode: horizontal-tb !important;
+  transform: none !important;
+  font-size: 0.78rem !important;
+  max-height: unset !important;
+  white-space: nowrap !important;
+}
+#FamilyChart.compact-mode .card:hover .card-label div:not(:first-child) {
+  display: block !important;
+  font-size: 0.7rem !important;
 }
 </style>
 
@@ -606,6 +677,37 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   text-decoration: none; transition: background 0.2s; white-space: nowrap;
 }
 .ctrl-btn-primary:hover { background: #1a55c8; }
+
+/* ── Search ── */
+.search-wrap { position: relative; }
+.search-box { display: flex; align-items: center; position: relative; }
+.search-input {
+  padding: 0.35rem 2rem 0.35rem 0.75rem;
+  border: 1.5px solid #d1dce8; border-radius: 8px;
+  font-size: 0.82rem; font-family: 'Rubik', sans-serif;
+  width: 160px; background: white; color: #1a3a6b;
+  transition: border-color 0.2s, width 0.2s;
+}
+.search-input:focus { outline: none; border-color: #2d6be4; width: 210px; }
+.search-icon { position: absolute; right: 0.55rem; color: #94a3b8; font-size: 0.88rem; pointer-events: none; }
+.search-dropdown {
+  position: absolute; top: calc(100% + 5px); right: 0;
+  background: white; border: 1px solid #e0eaf8; border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0,50,150,0.13); min-width: 210px;
+  z-index: 200; overflow: hidden;
+}
+.search-result {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.48rem 0.75rem; cursor: pointer; transition: background 0.12s;
+  font-size: 0.84rem; color: #1a3a6b; direction: rtl; text-align: right;
+}
+.search-result:hover { background: #f0f6ff; }
+.search-result-avatar {
+  width: 28px; height: 28px; border-radius: 50%; background: #e8f0fe;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  font-size: 0.7rem; font-weight: 700; color: #2d6be4; overflow: hidden;
+}
+.search-result-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
 /* ── Tree wrap ── */
 .tree-wrap { flex: 1; position: relative; overflow: hidden; }
