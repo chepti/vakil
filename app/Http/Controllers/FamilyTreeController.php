@@ -68,6 +68,7 @@ class FamilyTreeController extends Controller
                 'last_name'            => $datum['data']['last name']   ?? '',
                 'gender'               => ($datum['data']['gender'] ?? 'M') === 'M' ? 'male' : 'female',
                 'birth_date_gregorian' => ($datum['data']['birthday']   ?? '') ?: null,
+                'birth_date_hebrew'    => ($datum['data']['birthday_he'] ?? '') ?: null,
                 'current_occupation'   => ($datum['data']['occupation'] ?? '') ?: null,
                 'city'                 => ($datum['data']['city']       ?? '') ?: null,
                 'created_by'           => Auth::id(),

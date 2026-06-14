@@ -283,8 +283,12 @@
               </div>
             </div>
             <div class="form-group">
-              <label>תאריך לידה</label>
+              <label>תאריך לידה (לועזי)</label>
               <input v-model="parentForm.birth_date_gregorian" type="date" />
+            </div>
+            <div class="form-group">
+              <label>תאריך לידה עברי</label>
+              <input v-model="parentForm.birth_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' />
             </div>
           </div>
         </div>
@@ -347,8 +351,12 @@
               </div>
             </div>
             <div class="form-group">
-              <label>תאריך לידה</label>
+              <label>תאריך לידה (לועזי)</label>
               <input v-model="spouseForm.birth_date_gregorian" type="date" />
+            </div>
+            <div class="form-group">
+              <label>תאריך לידה עברי</label>
+              <input v-model="spouseForm.birth_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' />
             </div>
           </div>
         </div>
@@ -407,8 +415,12 @@
             </div>
           </div>
           <div class="form-group">
-            <label>תאריך לידה</label>
+            <label>תאריך לידה (לועזי)</label>
             <input v-model="siblingForm.birth_date_gregorian" type="date" />
+          </div>
+          <div class="form-group">
+            <label>תאריך לידה עברי</label>
+            <input v-model="siblingForm.birth_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' />
           </div>
         </div>
 
@@ -445,8 +457,12 @@
             </div>
           </div>
           <div class="form-group">
-            <label>תאריך לידה</label>
+            <label>תאריך לידה (לועזי)</label>
             <input v-model="childForm.birth_date_gregorian" type="date" />
+          </div>
+          <div class="form-group">
+            <label>תאריך לידה עברי</label>
+            <input v-model="childForm.birth_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' />
           </div>
         </div>
         <div class="form-group" v-if="spouses.length">
@@ -573,12 +589,12 @@ const parentTab     = ref('new')
 const parentSearch  = ref('')
 const savingParent  = ref(false)
 const parentForm    = reactive({
-  first_name: '', last_name: '', gender: '', birth_date_gregorian: '', existing_id: null,
+  first_name: '', last_name: '', gender: '', birth_date_gregorian: '', birth_date_hebrew: '', existing_id: null,
 })
 
 function openAddParent() {
   parentForm.first_name = ''; parentForm.last_name = ''; parentForm.gender = ''
-  parentForm.birth_date_gregorian = ''; parentForm.existing_id = null
+  parentForm.birth_date_gregorian = ''; parentForm.birth_date_hebrew = ''; parentForm.existing_id = null
   parentTab.value = 'new'; parentSearch.value = ''
   showAddParent.value = true
 }
@@ -602,10 +618,11 @@ function submitParent() {
   const payload = parentTab.value === 'existing'
     ? { existing_id: parentForm.existing_id }
     : {
-        first_name: parentForm.first_name,
-        last_name:  parentForm.last_name || props.person.last_name,
-        gender:     parentForm.gender,
+        first_name:           parentForm.first_name,
+        last_name:            parentForm.last_name || props.person.last_name,
+        gender:               parentForm.gender,
         birth_date_gregorian: parentForm.birth_date_gregorian || null,
+        birth_date_hebrew:    parentForm.birth_date_hebrew || null,
       }
   router.post(`/people/${props.person.id}/parent`, payload, {
     onSuccess: () => { showAddParent.value = false },
@@ -619,7 +636,7 @@ const spouseTab     = ref('new')
 const spouseSearch  = ref('')
 const savingSpouse  = ref(false)
 const spouseForm    = reactive({
-  first_name: '', last_name: '', gender: '', birth_date_gregorian: '', existing_id: null,
+  first_name: '', last_name: '', gender: '', birth_date_gregorian: '', birth_date_hebrew: '', existing_id: null,
 })
 
 const filteredForSpouse = computed(() => {
@@ -649,6 +666,7 @@ function submitSpouse() {
       last_name:            spouseForm.last_name || '',
       gender:               spouseForm.gender,
       birth_date_gregorian: spouseForm.birth_date_gregorian || null,
+      birth_date_hebrew:    spouseForm.birth_date_hebrew || null,
       spouse_id:            props.person.id,
     }, {
       onSuccess: () => { showAddSpouse.value = false },
@@ -661,12 +679,12 @@ function submitSpouse() {
 const showAddSibling = ref(false)
 const savingSibling  = ref(false)
 const siblingForm    = reactive({
-  first_name: '', last_name: '', gender: '', birth_date_gregorian: '',
+  first_name: '', last_name: '', gender: '', birth_date_gregorian: '', birth_date_hebrew: '',
 })
 
 function openAddSibling() {
   siblingForm.first_name = ''; siblingForm.last_name = ''
-  siblingForm.gender = ''; siblingForm.birth_date_gregorian = ''
+  siblingForm.gender = ''; siblingForm.birth_date_gregorian = ''; siblingForm.birth_date_hebrew = ''
   showAddSibling.value = true
 }
 
@@ -677,6 +695,7 @@ function submitSibling() {
     last_name:            siblingForm.last_name || props.person.last_name,
     gender:               siblingForm.gender,
     birth_date_gregorian: siblingForm.birth_date_gregorian || null,
+    birth_date_hebrew:    siblingForm.birth_date_hebrew || null,
   }, {
     onSuccess: () => { showAddSibling.value = false },
     onFinish:  () => { savingSibling.value = false },
@@ -687,12 +706,12 @@ function submitSibling() {
 const showAddChild = ref(false)
 const savingChild  = ref(false)
 const childForm    = reactive({
-  first_name: '', last_name: '', gender: '', birth_date_gregorian: '', add_spouse_as_parent: false,
+  first_name: '', last_name: '', gender: '', birth_date_gregorian: '', birth_date_hebrew: '', add_spouse_as_parent: false,
 })
 
 function openAddChild() {
   childForm.first_name = ''; childForm.last_name = ''; childForm.gender = ''
-  childForm.birth_date_gregorian = ''; childForm.add_spouse_as_parent = false
+  childForm.birth_date_gregorian = ''; childForm.birth_date_hebrew = ''; childForm.add_spouse_as_parent = false
   showAddChild.value = true
 }
 
@@ -705,6 +724,7 @@ function submitChild() {
     last_name:            childForm.last_name || props.person.last_name,
     gender:               childForm.gender,
     birth_date_gregorian: childForm.birth_date_gregorian || null,
+    birth_date_hebrew:    childForm.birth_date_hebrew || null,
     parent_ids:           parentIds,
   }, {
     onSuccess: () => { showAddChild.value = false },

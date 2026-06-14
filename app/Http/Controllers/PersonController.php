@@ -184,6 +184,7 @@ class PersonController extends Controller
             'last_name'            => 'nullable|string|max:100',
             'gender'               => 'required_without:existing_id|in:male,female',
             'birth_date_gregorian' => 'nullable|date',
+            'birth_date_hebrew'    => 'nullable|string|max:50',
         ]);
 
         if (!empty($data['existing_id'])) {
@@ -194,6 +195,7 @@ class PersonController extends Controller
                 'last_name'            => $data['last_name'] ?? $person->last_name,
                 'gender'               => $data['gender'],
                 'birth_date_gregorian' => $data['birth_date_gregorian'] ?? null,
+                'birth_date_hebrew'    => $data['birth_date_hebrew'] ?? null,
                 'created_by'           => Auth::id(),
             ]);
             $parentId = $parent->id;
@@ -215,6 +217,7 @@ class PersonController extends Controller
             'last_name'            => 'nullable|string|max:100',
             'gender'               => 'required|in:male,female',
             'birth_date_gregorian' => 'nullable|date',
+            'birth_date_hebrew'    => 'nullable|string|max:50',
         ]);
 
         $sibling = Person::create([
@@ -222,6 +225,7 @@ class PersonController extends Controller
             'last_name'            => $data['last_name'] ?? $person->last_name,
             'gender'               => $data['gender'],
             'birth_date_gregorian' => $data['birth_date_gregorian'] ?? null,
+            'birth_date_hebrew'    => $data['birth_date_hebrew'] ?? null,
             'created_by'           => Auth::id(),
         ]);
 

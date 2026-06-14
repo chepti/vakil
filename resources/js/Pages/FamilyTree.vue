@@ -91,6 +91,8 @@
             <div v-if="addRelType" class="add-rel-form">
               <input v-model="addRelForm.first_name" type="text" placeholder="שם פרטי *" class="rel-input" />
               <input v-model="addRelForm.last_name" type="text" placeholder="שם משפחה" class="rel-input" />
+              <input v-model="addRelForm.birth_date_gregorian" type="date" class="rel-input" />
+              <input v-model="addRelForm.birth_date_hebrew" type="text" placeholder='תאריך לידה עברי (כ"ה תשרי תשפ"ה)' class="rel-input" />
               <div class="rel-gender">
                 <button type="button" :class="{ active: addRelForm.gender === 'M' }" @click="addRelForm.gender = 'M'">זכר</button>
                 <button type="button" :class="{ active: addRelForm.gender === 'F' }" @click="addRelForm.gender = 'F'">נקבה</button>
@@ -152,7 +154,7 @@ const relTypes = [
 ]
 const addRelType    = ref(null)
 const addRelSaving  = ref(false)
-const addRelForm    = ref({ first_name: '', last_name: '', gender: '' })
+const addRelForm    = ref({ first_name: '', last_name: '', birth_date_gregorian: '', birth_date_hebrew: '', gender: '' })
 
 function openAddRel(rel) {
   if (addRelType.value === rel.key) { addRelType.value = null; return }
@@ -165,8 +167,10 @@ function openAddRel(rel) {
   }
 
   addRelForm.value = {
-    first_name: '',
-    last_name:  selectedPerson.value?.['last name'] ?? '',
+    first_name:           '',
+    last_name:            selectedPerson.value?.['last name'] ?? '',
+    birth_date_gregorian: '',
+    birth_date_hebrew:    '',
     gender,
   }
 }
@@ -184,7 +188,8 @@ async function submitAddRel() {
     'first name': addRelForm.value.first_name,
     'last name':  addRelForm.value.last_name,
     gender:       addRelForm.value.gender,
-    birthday:     '',
+    birthday:     addRelForm.value.birth_date_gregorian || '',
+    birthday_he:  addRelForm.value.birth_date_hebrew || '',
     occupation:   '',
     city:         '',
   }
