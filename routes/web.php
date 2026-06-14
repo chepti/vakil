@@ -73,11 +73,18 @@ Route::get('/invite/{token}', [InvitationController::class, 'accept'])->name('in
 Route::post('/invite/{token}', [InvitationController::class, 'register'])->name('invitation.register');
 Route::middleware(['auth'])->post('/invitations', [InvitationController::class, 'send'])->name('invitation.send');
 
-// Temporary: run pending migrations via browser (delete this route after use)
+// Temporary maintenance routes (delete after use)
 Route::get('/run-migrations-now', function () {
     if (request('key') !== 'vakil-migrate-2026') abort(403);
     \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
     return '<pre>' . htmlspecialchars(\Illuminate\Support\Facades\Artisan::output()) . '</pre><p style="color:red">Done! Remove this route from routes/web.php now.</p>';
+});
+Route::get('/deploy-git-pull', function () {
+    if (request('key') !== 'vakil-deploy-2026') abort(403);
+    $out = [];
+    exec('cd /home/u630483490/domains/vakil.chepti.com && git fetch origin 2>&1 && git reset --hard origin/main 2>&1', $out);
+    exec('/opt/alt/php83/usr/bin/php /home/u630483490/domains/vakil.chepti.com/artisan migrate --force 2>&1', $out2);
+    return '<pre>' . htmlspecialchars(implode("\n", $out)) . "\n\n--- migrate ---\n" . htmlspecialchars(implode("\n", $out2)) . '</pre><p style="color:green">Done!</p>';
 });
 
 require __DIR__.'/auth.php';
