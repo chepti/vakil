@@ -173,26 +173,27 @@ async function submitAddRel() {
 
   // For sibling: find parent IDs from nodes
   let datum
+  const baseData = {
+    'first name': addRelForm.value.first_name,
+    'last name':  addRelForm.value.last_name,
+    gender:       addRelForm.value.gender,
+    birthday:     '',
+    occupation:   '',
+    city:         '',
+  }
+
   if (addRelType.value === 'sibling') {
-    const selfNode   = props.nodes.find(n => n.id === selfId)
-    const parentIds  = selfNode?.rels?.parents ?? []
+    const selfNode  = props.nodes.find(n => n.id === selfId)
+    const parentIds = selfNode?.rels?.parents ?? []
     datum = {
-      id: 'new-' + addRelType.value,
-      data: {
-        'first name': addRelForm.value.first_name,
-        'last name':  addRelForm.value.last_name,
-        gender:       addRelForm.value.gender,
-      },
+      id: 'new-sibling',
+      data: baseData,
       rels: { parents: parentIds, spouses: [], children: [] },
     }
   } else {
     datum = {
       id: 'new-' + addRelType.value,
-      data: {
-        'first name': addRelForm.value.first_name,
-        'last name':  addRelForm.value.last_name,
-        gender:       addRelForm.value.gender,
-      },
+      data: baseData,
       rels: {
         parents:  relMeta.relsKey === 'parents'  ? [selfId] : [],
         spouses:  relMeta.relsKey === 'spouses'  ? [selfId] : [],
