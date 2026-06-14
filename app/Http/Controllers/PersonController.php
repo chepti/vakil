@@ -117,9 +117,35 @@ class PersonController extends Controller
 
     public function show(Person $person)
     {
-        $person->load(['parents', 'children', 'photos']);
-
+        $person->load(['parents', 'children']);
         $spouses = $person->spouses()->get();
+
+        // Siblings: people who share at least one parent with this person
+        $parentIds = $person->parents->pluck('id');
+        $siblings  = collect();
+        if ($parentIds->isNotEmpty()) {
+            $siblingIds = Relationship::where('type', 'parent_child')
+                ->whereIn('person1_id', $parentIds)
+                ->where('person2_id', '!=', $person->id)
+                ->pluck('person2_id')
+                ->unique()
+                ->values();
+            $siblings = Person::whereIn('id', $siblingIds)
+                ->select('id', 'first_name', 'last_name', 'profile_photo', 'gender', 'is_deceased')
+                ->get();
+        }
+
+        // Family photos this person is tagged in
+        $photosTagged = \App\Models\PhotoTag::where('person_id', $person->id)
+            ->with('familyPhoto')
+            ->get()
+            ->map(fn($t) => [
+                'id'        => $t->family_photo_id,
+                'url'       => $t->familyPhoto->url,
+                'title'     => $t->familyPhoto->title,
+                'x_percent' => $t->x_percent,
+                'y_percent' => $t->y_percent,
+            ]);
 
         $allPeople = Person::where('id', '!=', $person->id)
             ->select('id', 'first_name', 'last_name')
@@ -128,12 +154,81 @@ class PersonController extends Controller
             ->map(fn($p) => ['id' => $p->id, 'label' => $p->full_name]);
 
         return Inertia::render('People/Show', [
-            'person'    => $this->formatPerson($person),
-            'parents'   => $person->parents->map(fn($p) => ['id' => $p->id, 'full_name' => $p->full_name, 'photo_url' => $p->profile_photo_url]),
-            'children'  => $person->children->map(fn($p) => ['id' => $p->id, 'full_name' => $p->full_name, 'photo_url' => $p->profile_photo_url, 'gender' => $p->gender]),
-            'spouses'   => $spouses->map(fn($p) => ['id' => $p->id, 'full_name' => $p->full_name, 'photo_url' => $p->profile_photo_url]),
-            'allPeople' => $allPeople,
+            'person'       => $this->formatPerson($person),
+            'parents'      => $person->parents->map(fn($p) => $this->formatMini($p)),
+            'children'     => $person->children->map(fn($p) => $this->formatMini($p)),
+            'spouses'      => $spouses->map(fn($p) => $this->formatMini($p)),
+            'siblings'     => $siblings->map(fn($p) => $this->formatMini($p)),
+            'photosTagged' => $photosTagged,
+            'allPeople'    => $allPeople,
+            'parentIds'    => $person->parents->pluck('id')->values(),
+            'spouseId'     => $spouses->first()?->id,
         ]);
+    }
+
+    public function addParent(Request $request, Person $person)
+    {
+        if ($person->parents()->count() >= 2) {
+            return back()->withErrors(['parent' => 'לדמות כבר יש 2 הורים']);
+        }
+
+        $data = $request->validate([
+            'existing_id'          => 'nullable|integer|exists:people,id',
+            'first_name'           => 'required_without:existing_id|string|max:100',
+            'last_name'            => 'nullable|string|max:100',
+            'gender'               => 'required_without:existing_id|in:male,female',
+            'birth_date_gregorian' => 'nullable|date',
+        ]);
+
+        if (!empty($data['existing_id'])) {
+            $parentId = $data['existing_id'];
+        } else {
+            $parent = Person::create([
+                'first_name'           => $data['first_name'],
+                'last_name'            => $data['last_name'] ?? $person->last_name,
+                'gender'               => $data['gender'],
+                'birth_date_gregorian' => $data['birth_date_gregorian'] ?? null,
+                'created_by'           => Auth::id(),
+            ]);
+            $parentId = $parent->id;
+        }
+
+        Relationship::firstOrCreate([
+            'person1_id' => $parentId,
+            'person2_id' => $person->id,
+            'type'       => 'parent_child',
+        ]);
+
+        return redirect()->route('people.show', $person)->with('success', 'ההורה נוסף');
+    }
+
+    public function addSibling(Request $request, Person $person)
+    {
+        $data = $request->validate([
+            'first_name'           => 'required|string|max:100',
+            'last_name'            => 'nullable|string|max:100',
+            'gender'               => 'required|in:male,female',
+            'birth_date_gregorian' => 'nullable|date',
+        ]);
+
+        $sibling = Person::create([
+            'first_name'           => $data['first_name'],
+            'last_name'            => $data['last_name'] ?? $person->last_name,
+            'gender'               => $data['gender'],
+            'birth_date_gregorian' => $data['birth_date_gregorian'] ?? null,
+            'created_by'           => Auth::id(),
+        ]);
+
+        $parentIds = $person->parents()->pluck('people.id');
+        foreach ($parentIds as $parentId) {
+            Relationship::firstOrCreate([
+                'person1_id' => $parentId,
+                'person2_id' => $sibling->id,
+                'type'       => 'parent_child',
+            ]);
+        }
+
+        return redirect()->route('people.show', $person)->with('success', 'האח/אחות נוסף/ה');
     }
 
     public function addSpouse(Request $request, Person $person)
@@ -242,6 +337,17 @@ class PersonController extends Controller
         $person->delete();
 
         return redirect()->route('people.index')->with('success', 'הדמות נמחקה');
+    }
+
+    private function formatMini(Person $p): array
+    {
+        return [
+            'id'         => $p->id,
+            'full_name'  => $p->full_name,
+            'photo_url'  => $p->profile_photo_url,
+            'gender'     => $p->gender,
+            'is_deceased'=> $p->is_deceased,
+        ];
     }
 
     private function formatPerson(Person $person): array

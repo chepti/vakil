@@ -49,6 +49,11 @@ class Person extends Model
         return $this->hasMany(Photo::class);
     }
 
+    public function photoTags(): HasMany
+    {
+        return $this->hasMany(PhotoTag::class);
+    }
+
     public function events(): HasMany
     {
         return $this->hasMany(Event::class);

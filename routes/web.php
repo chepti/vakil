@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\FamilyPhotoController;
 use App\Http\Controllers\FamilyTreeController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PersonController;
@@ -40,6 +41,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('people', PersonController::class);
     Route::post('/people/{person}/spouse', [PersonController::class, 'addSpouse'])->name('people.spouse');
     Route::post('/people/{person}/photo', [PersonController::class, 'uploadPhoto'])->name('people.photo');
+    Route::post('/people/{person}/parent', [PersonController::class, 'addParent'])->name('people.parent');
+    Route::post('/people/{person}/sibling', [PersonController::class, 'addSibling'])->name('people.sibling');
+
+    // Family photos
+    Route::get('/family-photos', [FamilyPhotoController::class, 'index'])->name('family-photos.index');
+    Route::post('/family-photos', [FamilyPhotoController::class, 'store'])->name('family-photos.store');
+    Route::get('/family-photos/{familyPhoto}', [FamilyPhotoController::class, 'show'])->name('family-photos.show');
+    Route::delete('/family-photos/{familyPhoto}', [FamilyPhotoController::class, 'destroy'])->name('family-photos.destroy');
+    Route::post('/family-photos/{familyPhoto}/tags', [FamilyPhotoController::class, 'addTag'])->name('family-photos.tag');
+    Route::delete('/family-photos/{familyPhoto}/tags/{photoTag}', [FamilyPhotoController::class, 'removeTag'])->name('family-photos.tag.remove');
+
     Route::get('/family-tree', [FamilyTreeController::class, 'index'])->name('family-tree');
 
     // JSON API — inline tree editing (no page reload)

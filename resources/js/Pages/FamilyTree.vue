@@ -39,7 +39,7 @@
       <!-- Side panel -->
       <Transition name="panel-slide">
         <div v-if="selectedPerson" class="side-panel" dir="rtl">
-          <button class="panel-close" @click="selectedPerson = null">×</button>
+          <button class="panel-close" @click="selectedPerson = null; addRelType = null">×</button>
 
           <div class="panel-avatar">
             <img v-if="selectedPerson.avatar" :src="selectedPerson.avatar" :alt="fullName(selectedPerson)" />
@@ -77,9 +77,36 @@
             </div>
           </div>
 
+          <!-- ─── Add relative ─── -->
+          <div class="add-relative-section">
+            <div class="add-rel-title">הוסף קרוב משפחה</div>
+            <div class="add-rel-buttons">
+              <button v-for="rel in relTypes" :key="rel.key"
+                class="add-rel-btn"
+                :class="{ active: addRelType === rel.key }"
+                @click="openAddRel(rel)"
+              >{{ rel.label }}</button>
+            </div>
+
+            <div v-if="addRelType" class="add-rel-form">
+              <input v-model="addRelForm.first_name" type="text" placeholder="שם פרטי *" class="rel-input" />
+              <input v-model="addRelForm.last_name" type="text" placeholder="שם משפחה" class="rel-input" />
+              <div class="rel-gender">
+                <button type="button" :class="{ active: addRelForm.gender === 'M' }" @click="addRelForm.gender = 'M'">זכר</button>
+                <button type="button" :class="{ active: addRelForm.gender === 'F' }" @click="addRelForm.gender = 'F'">נקבה</button>
+              </div>
+              <div class="add-rel-form-actions">
+                <button class="rel-cancel" @click="addRelType = null">ביטול</button>
+                <button class="rel-submit" @click="submitAddRel"
+                  :disabled="!addRelForm.first_name || !addRelForm.gender || addRelSaving">
+                  {{ addRelSaving ? '...' : 'הוסף' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="panel-actions">
             <Link :href="`/people/${selectedPerson.id}`" class="panel-btn-primary">כרטיס מלא</Link>
-            <Link :href="`/people/${selectedPerson.id}/edit`" class="panel-btn-secondary">עריכה</Link>
             <button v-if="isAdmin" @click="setAsDefault(selectedPerson.id)"
               class="panel-btn-star" :class="{ active: currentDefaultId === String(selectedPerson.id) }">
               {{ currentDefaultId === String(selectedPerson.id) ? '⭐ ברירת מחדל לכולם' : '☆ הגדר כברירת מחדל' }}
@@ -113,6 +140,78 @@ const currentDefaultId = ref(props.defaultMainPersonId)
 const depth            = ref(4)
 const showSiblings     = ref(true)
 let chartInstance      = null
+
+// ─── Add relative ─────────────────────────────────────────
+const relTypes = [
+  { key: 'father',  label: '+ אב',          gender: 'M', relsKey: 'children' },
+  { key: 'mother',  label: '+ אם',          gender: 'F', relsKey: 'children' },
+  { key: 'spouse',  label: '+ בן/בת זוג',   gender: null, relsKey: 'spouses' },
+  { key: 'son',     label: '+ בן',          gender: 'M', relsKey: 'parents' },
+  { key: 'daughter',label: '+ בת',          gender: 'F', relsKey: 'parents' },
+  { key: 'sibling', label: '+ אח/אחות',    gender: null, relsKey: 'siblings' },
+]
+const addRelType    = ref(null)
+const addRelSaving  = ref(false)
+const addRelForm    = ref({ first_name: '', last_name: '', gender: '' })
+
+function openAddRel(rel) {
+  if (addRelType.value === rel.key) { addRelType.value = null; return }
+  addRelType.value = rel.key
+  addRelForm.value = {
+    first_name: '',
+    last_name:  '',
+    gender:     rel.gender ?? '',
+  }
+}
+
+async function submitAddRel() {
+  if (!selectedPerson.value || !addRelForm.value.first_name || !addRelForm.value.gender) return
+  addRelSaving.value = true
+
+  const selfId  = String(selectedPerson.value.id)
+  const relMeta = relTypes.find(r => r.key === addRelType.value)
+
+  // For sibling: find parent IDs from nodes
+  let datum
+  if (addRelType.value === 'sibling') {
+    const selfNode   = props.nodes.find(n => n.id === selfId)
+    const parentIds  = selfNode?.rels?.parents ?? []
+    datum = {
+      id: 'new-' + addRelType.value,
+      data: {
+        'first name': addRelForm.value.first_name,
+        'last name':  addRelForm.value.last_name,
+        gender:       addRelForm.value.gender,
+      },
+      rels: { parents: parentIds, spouses: [], children: [] },
+    }
+  } else {
+    datum = {
+      id: 'new-' + addRelType.value,
+      data: {
+        'first name': addRelForm.value.first_name,
+        'last name':  addRelForm.value.last_name,
+        gender:       addRelForm.value.gender,
+      },
+      rels: {
+        parents:  relMeta.relsKey === 'parents'  ? [selfId] : [],
+        spouses:  relMeta.relsKey === 'spouses'  ? [selfId] : [],
+        children: relMeta.relsKey === 'children' ? [selfId] : [],
+      },
+    }
+  }
+
+  try {
+    const freshNodes = await apiPost('/api/family-tree/person', datum)
+    chartInstance.updateData(freshNodes).updateTree({ tree_position: 'inherit' })
+    addRelType.value = null
+  } catch (err) {
+    alert('שגיאה בהוספה')
+    console.error(err)
+  } finally {
+    addRelSaving.value = false
+  }
+}
 
 onMounted(() => {
   if (!chartContainer.value || props.nodes.length === 0) return
@@ -160,6 +259,7 @@ function initChart() {
     .setCardImageField('avatar')
     .setOnCardClick((e, d) => {
       selectedPerson.value = { id: d.data.id, ...d.data.data }
+      addRelType.value = null
       chartInstance.updateMainId(d.data.id)
     })
 
@@ -406,6 +506,47 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 }
 .panel-btn-star:hover { border-color: #f59e0b; color: #d97706; }
 .panel-btn-star.active { border-color: #f59e0b; color: #d97706; background: #fefce8; font-weight: 600; }
+
+/* ─── Add relative ─── */
+.add-relative-section {
+  border: 1.5px solid #e4eefb; border-radius: 12px; padding: 0.75rem;
+  background: #f8faff;
+}
+.add-rel-title { font-size: 0.78rem; font-weight: 600; color: #4a5568; margin-bottom: 0.5rem; }
+.add-rel-buttons {
+  display: flex; flex-wrap: wrap; gap: 0.3rem;
+}
+.add-rel-btn {
+  padding: 0.28rem 0.55rem; border: 1.5px solid #d1dce8; border-radius: 6px;
+  background: white; color: #2d6be4; font-size: 0.75rem; font-family: 'Rubik', sans-serif;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.add-rel-btn:hover { border-color: #2d6be4; background: #edf3ff; }
+.add-rel-btn.active { background: #2d6be4; color: white; border-color: #2d6be4; }
+
+.add-rel-form { margin-top: 0.65rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.rel-input {
+  width: 100%; padding: 0.4rem 0.6rem; border: 1.5px solid #d1dce8; border-radius: 7px;
+  font-size: 0.85rem; font-family: 'Rubik', sans-serif; direction: rtl;
+  box-sizing: border-box; background: white;
+}
+.rel-input:focus { outline: none; border-color: #2d6be4; }
+.rel-gender { display: flex; border: 1.5px solid #d1dce8; border-radius: 7px; overflow: hidden; }
+.rel-gender button {
+  flex: 1; padding: 0.35rem; border: none; background: white; cursor: pointer;
+  font-family: 'Rubik', sans-serif; font-size: 0.82rem; color: #6b7a99; transition: all 0.15s;
+}
+.rel-gender button.active { background: #2d6be4; color: white; }
+.add-rel-form-actions { display: flex; gap: 0.4rem; }
+.rel-cancel {
+  flex: 1; padding: 0.38rem; background: white; border: 1.5px solid #d1dce8; color: #4a5568;
+  border-radius: 7px; cursor: pointer; font-family: 'Rubik', sans-serif; font-size: 0.82rem;
+}
+.rel-submit {
+  flex: 2; padding: 0.38rem; background: #2d6be4; color: white; border: none;
+  border-radius: 7px; cursor: pointer; font-family: 'Rubik', sans-serif; font-size: 0.82rem; font-weight: 600;
+}
+.rel-submit:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ── Panel transition ── */
 .panel-slide-enter-active, .panel-slide-leave-active { transition: transform 0.28s ease; }
