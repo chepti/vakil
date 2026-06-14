@@ -13,7 +13,7 @@ class Person extends Model
         'birth_date_gregorian', 'birth_date_hebrew',
         'death_date_gregorian', 'death_date_hebrew',
         'is_deceased', 'is_main_person', 'profile_photo', 'bio',
-        'current_occupation', 'city', 'email', 'created_by',
+        'current_occupation', 'city', 'email', 'phone', 'created_by',
     ];
 
     protected $casts = [

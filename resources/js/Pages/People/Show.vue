@@ -30,6 +30,7 @@
               <span v-if="person.city" class="chip">📍 {{ person.city }}</span>
               <span v-if="person.current_occupation" class="chip">💼 {{ person.current_occupation }}</span>
               <span v-if="person.email" class="chip" dir="ltr">✉️ {{ person.email }}</span>
+              <span v-if="person.phone" class="chip" dir="ltr">📞 {{ person.phone }}</span>
             </div>
             <p v-if="person.bio" class="bio-text">{{ person.bio }}</p>
           </div>
@@ -201,16 +202,23 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label>מה עושה כיום</label>
+            <label>{{ editForm.is_deceased ? 'עיסוק' : 'מה עושה כיום' }}</label>
             <input v-model="editForm.current_occupation" type="text" />
           </div>
           <div class="form-group">
             <label>עיר מגורים</label>
             <input v-model="editForm.city" type="text" />
           </div>
+        </div>
+
+        <div class="form-row">
           <div class="form-group">
             <label>אימייל</label>
             <input v-model="editForm.email" type="email" dir="ltr" />
+          </div>
+          <div class="form-group">
+            <label>טלפון</label>
+            <input v-model="editForm.phone" type="tel" dir="ltr" />
           </div>
         </div>
 
@@ -530,6 +538,7 @@ const editForm = useForm({
   bio:                  props.person.bio ?? '',
   city:                 props.person.city ?? '',
   email:                props.person.email ?? '',
+  phone:                props.person.phone ?? '',
   parent_ids:           [...props.parentIds],
   spouse_id:            props.spouseId,
 })
@@ -547,6 +556,7 @@ function openEditPersonal() {
   editForm.bio                  = props.person.bio ?? ''
   editForm.city                 = props.person.city ?? ''
   editForm.email                = props.person.email ?? ''
+  editForm.phone                = props.person.phone ?? ''
   showEditPersonal.value        = true
 }
 

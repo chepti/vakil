@@ -281,6 +281,7 @@ class PersonController extends Controller
             'bio'                  => 'nullable|string',
             'city'                 => 'nullable|string|max:100',
             'email'                => 'nullable|email|max:255',
+            'phone'                => 'nullable|string|max:30',
             'parent_ids'           => 'nullable|array|max:2',
             'parent_ids.*'         => 'integer|exists:people,id',
             'spouse_id'            => 'nullable|integer|exists:people,id',

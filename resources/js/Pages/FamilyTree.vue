@@ -157,10 +157,17 @@ const addRelForm    = ref({ first_name: '', last_name: '', gender: '' })
 function openAddRel(rel) {
   if (addRelType.value === rel.key) { addRelType.value = null; return }
   addRelType.value = rel.key
+
+  let gender = rel.gender ?? ''
+  if (rel.key === 'spouse' && selectedPerson.value) {
+    const sg = selectedPerson.value.gender
+    gender = sg === 'M' ? 'F' : sg === 'F' ? 'M' : ''
+  }
+
   addRelForm.value = {
     first_name: '',
-    last_name:  '',
-    gender:     rel.gender ?? '',
+    last_name:  selectedPerson.value?.['last name'] ?? '',
+    gender,
   }
 }
 
