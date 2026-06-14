@@ -39,12 +39,14 @@ Route::get('/dashboard', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('people', PersonController::class);
     Route::post('/people/{person}/spouse', [PersonController::class, 'addSpouse'])->name('people.spouse');
+    Route::post('/people/{person}/photo', [PersonController::class, 'uploadPhoto'])->name('people.photo');
     Route::get('/family-tree', [FamilyTreeController::class, 'index'])->name('family-tree');
 
     // JSON API — inline tree editing (no page reload)
     Route::get('/api/family-tree', [FamilyTreeController::class, 'apiData'])->name('api.tree');
     Route::post('/api/family-tree/person', [FamilyTreeController::class, 'apiSavePerson'])->name('api.tree.save');
     Route::delete('/api/family-tree/person/{id}', [FamilyTreeController::class, 'apiDeletePerson'])->name('api.tree.delete');
+    Route::post('/api/family-tree/set-main/{id}', [FamilyTreeController::class, 'apiSetMain'])->name('api.tree.main');
 });
 
 // Profile

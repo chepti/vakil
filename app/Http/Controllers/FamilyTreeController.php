@@ -15,12 +15,26 @@ class FamilyTreeController extends Controller
     {
         $nodes = $this->buildTreeData();
 
+        $mainId = Person::where('is_main_person', true)->value('id');
+        $defaultMainPersonId = $mainId ? (string) $mainId : ($nodes[0]['id'] ?? null);
+
         return Inertia::render('FamilyTree', [
-            'nodes'        => $nodes,
-            'totalPeople'  => count($nodes),
-            'isAdmin'      => Auth::user()->role === 'admin',
-            'rootPersonId' => $this->findRootPersonId($nodes),
+            'nodes'               => $nodes,
+            'totalPeople'         => count($nodes),
+            'isAdmin'             => Auth::user()->role === 'admin',
+            'rootPersonId'        => $this->findRootPersonId($nodes),
+            'defaultMainPersonId' => $defaultMainPersonId,
         ]);
+    }
+
+    public function apiSetMain(int $id): JsonResponse
+    {
+        if (Auth::user()->role !== 'admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        Person::where('is_main_person', true)->update(['is_main_person' => false]);
+        Person::where('id', $id)->update(['is_main_person' => true]);
+        return response()->json(['success' => true, 'main_person_id' => $id]);
     }
 
     // ─── JSON API endpoints (inline tree editing) ────────────────

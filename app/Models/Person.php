@@ -12,14 +12,15 @@ class Person extends Model
         'first_name', 'last_name', 'gender',
         'birth_date_gregorian', 'birth_date_hebrew',
         'death_date_gregorian', 'death_date_hebrew',
-        'is_deceased', 'profile_photo', 'bio',
+        'is_deceased', 'is_main_person', 'profile_photo', 'bio',
         'current_occupation', 'city', 'email', 'created_by',
     ];
 
     protected $casts = [
         'birth_date_gregorian' => 'date',
         'death_date_gregorian' => 'date',
-        'is_deceased' => 'boolean',
+        'is_deceased'     => 'boolean',
+        'is_main_person'  => 'boolean',
     ];
 
     // ─── Accessors ────────────────────────────────────────────────

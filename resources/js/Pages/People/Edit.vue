@@ -119,12 +119,36 @@
           </button>
         </div>
       </form>
+
+      <!-- העלאת תמונה — טופס נפרד -->
+      <div class="form-section photo-section">
+        <h2>תמונת פרופיל</h2>
+        <div class="photo-row">
+          <div class="photo-preview-wrap">
+            <img v-if="photoPreview || person.photo_url" :src="photoPreview || person.photo_url" class="photo-preview" />
+            <div v-else class="photo-placeholder">{{ initials(person.full_name) }}</div>
+          </div>
+          <div class="photo-controls">
+            <label class="btn-choose-photo">
+              📷 בחר תמונה
+              <input type="file" accept="image/jpeg,image/png,image/webp" @change="handlePhotoSelect" hidden />
+            </label>
+            <button v-if="photoForm.profile_photo" @click="submitPhoto"
+              class="btn-primary" :disabled="photoForm.processing" style="margin-top:0.5rem">
+              {{ photoForm.processing ? 'מעלה...' : 'העלה' }}
+            </button>
+            <p v-if="photoForm.errors.profile_photo" class="error-msg">{{ photoForm.errors.profile_photo }}</p>
+            <p class="photo-hint">JPG / PNG / WebP עד 5MB</p>
+          </div>
+        </div>
+      </div>
+
     </div>
   </AppLayout>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Link, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
@@ -166,6 +190,27 @@ function addParent(e) {
 
 function submit() {
   form.patch(`/people/${props.person.id}`)
+}
+
+// ── Photo upload ──────────────────────────────────────────────────
+const photoPreview = ref(null)
+const photoForm = useForm({ profile_photo: null })
+
+function initials(name) {
+  return (name || '').split(' ').map(w => w[0]).join('').slice(0, 2)
+}
+
+function handlePhotoSelect(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  photoForm.profile_photo = file
+  photoPreview.value = URL.createObjectURL(file)
+}
+
+function submitPhoto() {
+  photoForm.post(`/people/${props.person.id}/photo`, {
+    onSuccess: () => { photoPreview.value = null },
+  })
 }
 </script>
 
@@ -257,4 +302,24 @@ textarea { resize: vertical; }
   padding: 0.7rem 1.5rem; border-radius: 10px;
   border: 1.5px solid #d1dce8; display: inline-flex; align-items: center;
 }
+
+/* ── Photo section ── */
+.photo-section { margin-top: 1.5rem; }
+.photo-row { display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap; }
+.photo-preview-wrap { flex-shrink: 0; }
+.photo-preview { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #dbeafe; }
+.photo-placeholder {
+  width: 100px; height: 100px; border-radius: 50%;
+  background: #e8f0fe; display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; font-weight: 700; color: #2d6be4;
+}
+.photo-controls { display: flex; flex-direction: column; justify-content: center; }
+.btn-choose-photo {
+  display: inline-block; cursor: pointer; padding: 0.5rem 1rem;
+  background: #f0f7ff; border: 1.5px solid #2d6be4; color: #2d6be4;
+  border-radius: 8px; font-size: 0.9rem; font-family: 'Rubik', sans-serif;
+  transition: all 0.2s;
+}
+.btn-choose-photo:hover { background: #dbeafe; }
+.photo-hint { font-size: 0.78rem; color: #94a3b8; margin-top: 0.5rem; }
 </style>

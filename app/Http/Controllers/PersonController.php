@@ -210,6 +210,20 @@ class PersonController extends Controller
         return redirect()->route('people.show', $person)->with('success', 'הפרטים עודכנו');
     }
 
+    public function uploadPhoto(Request $request, Person $person)
+    {
+        $request->validate(['profile_photo' => 'required|image|max:5120']);
+
+        if ($person->profile_photo) {
+            Storage::disk('public')->delete($person->profile_photo);
+        }
+
+        $path = $request->file('profile_photo')->store('avatars', 'public');
+        $person->update(['profile_photo' => $path]);
+
+        return redirect()->back()->with('success', 'התמונה עודכנה');
+    }
+
     public function destroy(Person $person)
     {
         // רק Admin יכול למחוק

@@ -9,8 +9,16 @@
           <span class="people-count">{{ totalPeople }} דמויות</span>
         </div>
         <div class="tree-controls">
-          <button class="ctrl-btn" @click="centerTree">⊕ מרכז</button>
-          <button v-if="rootPersonId" class="ctrl-btn" @click="goToRoot" title="הצג את כל העץ מהאב הקדמון">🌳 שורש</button>
+          <button class="ctrl-btn" @click="centerTree" title="חזור למרכז">⊕ מרכז</button>
+          <button class="ctrl-btn" @click="goToRoot" title="הצג מהאב הקדמון">🌳 שורש</button>
+          <button class="ctrl-btn" :class="{ active: showSiblings }" @click="toggleSiblings" title="הצג/הסתר אחים">
+            {{ showSiblings ? '👥 הסתר אחים' : '👥 הצג אחים' }}
+          </button>
+          <div class="depth-ctrl">
+            <button class="ctrl-btn icon-btn" @click="changeDepth(-1)" title="פחות דורות" :disabled="depth <= 1">−</button>
+            <span class="depth-label">{{ depth }} דורות</span>
+            <button class="ctrl-btn icon-btn" @click="changeDepth(1)" title="יותר דורות" :disabled="depth >= 7">+</button>
+          </div>
           <Link v-if="isAdmin" href="/people/create" class="ctrl-btn-primary">+ הוסף דמות</Link>
         </div>
       </div>
@@ -41,6 +49,7 @@
           <div class="panel-name">
             <h2>{{ fullName(selectedPerson) }}</h2>
             <span v-if="selectedPerson.is_deceased" class="badge-deceased">ז"ל</span>
+            <span v-if="currentDefaultId === String(selectedPerson.id)" class="badge-main">⭐ ראשי</span>
           </div>
 
           <div class="panel-details">
@@ -64,13 +73,17 @@
             </div>
             <div v-if="selectedPerson.email" class="detail-row">
               <span class="detail-icon">✉️</span>
-              <span>{{ selectedPerson.email }}</span>
+              <span dir="ltr">{{ selectedPerson.email }}</span>
             </div>
           </div>
 
           <div class="panel-actions">
             <Link :href="`/people/${selectedPerson.id}`" class="panel-btn-primary">כרטיס מלא</Link>
             <Link :href="`/people/${selectedPerson.id}/edit`" class="panel-btn-secondary">עריכה</Link>
+            <button v-if="isAdmin" @click="setAsDefault(selectedPerson.id)"
+              class="panel-btn-star" :class="{ active: currentDefaultId === String(selectedPerson.id) }">
+              {{ currentDefaultId === String(selectedPerson.id) ? '⭐ ברירת מחדל לכולם' : '☆ הגדר כברירת מחדל' }}
+            </button>
           </div>
         </div>
       </Transition>
@@ -87,15 +100,19 @@ import { createChart } from 'family-chart'
 import 'family-chart/styles/family-chart.css'
 
 const props = defineProps({
-  nodes:        { type: Array,   default: () => [] },
-  totalPeople:  { type: Number,  default: 0 },
-  isAdmin:      { type: Boolean, default: false },
-  rootPersonId: { type: String,  default: null },
+  nodes:               { type: Array,   default: () => [] },
+  totalPeople:         { type: Number,  default: 0 },
+  isAdmin:             { type: Boolean, default: false },
+  rootPersonId:        { type: String,  default: null },
+  defaultMainPersonId: { type: String,  default: null },
 })
 
-const chartContainer = ref(null)
-const selectedPerson = ref(null)
-let chartInstance    = null
+const chartContainer   = ref(null)
+const selectedPerson   = ref(null)
+const currentDefaultId = ref(props.defaultMainPersonId)
+const depth            = ref(4)
+const showSiblings     = ref(true)
+let chartInstance      = null
 
 onMounted(() => {
   if (!chartContainer.value || props.nodes.length === 0) return
@@ -112,7 +129,7 @@ async function apiPost(url, body) {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
-    body: JSON.stringify(body),
+    body: body ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
@@ -130,7 +147,6 @@ async function apiDelete(url) {
 
 function initChart() {
   const cont = chartContainer.value
-
   chartInstance = createChart(cont, props.nodes)
 
   chartInstance
@@ -139,7 +155,7 @@ function initChart() {
       d => `${d.data['first name'] || ''} ${d.data['last name'] || ''}`.trim(),
       d => d.data.birthday ? formatDate(d.data.birthday) : '',
     ])
-    .setCardDim({ width: 200, height: 80, text_x: 75, text_y: 18, img_x: 6, img_y: 6, img_w: 56, img_h: 56 })
+    .setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 })
     .setStyle('imageCircleRect')
     .setCardImageField('avatar')
     .setOnCardClick((e, d) => {
@@ -147,7 +163,7 @@ function initChart() {
       chartInstance.updateMainId(d.data.id)
     })
 
-  // ── כפתורי + להוספה ועריכה ישירות בעץ ─────────────────────────
+  // ── כפתורי + ועריכה inline ────────────────────────────────────
   chartInstance.editTree()
     .setFields([
       { type: 'text', label: 'שם פרטי',    id: 'first name' },
@@ -186,11 +202,16 @@ function initChart() {
       }
     })
 
+  // ── הגדרות תצוגה ─────────────────────────────────────────────
+  if (props.defaultMainPersonId) {
+    chartInstance.updateMainId(props.defaultMainPersonId)
+  }
+
   chartInstance
     .setTransitionTime(500)
-    .setShowSiblingsOfMain(true)
-    .setAncestryDepth(4)
-    .setProgenyDepth(4)
+    .setShowSiblingsOfMain(showSiblings.value)
+    .setAncestryDepth(depth.value)
+    .setProgenyDepth(depth.value)
     .updateTree({ initial: true })
 }
 
@@ -205,6 +226,34 @@ function goToRoot() {
   }
 }
 
+function toggleSiblings() {
+  showSiblings.value = !showSiblings.value
+  if (chartInstance) {
+    chartInstance.setShowSiblingsOfMain(showSiblings.value).updateTree({})
+  }
+}
+
+function changeDepth(delta) {
+  const newDepth = Math.min(7, Math.max(1, depth.value + delta))
+  if (newDepth === depth.value) return
+  depth.value = newDepth
+  if (chartInstance) {
+    chartInstance
+      .setAncestryDepth(newDepth)
+      .setProgenyDepth(newDepth)
+      .updateTree({})
+  }
+}
+
+async function setAsDefault(personId) {
+  try {
+    await apiPost(`/api/family-tree/set-main/${personId}`, null)
+    currentDefaultId.value = String(personId)
+  } catch {
+    alert('שגיאה בהגדרת ברירת מחדל')
+  }
+}
+
 // helpers
 function fullName(d) { return `${d['first name'] || ''} ${d['last name'] || ''}`.trim() }
 function initials(name) { return (name || '').split(' ').map(w => w[0]).join('').slice(0, 2) }
@@ -216,7 +265,7 @@ function formatDate(d) {
 </script>
 
 <style>
-/* ── Override family-chart CSS variables for light theme + Rubik ── */
+/* ── Override family-chart CSS variables — light theme + Rubik ── */
 #FamilyChart.f3 {
   --male-color:       #93c5fd;
   --female-color:     #c4b5fd;
@@ -224,69 +273,33 @@ function formatDate(d) {
   --text-color:       #1a3a6b;
   font-family: 'Rubik', sans-serif !important;
 }
+#FamilyChart .f3 { font-family: 'Rubik', sans-serif !important; }
 
-#FamilyChart .f3 {
-  font-family: 'Rubik', sans-serif !important;
-}
-
-/* Card label text */
+/* Card label RTL */
 #FamilyChart .card-label {
-  direction: rtl;
-  text-align: right;
-  font-family: 'Rubik', sans-serif;
-  font-size: 0.78rem;
-  line-height: 1.35;
-  overflow: hidden;
+  direction: rtl; text-align: right;
+  font-family: 'Rubik', sans-serif; font-size: 0.78rem; line-height: 1.35; overflow: hidden;
 }
+#FamilyChart .card-label div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
-#FamilyChart .card-label div {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
+/* Transparent SVG background — allow edge-card button overflow */
+#FamilyChart svg.main_svg { background: transparent !important; overflow: visible !important; }
 
-/* Suppress dark SVG background; allow overflow so edge-card "+" buttons show */
-#FamilyChart svg.main_svg {
-  background: transparent !important;
-  overflow: visible !important;
-}
+/* ── Add-relative "+" buttons — blue on light bg (default=white, invisible) ── */
+#FamilyChart .card_add_relative             { color: #2d6be4 !important; }
+#FamilyChart .card_add_relative circle      { fill: rgba(45,107,228,.08) !important; stroke: #2d6be4 !important; stroke-width: 1.5 !important; }
+#FamilyChart .card_add_relative:hover       { color: #1a3a6b !important; }
+#FamilyChart .card_add_relative:hover circle{ fill: rgba(45,107,228,.18) !important; }
 
-/* ── Add-relative "+" buttons — make blue (default is white, invisible on light bg) ── */
-#FamilyChart .card_add_relative {
-  color: #2d6be4 !important;
-}
-#FamilyChart .card_add_relative circle {
-  fill: rgba(45, 107, 228, 0.08) !important;
-  stroke: #2d6be4 !important;
-  stroke-width: 1.5 !important;
-}
-#FamilyChart .card_add_relative:hover {
-  color: #1a3a6b !important;
-}
-#FamilyChart .card_add_relative:hover circle {
-  fill: rgba(45, 107, 228, 0.18) !important;
-}
+/* ── Edit pencil ── */
+#FamilyChart .card_edit        { color: #2d6be4 !important; }
+#FamilyChart .card_edit circle { fill: rgba(45,107,228,.08) !important; }
 
-/* ── Edit pencil icon ── */
-#FamilyChart .card_edit {
-  color: #2d6be4 !important;
-}
-#FamilyChart .card_edit circle {
-  fill: rgba(45, 107, 228, 0.08) !important;
-}
+/* ── New-person placeholder card ── */
+#FamilyChart .card_add .card-body-rect { fill: #dbeafe !important; stroke: #2d6be4 !important; stroke-width: 2 !important; }
+#FamilyChart g.card_add text            { fill: #2d6be4 !important; }
 
-/* ── Temporary "new person" placeholder card ── */
-#FamilyChart .card_add .card-body-rect {
-  fill: #dbeafe !important;
-  stroke: #2d6be4 !important;
-  stroke-width: 2 !important;
-}
-#FamilyChart g.card_add text {
-  fill: #2d6be4 !important;
-}
-
-/* Full height */
+/* Sizing */
 #FamilyChart       { width: 100%; height: 100%; }
 #FamilyChart .f3-cont { width: 100%; height: 100%; }
 </style>
@@ -295,78 +308,54 @@ function formatDate(d) {
 @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap');
 
 .tree-page {
-  display: flex;
-  flex-direction: column;
+  display: flex; flex-direction: column;
   height: calc(100vh - 60px);
   font-family: 'Rubik', sans-serif;
-  position: relative;
-  overflow: hidden;
+  position: relative; overflow: hidden;
   background: #f0f6ff;
 }
 
 /* ── Header ── */
 .tree-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1.5rem;
-  background: white;
-  border-bottom: 1px solid #e0eaf8;
-  flex-shrink: 0;
-  gap: 1rem;
-  flex-wrap: wrap;
-  z-index: 10;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.6rem 1.2rem;
+  background: white; border-bottom: 1px solid #e0eaf8;
+  flex-shrink: 0; gap: 0.75rem; flex-wrap: wrap; z-index: 10;
 }
+.tree-title { display: flex; align-items: center; gap: 0.6rem; }
+h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
+.people-count { background: #e8f0fe; color: #2d6be4; font-size: 0.78rem; padding: 0.18rem 0.55rem; border-radius: 12px; font-weight: 600; }
 
-.tree-title { display: flex; align-items: center; gap: 0.75rem; }
-h1 { font-size: 1.2rem; color: #1a3a6b; margin: 0; }
-.people-count { background: #e8f0fe; color: #2d6be4; font-size: 0.8rem; padding: 0.2rem 0.6rem; border-radius: 12px; font-weight: 600; }
-
-.tree-controls { display: flex; gap: 0.6rem; align-items: center; }
+.tree-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 
 .ctrl-btn {
-  background: white;
-  border: 1.5px solid #d1dce8;
-  color: #4a5568;
-  padding: 0.4rem 0.9rem;
-  border-radius: 8px;
-  font-size: 0.88rem;
-  cursor: pointer;
-  font-family: 'Rubik', sans-serif;
-  transition: all 0.2s;
+  background: white; border: 1.5px solid #d1dce8; color: #4a5568;
+  padding: 0.35rem 0.8rem; border-radius: 8px; font-size: 0.82rem;
+  cursor: pointer; font-family: 'Rubik', sans-serif; transition: all 0.2s; white-space: nowrap;
 }
-.ctrl-btn:hover { border-color: #2d6be4; color: #2d6be4; }
+.ctrl-btn:hover:not(:disabled) { border-color: #2d6be4; color: #2d6be4; }
+.ctrl-btn:disabled { opacity: 0.4; cursor: default; }
+.ctrl-btn.active { border-color: #2d6be4; color: #2d6be4; background: #eef3fd; }
+
+.icon-btn { padding: 0.35rem 0.65rem; font-size: 1rem; }
+
+.depth-ctrl { display: flex; align-items: center; gap: 0.25rem; }
+.depth-label { font-size: 0.8rem; color: #4a5568; min-width: 52px; text-align: center; }
 
 .ctrl-btn-primary {
-  background: #2d6be4;
-  color: white;
-  border: none;
-  padding: 0.4rem 1rem;
-  border-radius: 8px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: background 0.2s;
+  background: #2d6be4; color: white; border: none;
+  padding: 0.38rem 0.9rem; border-radius: 8px; font-size: 0.82rem; font-weight: 600;
+  text-decoration: none; transition: background 0.2s; white-space: nowrap;
 }
 .ctrl-btn-primary:hover { background: #1a55c8; }
 
 /* ── Tree wrap ── */
-.tree-wrap {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-}
+.tree-wrap { flex: 1; position: relative; overflow: hidden; }
 
 /* ── Empty state ── */
 .empty-tree {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  color: #8a9ab5;
-  padding: 3rem;
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.75rem; color: #8a9ab5; padding: 3rem;
 }
 .empty-icon { font-size: 3.5rem; }
 .empty-tree h2 { font-size: 1.3rem; color: #2d4a7a; margin: 0; }
@@ -375,64 +364,48 @@ h1 { font-size: 1.2rem; color: #1a3a6b; margin: 0; }
 
 /* ── Side panel ── */
 .side-panel {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 290px;
-  height: 100%;
-  background: white;
-  box-shadow: -4px 0 24px rgba(0,50,150,0.12);
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  z-index: 50;
-  overflow-y: auto;
+  position: absolute; top: 0; right: 0; width: 285px; height: 100%;
+  background: white; box-shadow: -4px 0 24px rgba(0,50,150,.12);
+  padding: 1.3rem; display: flex; flex-direction: column; gap: 0.9rem;
+  z-index: 50; overflow-y: auto;
 }
-
 .panel-close {
-  position: absolute;
-  top: 0.75rem;
-  left: 0.75rem;
-  background: none;
-  border: none;
-  font-size: 1.4rem;
-  color: #8a9ab5;
-  cursor: pointer;
-  line-height: 1;
-  padding: 0.25rem;
+  position: absolute; top: 0.6rem; left: 0.6rem;
+  background: none; border: none; font-size: 1.4rem; color: #8a9ab5; cursor: pointer;
 }
 .panel-close:hover { color: #2d4a7a; }
 
 .panel-avatar {
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: #e8f0fe;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto;
-  flex-shrink: 0;
+  width: 85px; height: 85px; border-radius: 50%; overflow: hidden;
+  background: #e8f0fe; display: flex; align-items: center; justify-content: center;
+  margin: 0 auto; flex-shrink: 0;
+  border: 3px solid #dbeafe;
 }
 .panel-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.panel-initials { font-size: 1.8rem; font-weight: 700; color: #2d6be4; }
+.panel-initials { font-size: 1.7rem; font-weight: 700; color: #2d6be4; }
 
-.panel-name { text-align: center; }
-.panel-name h2 { font-size: 1.15rem; color: #1a3a6b; margin: 0 0 0.3rem; }
-.badge-deceased { background: #f1f5f9; border: 1px solid #cbd5e1; color: #64748b; padding: 0.15rem 0.5rem; border-radius: 5px; font-size: 0.8rem; }
+.panel-name { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+.panel-name h2 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
+.badge-deceased { background: #f1f5f9; border: 1px solid #cbd5e1; color: #64748b; padding: 0.12rem 0.45rem; border-radius: 5px; font-size: 0.78rem; }
+.badge-main { background: #fefce8; border: 1px solid #fde047; color: #854d0e; padding: 0.12rem 0.45rem; border-radius: 5px; font-size: 0.78rem; }
 
-.panel-details { display: flex; flex-direction: column; gap: 0.5rem; }
-.detail-row { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.88rem; color: #4a5568; }
-.detail-icon { font-size: 0.95rem; flex-shrink: 0; }
+.panel-details { display: flex; flex-direction: column; gap: 0.45rem; }
+.detail-row { display: flex; gap: 0.55rem; align-items: flex-start; font-size: 0.85rem; color: #4a5568; }
+.detail-icon { font-size: 0.9rem; flex-shrink: 0; }
 .detail-sub { opacity: 0.75; }
 
-.panel-actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: auto; }
-.panel-btn-primary { background: #2d6be4; color: white; text-decoration: none; padding: 0.6rem; border-radius: 9px; font-size: 0.92rem; font-weight: 600; text-align: center; }
+.panel-actions { display: flex; flex-direction: column; gap: 0.45rem; margin-top: auto; }
+.panel-btn-primary { background: #2d6be4; color: white; text-decoration: none; padding: 0.55rem; border-radius: 9px; font-size: 0.88rem; font-weight: 600; text-align: center; display: block; }
 .panel-btn-primary:hover { background: #1a55c8; }
-.panel-btn-secondary { background: #f0f7ff; color: #2d6be4; text-decoration: none; padding: 0.6rem; border-radius: 9px; font-size: 0.92rem; text-align: center; }
+.panel-btn-secondary { background: #f0f7ff; color: #2d6be4; text-decoration: none; padding: 0.55rem; border-radius: 9px; font-size: 0.88rem; text-align: center; display: block; }
 .panel-btn-secondary:hover { background: #dbeafe; }
+.panel-btn-star {
+  background: none; border: 1.5px solid #d1dce8; color: #8a9ab5;
+  padding: 0.5rem; border-radius: 9px; font-size: 0.82rem; cursor: pointer;
+  font-family: 'Rubik', sans-serif; transition: all 0.2s;
+}
+.panel-btn-star:hover { border-color: #f59e0b; color: #d97706; }
+.panel-btn-star.active { border-color: #f59e0b; color: #d97706; background: #fefce8; font-weight: 600; }
 
 /* ── Panel transition ── */
 .panel-slide-enter-active, .panel-slide-leave-active { transition: transform 0.28s ease; }
