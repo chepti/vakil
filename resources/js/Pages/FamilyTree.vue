@@ -109,11 +109,12 @@
               <span dir="ltr">{{ selectedPerson.email }}</span>
             </div>
             <template v-if="selectedPerson.marriages">
-              <div v-for="(m, sid) in selectedPerson.marriages" :key="sid"
-                   v-if="m.date || m.date_he" class="detail-row">
-                <span class="detail-icon">💍</span>
-                <span>{{ m.date ? formatDate(m.date) : '' }}<span v-if="m.date_he" class="detail-sub"> / {{ m.date_he }}</span></span>
-              </div>
+              <template v-for="(m, sid) in selectedPerson.marriages" :key="sid">
+                <div v-if="m && (m.date || m.date_he)" class="detail-row">
+                  <span class="detail-icon">💍</span>
+                  <span>{{ m.date ? formatDate(m.date) : '' }}<span v-if="m.date_he" class="detail-sub"> / {{ m.date_he }}</span></span>
+                </div>
+              </template>
             </template>
           </div>
 
@@ -187,6 +188,7 @@ const depth            = ref(4)
 const showSiblings     = ref(true)
 const compactMode      = ref(false)
 let chartInstance      = null
+let cardInstance       = null
 
 // ─── Search ────────────────────────────────────────────────────
 const searchQuery = ref('')
@@ -308,7 +310,7 @@ onMounted(() => {
   initChart()
 })
 
-onUnmounted(() => { chartInstance = null })
+onUnmounted(() => { chartInstance = null; cardInstance = null })
 
 function csrfToken() {
   return document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
@@ -338,8 +340,9 @@ function initChart() {
   const cont = chartContainer.value
   chartInstance = createChart(cont, props.nodes)
 
-  chartInstance
-    .setCardHtml()
+  // setCardHtml() returns a CardHtml instance (not chartInstance) — store it for reuse
+  cardInstance = chartInstance.setCardHtml()
+  cardInstance
     .setCardDisplay([
       d => `${d.data['first name'] || ''} ${d.data['last name'] || ''}`.trim(),
     ])
@@ -446,20 +449,20 @@ async function setAsDefault(personId) {
 // ── Compact mode ─────────────────────────────────────────────
 function toggleCompactMode() {
   compactMode.value = !compactMode.value
-  if (!chartInstance) return
+  if (!chartInstance || !cardInstance) return
   const container = chartContainer.value
 
   if (compactMode.value) {
-    chartInstance
+    cardInstance
       .setCardDim({ width: 36, height: 90, text_x: 0, text_y: 0, img_w: 0, img_h: 0 })
       .setStyle('rect')
-      .updateTree({})
+    chartInstance.updateTree({})
     container?.classList.add('compact-mode')
   } else {
-    chartInstance
+    cardInstance
       .setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 })
       .setStyle('imageCircleRect')
-      .updateTree({})
+    chartInstance.updateTree({})
     container?.classList.remove('compact-mode')
   }
 }
