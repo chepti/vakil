@@ -135,17 +135,21 @@ class PersonController extends Controller
                 ->get();
         }
 
-        // Family photos this person is tagged in
-        $photosTagged = \App\Models\PhotoTag::where('person_id', $person->id)
-            ->with('familyPhoto')
-            ->get()
-            ->map(fn($t) => [
-                'id'        => $t->family_photo_id,
-                'url'       => $t->familyPhoto->url,
-                'title'     => $t->familyPhoto->title,
-                'x_percent' => $t->x_percent,
-                'y_percent' => $t->y_percent,
-            ]);
+        // Family photos this person is tagged in (table may not exist yet)
+        try {
+            $photosTagged = \App\Models\PhotoTag::where('person_id', $person->id)
+                ->with('familyPhoto')
+                ->get()
+                ->map(fn($t) => [
+                    'id'        => $t->family_photo_id,
+                    'url'       => $t->familyPhoto->url,
+                    'title'     => $t->familyPhoto->title,
+                    'x_percent' => $t->x_percent,
+                    'y_percent' => $t->y_percent,
+                ]);
+        } catch (\Exception $e) {
+            $photosTagged = collect();
+        }
 
         $allPeople = Person::where('id', '!=', $person->id)
             ->select('id', 'first_name', 'last_name')
