@@ -19,6 +19,9 @@
             <span class="depth-label">{{ depth }} דורות</span>
             <button class="ctrl-btn icon-btn" @click="changeDepth(1)" title="יותר דורות" :disabled="depth >= 7">+</button>
           </div>
+          <button class="ctrl-btn" :class="{ active: compactMode }" @click="toggleCompactMode" title="כרטיסים מתכווצים — רחף מעל דמות להרחיב">
+            {{ compactMode ? '⊠ מצב רגיל' : '⊟ קומפקטי' }}
+          </button>
           <Link v-if="isAdmin" href="/people/create" class="ctrl-btn-primary">+ הוסף דמות</Link>
         </div>
       </div>
@@ -141,7 +144,9 @@ const selectedPerson   = ref(null)
 const currentDefaultId = ref(props.defaultMainPersonId)
 const depth            = ref(4)
 const showSiblings     = ref(true)
+const compactMode      = ref(false)
 let chartInstance      = null
+let adjacencyMap       = null
 
 // ─── Add relative ─────────────────────────────────────────
 const relTypes = [
@@ -229,6 +234,7 @@ async function submitAddRel() {
 onMounted(() => {
   if (!chartContainer.value || props.nodes.length === 0) return
   initChart()
+  setupProximityHover()
 })
 
 onUnmounted(() => { chartInstance = null })
@@ -274,6 +280,10 @@ function initChart() {
       selectedPerson.value = { id: d.data.id, ...d.data.data }
       addRelType.value = null
       chartInstance.updateMainId(d.data.id)
+    })
+    .setOnCardUpdate(function(d) {
+      const card = this.querySelector('.card')
+      if (card && d.data && d.data.id) card.dataset.personId = String(d.data.id)
     })
 
   // ── כפתורי + ועריכה inline ────────────────────────────────────
@@ -367,6 +377,70 @@ async function setAsDefault(personId) {
   }
 }
 
+// ── Compact mode + proximity hover ──────────────────────────────
+function buildAdjacencyMap(nodes) {
+  const adj = new Map()
+  nodes.forEach(n => {
+    const nid = String(n.id)
+    if (!adj.has(nid)) adj.set(nid, new Set())
+    const rels = n.rels || {}
+    ;[...(rels.parents||[]), ...(rels.children||[]), ...(rels.spouses||[])]
+      .forEach(relId => {
+        const rid = String(relId)
+        adj.get(nid).add(rid)
+        if (!adj.has(rid)) adj.set(rid, new Set())
+        adj.get(rid).add(nid)
+      })
+  })
+  return adj
+}
+
+function getNodesWithinDistance(adj, startId, maxDist) {
+  const sid = String(startId)
+  const visited = new Set([sid])
+  let frontier = [sid]
+  for (let i = 0; i < maxDist; i++) {
+    const next = []
+    frontier.forEach(id => {
+      ;(adj.get(id) || new Set()).forEach(nb => {
+        if (!visited.has(nb)) { visited.add(nb); next.push(nb) }
+      })
+    })
+    frontier = next
+  }
+  return visited
+}
+
+function setupProximityHover() {
+  adjacencyMap = buildAdjacencyMap(props.nodes)
+  const container = chartContainer.value
+  if (!container) return
+
+  container.addEventListener('mouseover', e => {
+    if (!compactMode.value) return
+    const card = e.target.closest('.card[data-person-id]')
+    if (!card) return
+    const near = getNodesWithinDistance(adjacencyMap, card.dataset.personId, 2)
+    container.querySelectorAll('.card[data-person-id]').forEach(el => {
+      el.classList.toggle('card-near', near.has(el.dataset.personId))
+    })
+  })
+
+  container.addEventListener('mouseleave', () => {
+    container.querySelectorAll('.card-near').forEach(el => el.classList.remove('card-near'))
+  })
+}
+
+function toggleCompactMode() {
+  compactMode.value = !compactMode.value
+  const container = chartContainer.value
+  if (!container) return
+  container.classList.toggle('compact-mode', compactMode.value)
+  if (!compactMode.value) {
+    container.querySelectorAll('.card-near').forEach(el => el.classList.remove('card-near'))
+  }
+}
+
 // helpers
 function fullName(d) { return `${d['first name'] || ''} ${d['last name'] || ''}`.trim() }
 function initials(name) { return (name || '').split(' ').map(w => w[0]).join('').slice(0, 2) }
@@ -415,6 +489,62 @@ function formatDate(d) {
 /* Sizing */
 #FamilyChart       { width: 100%; height: 100%; }
 #FamilyChart .f3-cont { width: 100%; height: 100%; }
+
+/* ── Selected / hover card shadow — lighten to 5% ── */
+#FamilyChart .card-main .card-inner,
+#FamilyChart .card:hover .card-inner {
+  box-shadow: 0 0 20px 0 rgba(0, 50, 150, 0.05) !important;
+}
+
+/* ── Photo cards: keep rectangular, photo as small corner badge ── */
+#FamilyChart .card-image-circle {
+  border-radius: 10px !important;
+  overflow: visible !important;
+  position: relative !important;
+}
+#FamilyChart .card-image-circle img {
+  position: absolute !important;
+  top: -10px !important;
+  right: -10px !important;
+  left: unset !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 50% !important;
+  border: 2.5px solid white !important;
+  box-shadow: 0 2px 6px rgba(0, 50, 150, 0.22) !important;
+  object-fit: cover !important;
+}
+#FamilyChart .card-image-circle .card-label {
+  position: static !important;
+  transform: none !important;
+  text-align: right !important;
+  background: none !important;
+  color: inherit !important;
+  padding: 5px 10px !important;
+  min-height: unset !important;
+  max-width: 100% !important;
+  border-radius: 0 !important;
+  bottom: auto !important;
+  left: auto !important;
+  white-space: normal !important;
+  line-height: 1.35 !important;
+}
+
+/* ── Compact mode: cards collapse to thin strips, expand near hover ── */
+#FamilyChart .card-inner {
+  transition: transform 0.2s ease-in-out, height 0.25s ease, min-height 0.25s ease !important;
+}
+#FamilyChart.compact-mode .card-inner {
+  min-height: 20px !important;
+  height: 20px !important;
+  overflow: hidden !important;
+}
+#FamilyChart.compact-mode .card-near .card-inner,
+#FamilyChart.compact-mode .card-main .card-inner {
+  min-height: 90px !important;
+  height: 90px !important;
+  overflow: visible !important;
+}
 </style>
 
 <style scoped>
