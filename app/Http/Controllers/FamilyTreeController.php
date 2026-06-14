@@ -57,7 +57,7 @@ class FamilyTreeController extends Controller
                 'first_name'           => $datum['data']['first name']  ?? $existing->first_name,
                 'last_name'            => $datum['data']['last name']   ?? $existing->last_name,
                 'gender'               => ($datum['data']['gender'] ?? 'M') === 'M' ? 'male' : 'female',
-                'birth_date_gregorian' => $datum['data']['birthday']    ?: null,
+                'birth_date_gregorian' => ($datum['data']['birthday']   ?? '') ?: null,
                 'current_occupation'   => $datum['data']['occupation']  ?? $existing->current_occupation,
                 'city'                 => $datum['data']['city']        ?? $existing->city,
             ]);
@@ -67,9 +67,9 @@ class FamilyTreeController extends Controller
                 'first_name'           => $datum['data']['first name']  ?? '',
                 'last_name'            => $datum['data']['last name']   ?? '',
                 'gender'               => ($datum['data']['gender'] ?? 'M') === 'M' ? 'male' : 'female',
-                'birth_date_gregorian' => $datum['data']['birthday']    ?: null,
-                'current_occupation'   => $datum['data']['occupation']  ?? null,
-                'city'                 => $datum['data']['city']        ?? null,
+                'birth_date_gregorian' => ($datum['data']['birthday']   ?? '') ?: null,
+                'current_occupation'   => ($datum['data']['occupation'] ?? '') ?: null,
+                'city'                 => ($datum['data']['city']       ?? '') ?: null,
                 'created_by'           => Auth::id(),
             ]);
 
