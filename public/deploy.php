@@ -10,6 +10,8 @@ $php  = '/opt/alt/php83/usr/bin/php';
 $cmds = [
     "git -C $base fetch origin 2>&1",
     "git -C $base reset --hard origin/main 2>&1",
+    // Copy build assets from public/ (git) to public_html/ (web root)
+    "rsync -a --delete $base/public/build/ $base/public_html/build/ 2>&1",
     "$php $base/artisan migrate --force 2>&1",
     "$php $base/artisan config:clear 2>&1",
     "$php $base/artisan route:clear 2>&1",
