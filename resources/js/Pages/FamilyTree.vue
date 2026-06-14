@@ -342,7 +342,6 @@ function initChart() {
     .setCardHtml()
     .setCardDisplay([
       d => `${d.data['first name'] || ''} ${d.data['last name'] || ''}`.trim(),
-      d => d.data.birthday ? formatDate(d.data.birthday) : '',
     ])
     .setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 })
     .setStyle('imageCircleRect')
