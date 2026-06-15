@@ -164,7 +164,10 @@ class FamilyTreeController extends Controller
             'current_occupation', 'city', 'email', 'profile_photo'
         )->get();
 
-        $relationships = Relationship::all();
+        $relationships = Relationship::orderByRaw('COALESCE(sort_order, 999) ASC')->get();
+
+        // מפה מהירה: birth_date לפי person id
+        $birthDates = $people->pluck('birth_date_gregorian', 'id');
 
         // בנה אינדקסים מהירים
         $children  = [];   // parent_id → [child_id, ...]
@@ -212,6 +215,20 @@ class FamilyTreeController extends Controller
                 }
             }
         }
+
+        // מיין ילדים: לפי sort_order (כבר נשמר בסדר הנכון ברשומות) → birth_date_gregorian.
+        // הופך לסדר יורד (צעיר ראשון) כדי שבגרף LTR הבכור יופיע מימין (RTL-ראשון).
+        foreach ($children as $parentId => &$childIds) {
+            usort($childIds, function ($aId, $bId) use ($birthDates) {
+                $a = $birthDates[(int) $aId] ?? null;
+                $b = $birthDates[(int) $bId] ?? null;
+                if ($a === $b) return 0;
+                if ($a === null) return -1; // ללא תאריך — משמאל
+                if ($b === null) return 1;
+                return $b <=> $a; // יורד: צעיר ראשון → בכור אחרון (ימין בגרף)
+            });
+        }
+        unset($childIds);
 
         $nodes = $people->map(function ($p) use ($children, $parents, $spouses, $marriages) {
             $id = (string) $p->id;

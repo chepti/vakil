@@ -52,6 +52,9 @@
           <button class="ctrl-btn" :class="{ active: compactMode }" @click="toggleCompactMode" title="פסים אנכיים — מכווץ את הרוחב, רחף להרחיב">
             {{ compactMode ? '⊠ מצב רגיל' : '⊟ קומפקטי' }}
           </button>
+          <button class="ctrl-btn" :class="{ active: radialMode }" @click="toggleRadialMode" title="תצוגה עגולה/ספיראלית">
+            {{ radialMode ? '⊞ עץ רגיל' : '◎ עגולי' }}
+          </button>
           <Link v-if="isAdmin" href="/people/create" class="ctrl-btn-primary">+ הוסף דמות</Link>
         </div>
       </div>
@@ -65,8 +68,69 @@
       </div>
 
       <!-- Tree container -->
-      <div v-else class="tree-wrap">
+      <div v-else-if="!radialMode" class="tree-wrap">
         <div ref="chartContainer" id="FamilyChart" class="f3"></div>
+      </div>
+
+      <!-- Radial view -->
+      <div v-else class="radial-wrap">
+        <svg
+          class="radial-svg"
+          :viewBox="`${radialVB.x} ${radialVB.y} ${radialVB.w} ${radialVB.h}`"
+          @wheel.prevent="onRadialWheel"
+          @pointerdown="onRadialPointerDown"
+          @pointermove="onRadialPointerMove"
+          @pointerup="onRadialPointerUp"
+          @pointercancel="onRadialPointerUp"
+        >
+          <!-- Links -->
+          <line
+            v-for="link in radialData.links" :key="link.key"
+            :x1="link.x1" :y1="link.y1" :x2="link.x2" :y2="link.y2"
+            stroke="#b0c8e4" stroke-width="1.2" stroke-linecap="round"
+          />
+          <!-- Nodes -->
+          <g
+            v-for="node in radialData.nodes" :key="node.id"
+            :transform="`translate(${node.x},${node.y})`"
+            class="radial-node"
+            @click="selectRadialNode(node.id)"
+          >
+            <!-- Avatar image clipped to circle -->
+            <clipPath :id="`rclip-${node.id}`">
+              <circle :r="node.isRoot ? 28 : 20" cx="0" cy="0"/>
+            </clipPath>
+            <circle
+              :r="node.isRoot ? 28 : 20"
+              :fill="radialNodeColor(node.gender)"
+              :stroke="radialNodeStroke(node.gender)"
+              :stroke-width="node.isRoot ? 3 : 1.5"
+            />
+            <image
+              v-if="node.avatar"
+              :href="node.avatar"
+              :x="node.isRoot ? -28 : -20" :y="node.isRoot ? -28 : -20"
+              :width="node.isRoot ? 56 : 40" :height="node.isRoot ? 56 : 40"
+              :clip-path="`url(#rclip-${node.id})`"
+              preserveAspectRatio="xMidYMid slice"
+            />
+            <text
+              v-else
+              text-anchor="middle" dominant-baseline="central"
+              :font-size="node.isRoot ? 11 : 9"
+              fill="#1a3a6b" font-family="Rubik, sans-serif" font-weight="500"
+            >{{ node.firstName.slice(0, 5) }}</text>
+            <!-- Name label below node -->
+            <text
+              :y="node.isRoot ? 38 : 28"
+              text-anchor="middle" dominant-baseline="hanging"
+              :font-size="node.isRoot ? 11 : 9"
+              fill="#1a3a6b" font-family="Rubik, sans-serif"
+              :font-weight="node.isRoot ? '700' : '400'"
+            >{{ node.firstName }}</text>
+          </g>
+        </svg>
+        <div class="radial-hint">גלגל עכבר לזום · גרירה להזזה · לחיצה לפרטים</div>
       </div>
 
       <!-- Side panel -->
@@ -188,7 +252,7 @@ const depth            = ref(4)
 const showSiblings     = ref(true)
 const compactMode      = ref(false)
 let chartInstance      = null
-let cardInstance       = null
+let cardHtml           = null
 
 // ─── Search ────────────────────────────────────────────────────
 const searchQuery = ref('')
@@ -310,7 +374,7 @@ onMounted(() => {
   initChart()
 })
 
-onUnmounted(() => { chartInstance = null; cardInstance = null })
+onUnmounted(() => { chartInstance = null; cardHtml = null })
 
 function csrfToken() {
   return document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
@@ -341,8 +405,8 @@ function initChart() {
   chartInstance = createChart(cont, props.nodes)
 
   // setCardHtml() returns a CardHtml instance (not chartInstance) — store it for reuse
-  cardInstance = chartInstance.setCardHtml()
-  cardInstance
+  cardHtml = chartInstance
+    .setCardHtml()
     .setCardDisplay([
       d => `${d.data['first name'] || ''} ${d.data['last name'] || ''}`.trim(),
     ])
@@ -449,22 +513,148 @@ async function setAsDefault(personId) {
 // ── Compact mode ─────────────────────────────────────────────
 function toggleCompactMode() {
   compactMode.value = !compactMode.value
-  if (!chartInstance || !cardInstance) return
+  if (!chartInstance || !cardHtml) return
   const container = chartContainer.value
-
   if (compactMode.value) {
-    cardInstance
-      .setCardDim({ width: 36, height: 90, text_x: 0, text_y: 0, img_w: 0, img_h: 0 })
-      .setStyle('rect')
-    chartInstance.updateTree({})
+    cardHtml.setCardDim({ width: 36, height: 90 }).setStyle('rect')
+    chartInstance.setCardXSpacing(4).updateTree({ initial: true })
     container?.classList.add('compact-mode')
   } else {
-    cardInstance
-      .setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 })
-      .setStyle('imageCircleRect')
-    chartInstance.updateTree({})
+    cardHtml.setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 }).setStyle('imageCircleRect')
+    chartInstance.setCardXSpacing(20).updateTree({ initial: true })
     container?.classList.remove('compact-mode')
   }
+}
+
+// ── Radial view ──────────────────────────────────────────────
+const radialMode = ref(false)
+const radialVB   = ref({ x: -550, y: -550, w: 1100, h: 1100 })
+let   radialDrag = null
+
+const radialData = computed(() => {
+  if (!radialMode.value || !props.nodes.length) return { nodes: [], links: [] }
+
+  const rootId = String(props.rootPersonId || props.defaultMainPersonId || props.nodes[0]?.id)
+  const nodeMap = {}
+  props.nodes.forEach(n => { nodeMap[String(n.id)] = n })
+
+  // Count subtree size for proportional arc allocation
+  function subtreeSize(id, seen = new Set()) {
+    if (seen.has(id)) return 0
+    seen.add(id)
+    const children = (nodeMap[id]?.rels?.children || []).map(c => String(c))
+    return 1 + children.reduce((s, c) => s + subtreeSize(c, seen), 0)
+  }
+
+  // Recursive radial layout
+  const positions = {}
+  const links = []
+  const visited = new Set()
+
+  function layout(id, level, a0, a1) {
+    if (visited.has(id)) return
+    visited.add(id)
+    const angle = (a0 + a1) / 2
+    const r = level === 0 ? 0 : Math.max(level * 110, 90)
+    positions[id] = { x: r * Math.cos(angle - Math.PI / 2), y: r * Math.sin(angle - Math.PI / 2), level }
+
+    const children = (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
+    if (!children.length) return
+
+    const sizes = children.map(c => subtreeSize(c, new Set(visited)))
+    const total = sizes.reduce((a, b) => a + b, 0)
+    let cur = a0
+    children.forEach((childId, i) => {
+      const arc = (a1 - a0) * sizes[i] / total
+      links.push({ key: `${id}-${childId}`, from: id, to: childId })
+      layout(childId, level + 1, cur, cur + arc)
+      cur += arc
+    })
+  }
+
+  layout(rootId, 0, 0, 2 * Math.PI)
+
+  const nodes = Object.keys(positions).map(id => {
+    const n = nodeMap[id]
+    return {
+      id,
+      x: positions[id].x,
+      y: positions[id].y,
+      level: positions[id].level,
+      gender: n?.data?.gender,
+      avatar: n?.data?.avatar || null,
+      firstName: n?.data?.['first name'] || '',
+      fullName: `${n?.data?.['first name'] || ''} ${n?.data?.['last name'] || ''}`.trim(),
+      isRoot: id === rootId,
+    }
+  })
+
+  const linkLines = links
+    .filter(l => positions[l.from] && positions[l.to])
+    .map(l => ({
+      key: l.key,
+      x1: positions[l.from].x, y1: positions[l.from].y,
+      x2: positions[l.to].x,   y2: positions[l.to].y,
+    }))
+
+  return { nodes, links: linkLines }
+})
+
+function radialNodeColor(gender) {
+  return gender === 'M' ? '#93c5fd' : gender === 'F' ? '#c4b5fd' : '#e2e8f0'
+}
+function radialNodeStroke(gender) {
+  return gender === 'M' ? '#3b82f6' : gender === 'F' ? '#8b5cf6' : '#94a3b8'
+}
+
+function onRadialWheel(e) {
+  e.preventDefault()
+  const factor = e.deltaY > 0 ? 1.12 : 0.89
+  const vb = radialVB.value
+  const newW = Math.min(3000, Math.max(300, vb.w * factor))
+  const newH = Math.min(3000, Math.max(300, vb.h * factor))
+  radialVB.value = { x: vb.x - (newW - vb.w) / 2, y: vb.y - (newH - vb.h) / 2, w: newW, h: newH }
+}
+function onRadialPointerDown(e) {
+  e.currentTarget.setPointerCapture(e.pointerId)
+  radialDrag = { px: e.clientX, py: e.clientY, vb: { ...radialVB.value } }
+}
+function onRadialPointerMove(e) {
+  if (!radialDrag) return
+  const vb = radialDrag.vb
+  const svgEl = e.currentTarget
+  const rect = svgEl.getBoundingClientRect()
+  const sx = vb.w / rect.width
+  const sy = vb.h / rect.height
+  radialVB.value = {
+    x: vb.x - (e.clientX - radialDrag.px) * sx,
+    y: vb.y - (e.clientY - radialDrag.py) * sy,
+    w: vb.w, h: vb.h,
+  }
+}
+function onRadialPointerUp() { radialDrag = null }
+
+function selectRadialNode(id) {
+  const node = props.nodes.find(n => String(n.id) === String(id))
+  if (!node) return
+  selectedPerson.value = { id: node.id, ...node.data }
+  addRelType.value = null
+  if (chartInstance) chartInstance.updateMainId(id)
+}
+
+function toggleRadialMode() {
+  radialMode.value = !radialMode.value
+  if (!radialMode.value && compactMode.value) {
+    compactMode.value = false
+    const container = chartContainer.value
+    if (cardHtml && chartInstance) {
+      cardHtml.setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 }).setStyle('imageCircleRect')
+      chartInstance.setCardXSpacing(20).updateTree({ initial: true })
+    }
+    container?.classList.remove('compact-mode')
+  }
+  // Reset viewBox
+  radialVB.value = { x: -550, y: -550, w: 1100, h: 1100 }
 }
 
 // helpers
@@ -583,55 +773,47 @@ function formatDate(d) {
   max-width: 100% !important;
 }
 
-/* ── Compact mode: narrow vertical strips, name rotated ── */
+/* ── Compact mode: narrow vertical strips ── */
 #FamilyChart.compact-mode .card-inner {
   overflow: hidden !important;
+  border-radius: 6px !important;
 }
 #FamilyChart.compact-mode .card-label {
   height: 100% !important;
   display: flex !important;
-  flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 0 2px !important;
-  direction: ltr !important;
+  overflow: hidden !important;
+  padding: 0 !important;
 }
 #FamilyChart.compact-mode .card-label div:first-child {
-  writing-mode: vertical-rl !important;
-  transform: rotate(180deg) !important;
-  font-size: 0.66rem !important;
-  line-height: 1 !important;
-  max-height: 82px !important;
+  transform: rotate(-90deg) !important;
+  transform-origin: center center !important;
+  white-space: nowrap !important;
+  font-size: 0.65rem !important;
+  max-width: 80px !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-  text-align: center !important;
-  direction: rtl !important;
+  line-height: 1 !important;
 }
 #FamilyChart.compact-mode .card-label div:not(:first-child) {
   display: none !important;
 }
-/* Peek on hover in compact mode: visually expand without affecting layout */
+/* Peek on hover */
 #FamilyChart.compact-mode .card:hover .card-inner {
-  position: relative !important;
   width: 180px !important;
-  z-index: 100 !important;
   overflow: visible !important;
-  box-shadow: 0 4px 18px rgba(0,50,150,0.22) !important;
-}
-#FamilyChart.compact-mode .card:hover .card-label {
-  direction: rtl !important;
+  position: relative !important;
+  z-index: 100 !important;
+  box-shadow: 0 4px 18px rgba(0,50,150,0.2) !important;
 }
 #FamilyChart.compact-mode .card:hover .card-label div:first-child {
-  writing-mode: horizontal-tb !important;
   transform: none !important;
+  max-width: 150px !important;
   font-size: 0.78rem !important;
-  max-height: unset !important;
-  white-space: nowrap !important;
 }
 #FamilyChart.compact-mode .card:hover .card-label div:not(:first-child) {
   display: block !important;
-  font-size: 0.7rem !important;
 }
 </style>
 
@@ -813,4 +995,71 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 /* ── Panel transition ── */
 .panel-slide-enter-active, .panel-slide-leave-active { transition: transform 0.28s ease; }
 .panel-slide-enter-from, .panel-slide-leave-to { transform: translateX(100%); }
+
+@media (max-width: 640px) {
+  .panel-slide-enter-from, .panel-slide-leave-to { transform: translateY(100%); }
+  .panel-slide-enter-active, .panel-slide-leave-active { transition: transform 0.28s ease; }
+}
+
+/* ── Radial view ── */
+.radial-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #f0f6ff;
+  cursor: grab;
+}
+.radial-wrap:active { cursor: grabbing; }
+.radial-svg {
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  touch-action: none;
+}
+.radial-node { cursor: pointer; }
+.radial-node circle { transition: r 0.15s, stroke-width 0.15s; }
+.radial-node:hover circle { stroke-width: 3 !important; filter: brightness(1.08); }
+.radial-hint {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.78rem;
+  color: #8a9ab5;
+  background: rgba(255,255,255,0.85);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .tree-header {
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+  }
+  h1 { font-size: 0.95rem; }
+  .tree-controls {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .tree-controls::-webkit-scrollbar { display: none; }
+  .ctrl-btn { padding: 0.3rem 0.6rem; font-size: 0.78rem; }
+  .ctrl-btn-primary { padding: 0.3rem 0.65rem; font-size: 0.78rem; }
+  .search-input { width: 120px; }
+  .search-input:focus { width: 150px; }
+  .side-panel {
+    width: 100% !important;
+    height: 60vh !important;
+    top: auto !important;
+    bottom: 0 !important;
+    right: 0 !important;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,50,150,.15);
+  }
+  .radial-hint { font-size: 0.72rem; }
+}
 </style>

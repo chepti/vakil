@@ -107,16 +107,43 @@
         <div class="family-section">
           <div class="section-header">
             <h2>ילדים {{ children.length ? `(${children.length})` : '' }}</h2>
-            <button class="btn-add-inline" @click="openAddChild">+ הוסף ילד/ה</button>
+            <div class="section-header-actions">
+              <button v-if="children.length > 1 && !reorderingChildren" class="btn-add-inline btn-reorder" @click="startReorderChildren">↕ סדר</button>
+              <button v-if="reorderingChildren" class="btn-add-inline btn-reorder-save" @click="saveChildrenOrder">✓ שמור סדר</button>
+              <button v-if="reorderingChildren" class="btn-add-inline btn-reorder-cancel" @click="cancelReorderChildren">✕</button>
+              <button class="btn-add-inline" @click="openAddChild">+ הוסף ילד/ה</button>
+            </div>
           </div>
-          <div class="family-cards">
-            <Link v-for="p in children" :key="p.id" :href="`/people/${p.id}`" class="mini-card" :class="p.gender">
-              <div class="mini-avatar">
-                <img v-if="p.photo_url" :src="p.photo_url" :alt="p.full_name" />
-                <div v-else class="mini-initials">{{ initials(p.full_name) }}</div>
+          <div class="family-cards" :class="{ 'reordering': reorderingChildren }">
+            <template v-if="reorderingChildren">
+              <div
+                v-for="(p, idx) in childrenOrder"
+                :key="p.id"
+                class="mini-card draggable"
+                :class="[p.gender, { 'drag-over': dragOverIdx === idx, 'dragging': dragIdx === idx }]"
+                draggable="true"
+                @dragstart="onDragStart(idx)"
+                @dragover.prevent="onDragOver(idx)"
+                @drop="onDrop(idx)"
+                @dragend="onDragEnd"
+              >
+                <div class="drag-handle">⠿</div>
+                <div class="mini-avatar">
+                  <img v-if="p.photo_url" :src="p.photo_url" :alt="p.full_name" />
+                  <div v-else class="mini-initials">{{ initials(p.full_name) }}</div>
+                </div>
+                <span>{{ p.full_name }}</span>
               </div>
-              <span>{{ p.full_name }}</span>
-            </Link>
+            </template>
+            <template v-else>
+              <Link v-for="p in children" :key="p.id" :href="`/people/${p.id}`" class="mini-card" :class="p.gender">
+                <div class="mini-avatar">
+                  <img v-if="p.photo_url" :src="p.photo_url" :alt="p.full_name" />
+                  <div v-else class="mini-initials">{{ initials(p.full_name) }}</div>
+                </div>
+                <span>{{ p.full_name }}</span>
+              </Link>
+            </template>
             <div v-if="children.length === 0" class="empty-family">אין ילדים רשומים</div>
           </div>
         </div>

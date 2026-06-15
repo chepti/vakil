@@ -153,7 +153,8 @@ class PersonController extends Controller
                 ->unique()
                 ->values();
             $siblings = Person::whereIn('id', $siblingIds)
-                ->select('id', 'first_name', 'last_name', 'profile_photo', 'gender', 'is_deceased')
+                ->select('id', 'first_name', 'last_name', 'profile_photo', 'gender', 'is_deceased', 'birth_date_gregorian')
+                ->orderByRaw('COALESCE(birth_date_gregorian, "9999-01-01") ASC')
                 ->get();
         }
 
@@ -386,6 +387,23 @@ class PersonController extends Controller
         $person->delete();
 
         return redirect()->route('people.index')->with('success', 'הדמות נמחקה');
+    }
+
+    public function reorderChildren(Request $request, Person $person)
+    {
+        $data = $request->validate([
+            'child_ids'   => 'required|array',
+            'child_ids.*' => 'integer|exists:people,id',
+        ]);
+
+        foreach ($data['child_ids'] as $index => $childId) {
+            Relationship::where('person1_id', $person->id)
+                ->where('person2_id', $childId)
+                ->where('type', 'parent_child')
+                ->update(['sort_order' => $index + 1]);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     private function formatMini(Person $p): array

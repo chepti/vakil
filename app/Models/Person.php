@@ -79,7 +79,10 @@ class Person extends Model
             'relationships',
             'person1_id',
             'person2_id'
-        )->wherePivot('type', 'parent_child');
+        )->wherePivot('type', 'parent_child')
+         ->withPivot('sort_order')
+         ->orderByRaw('COALESCE(relationships.sort_order, 999) ASC')
+         ->orderBy('birth_date_gregorian');
     }
 
     /** This person's parents */

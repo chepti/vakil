@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Relationship extends Model
 {
-    protected $fillable = ['person1_id', 'person2_id', 'type', 'marriage_date_gregorian', 'marriage_date_hebrew'];
+    protected $fillable = ['person1_id', 'person2_id', 'type', 'sort_order', 'marriage_date_gregorian', 'marriage_date_hebrew'];
 
     protected $casts = [
         'marriage_date_gregorian' => 'date',
