@@ -67,16 +67,16 @@
         <Link href="/onboarding" class="btn-start">התחל עכשיו</Link>
       </div>
 
-      <!-- Tree container -->
-      <div v-else-if="!radialMode" class="tree-wrap">
+      <!-- Tree container — v-show keeps the chart instance alive when toggling radial -->
+      <div v-show="nodes.length > 0 && !radialMode" class="tree-wrap">
         <div ref="chartContainer" id="FamilyChart" class="f3"></div>
       </div>
 
       <!-- Radial view -->
-      <div v-else class="radial-wrap">
+      <div v-show="nodes.length > 0 && radialMode" class="radial-wrap">
         <!-- breadcrumb: who is at center -->
         <div class="radial-center-label" v-if="radialCenterId && radialCenterId !== String(props.rootPersonId || props.defaultMainPersonId || props.nodes[0]?.id)">
-          <button class="radial-back-btn" @click="radialCenterId = null; radialVB = { x: -550, y: -550, w: 1100, h: 1100 }">← חזור לשורש</button>
+          <button class="radial-back-btn" @click="resetRadialToRoot()">← חזור לשורש</button>
         </div>
         <svg
           class="radial-svg"
@@ -91,9 +91,9 @@
           <line
             v-for="link in radialData.links" :key="link.key"
             :x1="link.x1" :y1="link.y1" :x2="link.x2" :y2="link.y2"
-            :stroke="link.type === 'spouse' ? '#f0abfc' : '#b0c8e4'"
-            :stroke-width="link.type === 'spouse' ? 1.5 : 1.2"
-            :stroke-dasharray="link.type === 'spouse' ? '4 3' : 'none'"
+            :stroke="link.type === 'spouse' ? '#f0abfc' : link.type === 'parent' ? '#fcd34d' : '#b0c8e4'"
+            :stroke-width="link.type === 'spouse' || link.type === 'parent' ? 1.5 : 1.2"
+            :stroke-dasharray="link.type === 'spouse' ? '4 3' : link.type === 'parent' ? '5 3' : 'none'"
             stroke-linecap="round"
           />
           <!-- Nodes -->
@@ -106,11 +106,14 @@
             @click.stop="onRadialNodeClick(node.id)"
             @dblclick.stop="onRadialNodeDblClick(node.id)"
           >
-            <!-- Spouse ring indicator -->
+            <!-- Relationship ring indicators -->
             <circle
               v-if="node.relType === 'spouse' && !node.isRoot"
-              :r="(node.isRoot ? 28 : 20) + 4"
-              fill="none" stroke="#e879f9" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.7"
+              r="24" fill="none" stroke="#e879f9" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.7"
+            />
+            <circle
+              v-if="node.relType === 'parent' && !node.isRoot"
+              r="24" fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.85"
             />
             <!-- Avatar clip -->
             <clipPath :id="`rclip-${node.id}`">
@@ -617,14 +620,19 @@ const radialData = computed(() => {
     visited.add(id)
     const angle = (a0 + a1) / 2
     // Spouses sit closer in (75px), children spread outward (110px per level)
-    const r = level === 0 ? 0 : relType === 'spouse' ? 75 : Math.max(level * 110, 90)
+    const r = level === 0 ? 0
+      : relType === 'spouse' ? 80
+      : relType === 'parent' ? 110
+      : Math.max(level * 120, 110)
     positions[id] = { x: r * Math.cos(angle - Math.PI / 2), y: r * Math.sin(angle - Math.PI / 2), level, relType }
 
     if (level === 0) {
-      // Center node: show spouses + children in first ring
+      // Center node: show parents, spouses, and children in first ring
+      const parents  = (nodeMap[id]?.rels?.parents  || []).map(p => String(p)).filter(p => !visited.has(p))
       const spouses  = (nodeMap[id]?.rels?.spouses  || []).map(s => String(s)).filter(s => !visited.has(s))
       const children = (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
       const firstRing = [
+        ...parents.map(p => ({ id: p, type: 'parent', size: 1 })),
         ...spouses.map(s => ({ id: s, type: 'spouse', size: 1 })),
         ...children.map(c => ({ id: c, type: 'child', size: subtreeSize(c, new Set(visited)) })),
       ]
@@ -636,7 +644,7 @@ const radialData = computed(() => {
         layout(nid, 1, cur, cur + arc, type)
         cur += arc
       })
-    } else if (relType !== 'spouse') {
+    } else if (relType !== 'spouse' && relType !== 'parent') {
       // Non-spouse nodes: recurse into their children only
       const children = (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
       if (!children.length) return
@@ -733,19 +741,28 @@ function onRadialNodeDblClick(id) {
   if (node) selectedPerson.value = { id: node.id, ...node.data }
 }
 
+function resetRadialToRoot() {
+  radialCenterId.value = null
+  radialVB.value = { x: -550, y: -550, w: 1100, h: 1100 }
+}
+
 function toggleRadialMode() {
   radialMode.value = !radialMode.value
-  if (!radialMode.value && compactMode.value) {
-    compactMode.value = false
-    const container = chartContainer.value
-    if (cardHtml && chartInstance) {
-      cardHtml
-        .setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 })
-        .setStyle('imageCircleRect')
-        .setCardInnerHtmlCreator(undefined)
-      chartInstance.setCardXSpacing(20).updateTree({ initial: true })
+  if (!radialMode.value) {
+    // Returning to tree view — reset compact state if needed and refresh chart
+    if (compactMode.value) {
+      compactMode.value = false
+      if (cardHtml && chartInstance) {
+        cardHtml
+          .setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 })
+          .setStyle('imageCircleRect')
+          .setCardInnerHtmlCreator(undefined)
+        chartInstance.setCardXSpacing(20)
+        chartContainer.value?.classList.remove('compact-mode')
+      }
     }
-    container?.classList.remove('compact-mode')
+    // Chart was kept alive via v-show — just re-trigger layout
+    if (chartInstance) chartInstance.updateTree({ initial: true })
   }
   radialCenterId.value = null
   radialVB.value = { x: -550, y: -550, w: 1100, h: 1100 }
