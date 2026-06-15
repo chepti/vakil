@@ -800,6 +800,59 @@ function deletePerson() {
   })
 }
 
+// ─── Reorder children ────────────────────────────────────
+const reorderingChildren = ref(false)
+const childrenOrder      = ref([])
+const dragIdx            = ref(null)
+const dragOverIdx        = ref(null)
+const savingOrder        = ref(false)
+
+function startReorderChildren() {
+  childrenOrder.value    = [...props.children]
+  reorderingChildren.value = true
+}
+
+function cancelReorderChildren() {
+  reorderingChildren.value = false
+  dragIdx.value    = null
+  dragOverIdx.value = null
+}
+
+function onDragStart(idx) { dragIdx.value = idx }
+function onDragOver(idx)  { dragOverIdx.value = idx }
+function onDragEnd()      { dragIdx.value = null; dragOverIdx.value = null }
+
+function onDrop(targetIdx) {
+  const from = dragIdx.value
+  if (from === null || from === targetIdx) return
+  const arr = [...childrenOrder.value]
+  const [moved] = arr.splice(from, 1)
+  arr.splice(targetIdx, 0, moved)
+  childrenOrder.value = arr
+  dragIdx.value    = null
+  dragOverIdx.value = null
+}
+
+async function saveChildrenOrder() {
+  if (savingOrder.value) return
+  savingOrder.value = true
+  try {
+    const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
+    const res = await fetch(`/people/${props.person.id}/reorder-children`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+      body:    JSON.stringify({ child_ids: childrenOrder.value.map(c => c.id) }),
+    })
+    if (!res.ok) throw new Error()
+    reorderingChildren.value = false
+    router.reload({ only: ['children'] })
+  } catch {
+    alert('שגיאה בשמירת הסדר')
+  } finally {
+    savingOrder.value = false
+  }
+}
+
 // ─── Helpers ─────────────────────────────────────────────
 function initials(name) { return (name || '').split(' ').map(w => w[0]).join('').slice(0, 2) }
 function formatDate(d)  {
@@ -864,7 +917,8 @@ h1 { font-size: 1.8rem; color: #1a3a6b; margin: 0; }
 .family-grid { display: flex; flex-direction: column; gap: 1.25rem; }
 .family-section { background: white; border-radius: 14px; padding: 1.25rem 1.5rem; box-shadow: 0 2px 10px rgba(0,50,150,0.06); }
 
-.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+.section-header-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
 h2 { font-size: 1rem; color: #2d4a7a; margin: 0; font-weight: 600; }
 
 .btn-add-inline {
@@ -890,6 +944,17 @@ h2 { font-size: 1rem; color: #2d4a7a; margin: 0; font-weight: 600; }
 .mini-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .mini-initials { font-size: 1rem; font-weight: 700; color: #2d6be4; }
 .mini-marriage { font-size: 0.75rem; color: #7c5a8a; opacity: 0.85; }
+
+/* ─── Reorder children ─── */
+.btn-reorder        { border-color: #7c9ecc; color: #4a6fa5; }
+.btn-reorder-save   { border-color: #22c55e; color: #16a34a; background: #f0fdf4; }
+.btn-reorder-cancel { border-color: #f87171; color: #dc2626; }
+.family-cards.reordering { gap: 0.75rem; }
+.mini-card.draggable { cursor: grab; position: relative; border-style: dashed; user-select: none; }
+.mini-card.draggable:active { cursor: grabbing; }
+.mini-card.dragging  { opacity: 0.4; }
+.mini-card.drag-over { border-color: #2d6be4; background: #e8f0fe; transform: scale(1.04); }
+.drag-handle { position: absolute; top: 4px; right: 6px; font-size: 0.85rem; color: #9ab; line-height: 1; }
 
 /* ─── Photos section ─── */
 .photos-section { margin-top: 0; }
