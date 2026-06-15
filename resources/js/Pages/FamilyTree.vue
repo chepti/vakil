@@ -53,7 +53,7 @@
             {{ compactMode ? '⊠ מצב רגיל' : '⊟ קומפקטי' }}
           </button>
           <button class="ctrl-btn" :class="{ active: radialMode }" @click="toggleRadialMode" title="תצוגה עגולה/ספיראלית">
-            {{ radialMode ? '⊞ עץ רגיל' : '◎ עגולי' }}
+            {{ radialMode ? '⊞ עץ רגיל' : '◎ עגול' }}
           </button>
           <Link v-if="isAdmin" href="/people/create" class="ctrl-btn-primary">+ הוסף דמות</Link>
         </div>
@@ -74,29 +74,45 @@
 
       <!-- Radial view -->
       <div v-else class="radial-wrap">
+        <!-- breadcrumb: who is at center -->
+        <div class="radial-center-label" v-if="radialCenterId && radialCenterId !== String(props.rootPersonId || props.defaultMainPersonId || props.nodes[0]?.id)">
+          <button class="radial-back-btn" @click="radialCenterId = null; radialVB = { x: -550, y: -550, w: 1100, h: 1100 }">← חזור לשורש</button>
+        </div>
         <svg
           class="radial-svg"
           :viewBox="`${radialVB.x} ${radialVB.y} ${radialVB.w} ${radialVB.h}`"
           @wheel.prevent="onRadialWheel"
-          @pointerdown="onRadialPointerDown"
+          @pointerdown="onRadialBgPointerDown"
           @pointermove="onRadialPointerMove"
           @pointerup="onRadialPointerUp"
           @pointercancel="onRadialPointerUp"
         >
-          <!-- Links -->
+          <!-- Links — child=solid, spouse=dashed -->
           <line
             v-for="link in radialData.links" :key="link.key"
             :x1="link.x1" :y1="link.y1" :x2="link.x2" :y2="link.y2"
-            stroke="#b0c8e4" stroke-width="1.2" stroke-linecap="round"
+            :stroke="link.type === 'spouse' ? '#f0abfc' : '#b0c8e4'"
+            :stroke-width="link.type === 'spouse' ? 1.5 : 1.2"
+            :stroke-dasharray="link.type === 'spouse' ? '4 3' : 'none'"
+            stroke-linecap="round"
           />
           <!-- Nodes -->
           <g
             v-for="node in radialData.nodes" :key="node.id"
             :transform="`translate(${node.x},${node.y})`"
             class="radial-node"
-            @click="selectRadialNode(node.id)"
+            :class="{ 'radial-spouse': node.relType === 'spouse' }"
+            @pointerdown.stop
+            @click.stop="onRadialNodeClick(node.id)"
+            @dblclick.stop="onRadialNodeDblClick(node.id)"
           >
-            <!-- Avatar image clipped to circle -->
+            <!-- Spouse ring indicator -->
+            <circle
+              v-if="node.relType === 'spouse' && !node.isRoot"
+              :r="(node.isRoot ? 28 : 20) + 4"
+              fill="none" stroke="#e879f9" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.7"
+            />
+            <!-- Avatar clip -->
             <clipPath :id="`rclip-${node.id}`">
               <circle :r="node.isRoot ? 28 : 20" cx="0" cy="0"/>
             </clipPath>
@@ -120,17 +136,30 @@
               :font-size="node.isRoot ? 11 : 9"
               fill="#1a3a6b" font-family="Rubik, sans-serif" font-weight="500"
             >{{ node.firstName.slice(0, 5) }}</text>
-            <!-- Name label below node -->
+            <!-- Name label below node — two lines: first + last -->
             <text
-              :y="node.isRoot ? 38 : 28"
-              text-anchor="middle" dominant-baseline="hanging"
-              :font-size="node.isRoot ? 11 : 9"
-              fill="#1a3a6b" font-family="Rubik, sans-serif"
+              :y="node.isRoot ? 36 : 26"
+              text-anchor="middle"
+              font-family="Rubik, sans-serif"
               :font-weight="node.isRoot ? '700' : '400'"
-            >{{ node.firstName }}</text>
+            >
+              <tspan
+                x="0" dy="0"
+                :font-size="node.isRoot ? 12 : 9"
+                fill="#1a3a6b"
+              >{{ node.firstName }}</tspan>
+              <tspan
+                v-if="node.lastName"
+                x="0" dy="12"
+                :font-size="node.isRoot ? 10 : 8"
+                fill="#4a6a9b"
+              >{{ node.lastName }}</tspan>
+            </text>
+            <!-- Double-click hint on hover for navigable nodes -->
+            <title>{{ node.fullName }}{{ node.relType === 'spouse' ? ' (בן/בת זוג)' : '' }} — לחץ פעמיים לנווט</title>
           </g>
         </svg>
-        <div class="radial-hint">גלגל עכבר לזום · גרירה להזזה · לחיצה לפרטים</div>
+        <div class="radial-hint">גלגל לזום · גרירה להזזה · לחיצה לפרטים · לחיצה כפולה לנווט</div>
       </div>
 
       <!-- Side panel -->
@@ -527,18 +556,18 @@ function toggleCompactMode() {
 }
 
 // ── Radial view ──────────────────────────────────────────────
-const radialMode = ref(false)
-const radialVB   = ref({ x: -550, y: -550, w: 1100, h: 1100 })
-let   radialDrag = null
+const radialMode     = ref(false)
+const radialCenterId = ref(null)   // null = use root
+const radialVB       = ref({ x: -550, y: -550, w: 1100, h: 1100 })
+let   radialDrag     = null
 
 const radialData = computed(() => {
   if (!radialMode.value || !props.nodes.length) return { nodes: [], links: [] }
 
-  const rootId = String(props.rootPersonId || props.defaultMainPersonId || props.nodes[0]?.id)
+  const centerId = String(radialCenterId.value || props.rootPersonId || props.defaultMainPersonId || props.nodes[0]?.id)
   const nodeMap = {}
   props.nodes.forEach(n => { nodeMap[String(n.id)] = n })
 
-  // Count subtree size for proportional arc allocation
   function subtreeSize(id, seen = new Set()) {
     if (seen.has(id)) return 0
     seen.add(id)
@@ -546,53 +575,71 @@ const radialData = computed(() => {
     return 1 + children.reduce((s, c) => s + subtreeSize(c, seen), 0)
   }
 
-  // Recursive radial layout
   const positions = {}
   const links = []
   const visited = new Set()
 
-  function layout(id, level, a0, a1) {
+  function layout(id, level, a0, a1, relType = 'child') {
     if (visited.has(id)) return
     visited.add(id)
     const angle = (a0 + a1) / 2
-    const r = level === 0 ? 0 : Math.max(level * 110, 90)
-    positions[id] = { x: r * Math.cos(angle - Math.PI / 2), y: r * Math.sin(angle - Math.PI / 2), level }
+    // Spouses sit closer in (75px), children spread outward (110px per level)
+    const r = level === 0 ? 0 : relType === 'spouse' ? 75 : Math.max(level * 110, 90)
+    positions[id] = { x: r * Math.cos(angle - Math.PI / 2), y: r * Math.sin(angle - Math.PI / 2), level, relType }
 
-    const children = (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
-    if (!children.length) return
-
-    const sizes = children.map(c => subtreeSize(c, new Set(visited)))
-    const total = sizes.reduce((a, b) => a + b, 0)
-    let cur = a0
-    children.forEach((childId, i) => {
-      const arc = (a1 - a0) * sizes[i] / total
-      links.push({ key: `${id}-${childId}`, from: id, to: childId })
-      layout(childId, level + 1, cur, cur + arc)
-      cur += arc
-    })
+    if (level === 0) {
+      // Center node: show spouses + children in first ring
+      const spouses  = (nodeMap[id]?.rels?.spouses  || []).map(s => String(s)).filter(s => !visited.has(s))
+      const children = (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
+      const firstRing = [
+        ...spouses.map(s => ({ id: s, type: 'spouse', size: 1 })),
+        ...children.map(c => ({ id: c, type: 'child', size: subtreeSize(c, new Set(visited)) })),
+      ]
+      const total = firstRing.reduce((s, x) => s + x.size, 0) || 1
+      let cur = a0
+      firstRing.forEach(({ id: nid, type, size }) => {
+        const arc = (a1 - a0) * size / total
+        links.push({ key: `${id}-${nid}`, from: id, to: nid, type })
+        layout(nid, 1, cur, cur + arc, type)
+        cur += arc
+      })
+    } else if (relType !== 'spouse') {
+      // Non-spouse nodes: recurse into their children only
+      const children = (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
+      if (!children.length) return
+      const sizes = children.map(c => subtreeSize(c, new Set(visited)))
+      const total  = sizes.reduce((a, b) => a + b, 0) || 1
+      let cur = a0
+      children.forEach((childId, i) => {
+        const arc = (a1 - a0) * sizes[i] / total
+        links.push({ key: `${id}-${childId}`, from: id, to: childId, type: 'child' })
+        layout(childId, level + 1, cur, cur + arc, 'child')
+        cur += arc
+      })
+    }
   }
 
-  layout(rootId, 0, 0, 2 * Math.PI)
+  layout(centerId, 0, 0, 2 * Math.PI)
 
   const nodes = Object.keys(positions).map(id => {
-    const n = nodeMap[id]
+    const n   = nodeMap[id]
+    const pos = positions[id]
     return {
       id,
-      x: positions[id].x,
-      y: positions[id].y,
-      level: positions[id].level,
-      gender: n?.data?.gender,
-      avatar: n?.data?.avatar || null,
+      x: pos.x, y: pos.y, level: pos.level, relType: pos.relType,
+      gender:    n?.data?.gender,
+      avatar:    n?.data?.avatar || null,
       firstName: n?.data?.['first name'] || '',
-      fullName: `${n?.data?.['first name'] || ''} ${n?.data?.['last name'] || ''}`.trim(),
-      isRoot: id === rootId,
+      lastName:  n?.data?.['last name']  || '',
+      fullName:  `${n?.data?.['first name'] || ''} ${n?.data?.['last name'] || ''}`.trim(),
+      isRoot: id === centerId,
     }
   })
 
   const linkLines = links
     .filter(l => positions[l.from] && positions[l.to])
     .map(l => ({
-      key: l.key,
+      key:  l.key,  type: l.type,
       x1: positions[l.from].x, y1: positions[l.from].y,
       x2: positions[l.to].x,   y2: positions[l.to].y,
     }))
@@ -615,31 +662,42 @@ function onRadialWheel(e) {
   const newH = Math.min(3000, Math.max(300, vb.h * factor))
   radialVB.value = { x: vb.x - (newW - vb.w) / 2, y: vb.y - (newH - vb.h) / 2, w: newW, h: newH }
 }
-function onRadialPointerDown(e) {
-  e.currentTarget.setPointerCapture(e.pointerId)
-  radialDrag = { px: e.clientX, py: e.clientY, vb: { ...radialVB.value } }
+
+// Drag only starts from the SVG background — nodes use @pointerdown.stop to block this
+function onRadialBgPointerDown(e) {
+  radialDrag = { px: e.clientX, py: e.clientY, vb: { ...radialVB.value }, moved: false }
 }
 function onRadialPointerMove(e) {
   if (!radialDrag) return
-  const vb = radialDrag.vb
-  const svgEl = e.currentTarget
-  const rect = svgEl.getBoundingClientRect()
-  const sx = vb.w / rect.width
-  const sy = vb.h / rect.height
+  const dx = e.clientX - radialDrag.px
+  const dy = e.clientY - radialDrag.py
+  if (!radialDrag.moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) radialDrag.moved = true
+  const vb  = radialDrag.vb
+  const rect = e.currentTarget.getBoundingClientRect()
   radialVB.value = {
-    x: vb.x - (e.clientX - radialDrag.px) * sx,
-    y: vb.y - (e.clientY - radialDrag.py) * sy,
+    x: vb.x - dx * vb.w / rect.width,
+    y: vb.y - dy * vb.h / rect.height,
     w: vb.w, h: vb.h,
   }
 }
 function onRadialPointerUp() { radialDrag = null }
 
-function selectRadialNode(id) {
+function onRadialNodeClick(id) {
+  // Ignore if this was a drag
+  if (radialDrag?.moved) return
   const node = props.nodes.find(n => String(n.id) === String(id))
   if (!node) return
   selectedPerson.value = { id: node.id, ...node.data }
   addRelType.value = null
   if (chartInstance) chartInstance.updateMainId(id)
+}
+
+function onRadialNodeDblClick(id) {
+  radialCenterId.value = String(id)
+  radialVB.value = { x: -550, y: -550, w: 1100, h: 1100 }
+  // Also open side panel
+  const node = props.nodes.find(n => String(n.id) === String(id))
+  if (node) selectedPerson.value = { id: node.id, ...node.data }
 }
 
 function toggleRadialMode() {
@@ -653,7 +711,7 @@ function toggleRadialMode() {
     }
     container?.classList.remove('compact-mode')
   }
-  // Reset viewBox
+  radialCenterId.value = null
   radialVB.value = { x: -550, y: -550, w: 1100, h: 1100 }
 }
 
@@ -1016,9 +1074,27 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   user-select: none;
   touch-action: none;
 }
+.radial-center-label {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.75rem;
+  z-index: 5;
+}
+.radial-back-btn {
+  background: rgba(255,255,255,0.9);
+  border: 1px solid #b0c8e4;
+  border-radius: 20px;
+  padding: 0.25rem 0.9rem;
+  font-size: 0.8rem;
+  color: #1a3a6b;
+  cursor: pointer;
+  font-family: 'Rubik', sans-serif;
+}
+.radial-back-btn:hover { background: #e8f0ff; }
 .radial-node { cursor: pointer; }
 .radial-node circle { transition: r 0.15s, stroke-width 0.15s; }
 .radial-node:hover circle { stroke-width: 3 !important; filter: brightness(1.08); }
+.radial-node:hover text { font-weight: 600; }
 .radial-hint {
   position: absolute;
   bottom: 0.75rem;
