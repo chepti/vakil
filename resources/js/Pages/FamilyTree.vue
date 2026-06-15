@@ -540,16 +540,49 @@ async function setAsDefault(personId) {
 }
 
 // ── Compact mode ─────────────────────────────────────────────
+function compactInnerHtml(d) {
+  const raw    = d.data.data || {}
+  const first  = (raw['first name'] || '').trim()
+  const last   = (raw['last name']  || '').trim()
+  const name   = [first, last].filter(Boolean).join(' ')
+  const avatar = raw.avatar || null
+  const gender = raw.gender
+  const depth  = d.depth
+
+  const base   = gender === 'M' ? '#dbeafe' : gender === 'F' ? '#ede9fe' : '#e2e8f0'
+  const accent = gender === 'M' ? '#3b82f6' : gender === 'F' ? '#8b5cf6' : '#94a3b8'
+
+  if (depth <= 1) {
+    // Main (0) or children (1): circle photo + name
+    const photo = avatar
+      ? `<img src="${avatar}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid ${accent};flex-shrink:0">`
+      : `<div style="width:44px;height:44px;border-radius:50%;background:${base};border:2px solid ${accent};display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:${accent};flex-shrink:0">${first[0] || '?'}</div>`
+    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:88px;padding:4px 2px;gap:3px;overflow:hidden">${photo}<div style="font-size:0.6rem;font-weight:500;text-align:center;line-height:1.2;color:#1e3a5f;width:84px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${name}</div></div>`
+  } else if (depth === 2) {
+    // Grandchildren: name rotated 90°
+    return `<div style="display:flex;align-items:center;justify-content:center;height:88px;overflow:hidden"><span style="display:inline-block;transform:rotate(-90deg);white-space:nowrap;font-size:0.6rem;color:#334155;max-width:82px;overflow:hidden;text-overflow:ellipsis">${first || name}</span></div>`
+  } else {
+    // Great-grandchildren and beyond: colored dot only
+    return `<div style="display:flex;align-items:center;justify-content:center;height:88px"><div style="width:6px;height:48px;border-radius:3px;background:${accent};opacity:0.4"></div></div>`
+  }
+}
+
 function toggleCompactMode() {
   compactMode.value = !compactMode.value
   if (!chartInstance || !cardHtml) return
   const container = chartContainer.value
   if (compactMode.value) {
-    cardHtml.setCardDim({ width: 36, height: 90 }).setStyle('rect')
-    chartInstance.setCardXSpacing(4).updateTree({ initial: true })
+    cardHtml
+      .setCardDim({ width: 88, height: 90 })
+      .setStyle('rect')
+      .setCardInnerHtmlCreator(compactInnerHtml)
+    chartInstance.setCardXSpacing(6).updateTree({ initial: true })
     container?.classList.add('compact-mode')
   } else {
-    cardHtml.setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 }).setStyle('imageCircleRect')
+    cardHtml
+      .setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 })
+      .setStyle('imageCircleRect')
+      .setCardInnerHtmlCreator(undefined)
     chartInstance.setCardXSpacing(20).updateTree({ initial: true })
     container?.classList.remove('compact-mode')
   }
@@ -706,7 +739,10 @@ function toggleRadialMode() {
     compactMode.value = false
     const container = chartContainer.value
     if (cardHtml && chartInstance) {
-      cardHtml.setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 }).setStyle('imageCircleRect')
+      cardHtml
+        .setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 })
+        .setStyle('imageCircleRect')
+        .setCardInnerHtmlCreator(undefined)
       chartInstance.setCardXSpacing(20).updateTree({ initial: true })
     }
     container?.classList.remove('compact-mode')
@@ -831,47 +867,16 @@ function formatDate(d) {
   max-width: 100% !important;
 }
 
-/* ── Compact mode: narrow vertical strips ── */
+/* ── Compact mode ── */
 #FamilyChart.compact-mode .card-inner {
-  overflow: hidden !important;
-  border-radius: 6px !important;
-}
-#FamilyChart.compact-mode .card-label {
-  height: 100% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  border-radius: 8px !important;
   overflow: hidden !important;
   padding: 0 !important;
 }
-#FamilyChart.compact-mode .card-label div:first-child {
-  transform: rotate(-90deg) !important;
-  transform-origin: center center !important;
-  white-space: nowrap !important;
-  font-size: 0.65rem !important;
-  max-width: 80px !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  line-height: 1 !important;
-}
-#FamilyChart.compact-mode .card-label div:not(:first-child) {
-  display: none !important;
-}
-/* Peek on hover */
 #FamilyChart.compact-mode .card:hover .card-inner {
-  width: 180px !important;
-  overflow: visible !important;
+  box-shadow: 0 4px 20px rgba(0,50,150,0.22) !important;
   position: relative !important;
-  z-index: 100 !important;
-  box-shadow: 0 4px 18px rgba(0,50,150,0.2) !important;
-}
-#FamilyChart.compact-mode .card:hover .card-label div:first-child {
-  transform: none !important;
-  max-width: 150px !important;
-  font-size: 0.78rem !important;
-}
-#FamilyChart.compact-mode .card:hover .card-label div:not(:first-child) {
-  display: block !important;
+  z-index: 10 !important;
 }
 </style>
 
