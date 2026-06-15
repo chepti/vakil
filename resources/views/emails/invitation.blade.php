@@ -52,6 +52,8 @@
         /* Body */
         .body {
             padding: 36px 40px;
+            direction: rtl;
+            text-align: right;
         }
 
         .greeting {
@@ -59,6 +61,8 @@
             color: #1e3a5f;
             font-weight: 600;
             margin-bottom: 16px;
+            direction: rtl;
+            text-align: right;
         }
 
         .text {
@@ -66,6 +70,8 @@
             color: #374151;
             line-height: 1.7;
             margin-bottom: 12px;
+            direction: rtl;
+            text-align: right;
         }
 
         .highlight-box {
@@ -76,6 +82,8 @@
             margin: 20px 0;
             font-size: 15px;
             color: #1e40af;
+            direction: rtl;
+            text-align: right;
         }
 
         /* CTA Button */
@@ -113,6 +121,8 @@
             font-size: 12px;
             color: #9ca3af;
             word-break: break-all;
+            direction: rtl;
+            text-align: right;
         }
 
         .link-fallback a {
