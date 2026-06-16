@@ -550,13 +550,13 @@ function compactInnerHtml(d) {
     const photo = avatar
       ? `<img src="${avatar}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid ${accent};display:block;flex-shrink:0">`
       : `<div style="width:26px;height:26px;border-radius:50%;background:${base};border:1.5px solid ${accent};display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:${accent};flex-shrink:0">${first[0] || '?'}</div>`
-    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:88px;gap:2px;overflow:hidden">${photo}<div style="font-size:0.44rem;text-align:center;color:#1e3a5f;width:30px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;line-height:1">${first}</div></div>`
+    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:32px;height:90px;box-sizing:border-box;gap:2px;overflow:hidden">${photo}<div style="font-size:0.44rem;text-align:center;color:#1e3a5f;width:32px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;line-height:1">${first}</div></div>`
   } else if (depth === 2) {
     // Grandchildren: colored strip + rotated first name
-    return `<div style="position:relative;height:88px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:${base};border-radius:5px"><span style="position:absolute;transform:rotate(-90deg);white-space:nowrap;font-size:0.54rem;font-weight:600;color:${accent};max-width:80px;overflow:hidden;text-overflow:ellipsis">${first || name}</span></div>`
+    return `<div style="position:relative;width:32px;height:90px;box-sizing:border-box;overflow:hidden;display:flex;align-items:center;justify-content:center;background:${base};border:1px solid ${accent}55;border-radius:5px"><span style="position:absolute;transform:rotate(-90deg);white-space:nowrap;font-size:0.54rem;font-weight:600;color:${accent};max-width:84px;overflow:hidden;text-overflow:ellipsis">${first || name}</span></div>`
   } else {
     // Great-grandchildren: lighter strip + first name
-    return `<div style="position:relative;height:88px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:${accent}22;border-radius:5px"><span style="position:absolute;transform:rotate(-90deg);white-space:nowrap;font-size:0.48rem;color:${accent}bb;max-width:80px;overflow:hidden;text-overflow:ellipsis">${first}</span></div>`
+    return `<div style="position:relative;width:32px;height:90px;box-sizing:border-box;overflow:hidden;display:flex;align-items:center;justify-content:center;background:${accent}22;border-radius:5px"><span style="position:absolute;transform:rotate(-90deg);white-space:nowrap;font-size:0.48rem;font-weight:500;color:${accent};max-width:84px;overflow:hidden;text-overflow:ellipsis">${first}</span></div>`
   }
 }
 
