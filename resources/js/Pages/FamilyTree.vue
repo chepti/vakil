@@ -104,7 +104,6 @@
             :class="{ 'radial-spouse': node.relType === 'spouse' }"
             @pointerdown.stop
             @click.stop="onRadialNodeClick(node.id)"
-            @dblclick.stop="onRadialNodeDblClick(node.id)"
           >
             <!-- Relationship ring indicators -->
             <circle
@@ -158,11 +157,10 @@
                 fill="#4a6a9b"
               >{{ node.lastName }}</tspan>
             </text>
-            <!-- Double-click hint on hover for navigable nodes -->
-            <title>{{ node.fullName }}{{ node.relType === 'spouse' ? ' (בן/בת זוג)' : '' }} — לחץ פעמיים לנווט</title>
+            <title>{{ node.fullName }}{{ node.relType === 'spouse' ? ' (בן/בת זוג)' : node.relType === 'parent' ? ' (הורה)' : '' }}</title>
           </g>
         </svg>
-        <div class="radial-hint">גלגל לזום · גרירה להזזה · לחיצה לפרטים · לחיצה כפולה לנווט</div>
+        <div class="radial-hint">גלגל לזום · גרירה להזזה · לחיצה להצגת מעגלי הקשר</div>
       </div>
 
       <!-- Side panel -->
@@ -724,21 +722,15 @@ function onRadialPointerMove(e) {
 function onRadialPointerUp() { radialDrag = null }
 
 function onRadialNodeClick(id) {
-  // Ignore if this was a drag
+  // Ignore if this ended a drag
   if (radialDrag?.moved) return
+  // Single click: make this person the center + open side panel
+  radialCenterId.value = String(id)
+  radialVB.value = { x: -550, y: -550, w: 1100, h: 1100 }
   const node = props.nodes.find(n => String(n.id) === String(id))
   if (!node) return
   selectedPerson.value = { id: node.id, ...node.data }
   addRelType.value = null
-  if (chartInstance) chartInstance.updateMainId(id)
-}
-
-function onRadialNodeDblClick(id) {
-  radialCenterId.value = String(id)
-  radialVB.value = { x: -550, y: -550, w: 1100, h: 1100 }
-  // Also open side panel
-  const node = props.nodes.find(n => String(n.id) === String(id))
-  if (node) selectedPerson.value = { id: node.id, ...node.data }
 }
 
 function resetRadialToRoot() {
