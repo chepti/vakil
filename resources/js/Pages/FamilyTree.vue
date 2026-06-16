@@ -42,7 +42,7 @@
           <button class="ctrl-btn" @click="centerTree" title="חזור למרכז">⊕ מרכז</button>
           <button class="ctrl-btn" @click="goToRoot" title="הצג מהאב הקדמון">🌳 שורש</button>
           <button class="ctrl-btn" :class="{ active: showSiblings }" @click="toggleSiblings" title="הצג/הסתר אחים">
-            {{ showSiblings ? '👥 הסתר אחים' : '👥 הצג אחים' }}
+            {{ showSiblings ? '👥 הסתר ענף' : '👥 הצג ענף' }}
           </button>
           <div class="depth-ctrl">
             <button class="ctrl-btn icon-btn" @click="changeDepth(-1)" title="פחות דורות" :disabled="depth <= 1">−</button>
@@ -75,7 +75,7 @@
       <!-- Radial view -->
       <div v-show="nodes.length > 0 && radialMode" class="radial-wrap">
         <!-- breadcrumb: who is at center -->
-        <div class="radial-center-label" v-if="radialCenterId && radialCenterId !== String(props.rootPersonId || props.defaultMainPersonId || props.nodes[0]?.id)">
+        <div class="radial-center-label" v-if="radialCenterId && radialCenterId !== String(props.defaultMainPersonId || props.rootPersonId || props.nodes[0]?.id)">
           <button class="radial-back-btn" @click="resetRadialToRoot()">← חזור לשורש</button>
         </div>
         <svg
@@ -591,7 +591,7 @@ let   radialDrag     = null
 const radialData = computed(() => {
   if (!radialMode.value || !props.nodes.length) return { nodes: [], links: [] }
 
-  const centerId = String(radialCenterId.value || props.rootPersonId || props.defaultMainPersonId || props.nodes[0]?.id)
+  const centerId = String(radialCenterId.value || props.defaultMainPersonId || props.rootPersonId || props.nodes[0]?.id)
   const nodeMap = {}
   props.nodes.forEach(n => { nodeMap[String(n.id)] = n })
 
