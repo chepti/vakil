@@ -546,17 +546,17 @@ function compactInnerHtml(d) {
   const accent = gender === 'M' ? '#3b82f6' : gender === 'F' ? '#8b5cf6' : '#94a3b8'
 
   if (depth <= 1) {
-    // Main (0) or children (1): circle photo + first name
+    // Main (0) or children (1): circle photo + first name, fits in 32px slot
     const photo = avatar
-      ? `<img src="${avatar}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid ${accent};display:block;flex-shrink:0">`
-      : `<div style="width:40px;height:40px;border-radius:50%;background:${base};border:2px solid ${accent};display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:${accent};flex-shrink:0">${first[0] || '?'}</div>`
-    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:88px;gap:3px;padding:2px;overflow:hidden">${photo}<div style="font-size:0.52rem;text-align:center;color:#1e3a5f;width:50px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;line-height:1">${first}</div></div>`
+      ? `<img src="${avatar}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid ${accent};display:block;flex-shrink:0">`
+      : `<div style="width:26px;height:26px;border-radius:50%;background:${base};border:1.5px solid ${accent};display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:${accent};flex-shrink:0">${first[0] || '?'}</div>`
+    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:88px;gap:2px;overflow:hidden">${photo}<div style="font-size:0.44rem;text-align:center;color:#1e3a5f;width:30px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;line-height:1">${first}</div></div>`
   } else if (depth === 2) {
-    // Grandchildren: first name rotated 90° in a properly-clipped strip
-    return `<div style="position:relative;width:52px;height:88px;overflow:hidden;display:flex;align-items:center;justify-content:center"><span style="position:absolute;transform:rotate(-90deg);white-space:nowrap;font-size:0.57rem;color:#334155;max-width:80px;overflow:hidden;text-overflow:ellipsis">${first || name}</span></div>`
+    // Grandchildren: colored strip + rotated first name
+    return `<div style="position:relative;height:88px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:${base};border-radius:5px"><span style="position:absolute;transform:rotate(-90deg);white-space:nowrap;font-size:0.54rem;font-weight:600;color:${accent};max-width:80px;overflow:hidden;text-overflow:ellipsis">${first || name}</span></div>`
   } else {
-    // Great-grandchildren and beyond: subtle dot
-    return `<div style="display:flex;align-items:center;justify-content:center;height:88px"><div style="width:8px;height:8px;border-radius:50%;background:${accent};opacity:0.45"></div></div>`
+    // Great-grandchildren: lighter strip + first name
+    return `<div style="position:relative;height:88px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:${accent}22;border-radius:5px"><span style="position:absolute;transform:rotate(-90deg);white-space:nowrap;font-size:0.48rem;color:${accent}bb;max-width:80px;overflow:hidden;text-overflow:ellipsis">${first}</span></div>`
   }
 }
 
@@ -567,10 +567,10 @@ function toggleCompactMode() {
   if (compactMode.value) {
     // node_separation = center-to-center distance = card_width + gap (not just gap)
     cardHtml
-      .setCardDim({ width: 52, height: 90 })
+      .setCardDim({ width: 32, height: 90 })
       .setStyle('rect')
       .setCardInnerHtmlCreator(compactInnerHtml)
-    chartInstance.setCardXSpacing(58).updateTree({ initial: true })  // 52px card + 6px gap
+    chartInstance.setCardXSpacing(36).updateTree({ initial: true })  // 32px card + 4px gap
     container?.classList.add('compact-mode')
   } else {
     cardHtml
