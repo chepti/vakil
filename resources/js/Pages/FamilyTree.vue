@@ -554,17 +554,17 @@ function compactInnerHtml(d) {
   const accent = gender === 'M' ? '#3b82f6' : gender === 'F' ? '#8b5cf6' : '#94a3b8'
 
   if (depth <= 1) {
-    // Main (0) or children (1): circle photo + name
+    // Main (0) or children (1): circle photo + first name
     const photo = avatar
-      ? `<img src="${avatar}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid ${accent};flex-shrink:0">`
-      : `<div style="width:44px;height:44px;border-radius:50%;background:${base};border:2px solid ${accent};display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:${accent};flex-shrink:0">${first[0] || '?'}</div>`
-    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:88px;padding:4px 2px;gap:3px;overflow:hidden">${photo}<div style="font-size:0.6rem;font-weight:500;text-align:center;line-height:1.2;color:#1e3a5f;width:84px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${name}</div></div>`
+      ? `<img src="${avatar}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid ${accent};display:block;flex-shrink:0">`
+      : `<div style="width:40px;height:40px;border-radius:50%;background:${base};border:2px solid ${accent};display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:${accent};flex-shrink:0">${first[0] || '?'}</div>`
+    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:88px;gap:3px;padding:2px;overflow:hidden">${photo}<div style="font-size:0.52rem;text-align:center;color:#1e3a5f;width:50px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;line-height:1">${first}</div></div>`
   } else if (depth === 2) {
-    // Grandchildren: name rotated 90°
-    return `<div style="display:flex;align-items:center;justify-content:center;height:88px;overflow:hidden"><span style="display:inline-block;transform:rotate(-90deg);white-space:nowrap;font-size:0.6rem;color:#334155;max-width:82px;overflow:hidden;text-overflow:ellipsis">${first || name}</span></div>`
+    // Grandchildren: first name rotated 90° in a properly-clipped strip
+    return `<div style="position:relative;width:52px;height:88px;overflow:hidden;display:flex;align-items:center;justify-content:center"><span style="position:absolute;transform:rotate(-90deg);white-space:nowrap;font-size:0.57rem;color:#334155;max-width:80px;overflow:hidden;text-overflow:ellipsis">${first || name}</span></div>`
   } else {
-    // Great-grandchildren and beyond: colored dot only
-    return `<div style="display:flex;align-items:center;justify-content:center;height:88px"><div style="width:6px;height:48px;border-radius:3px;background:${accent};opacity:0.4"></div></div>`
+    // Great-grandchildren and beyond: subtle dot
+    return `<div style="display:flex;align-items:center;justify-content:center;height:88px"><div style="width:8px;height:8px;border-radius:50%;background:${accent};opacity:0.45"></div></div>`
   }
 }
 
@@ -573,18 +573,19 @@ function toggleCompactMode() {
   if (!chartInstance || !cardHtml) return
   const container = chartContainer.value
   if (compactMode.value) {
+    // node_separation = center-to-center distance = card_width + gap (not just gap)
     cardHtml
-      .setCardDim({ width: 88, height: 90 })
+      .setCardDim({ width: 52, height: 90 })
       .setStyle('rect')
       .setCardInnerHtmlCreator(compactInnerHtml)
-    chartInstance.setCardXSpacing(6).updateTree({ initial: true })
+    chartInstance.setCardXSpacing(58).updateTree({ initial: true })  // 52px card + 6px gap
     container?.classList.add('compact-mode')
   } else {
     cardHtml
       .setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 })
       .setStyle('imageCircleRect')
       .setCardInnerHtmlCreator(undefined)
-    chartInstance.setCardXSpacing(20).updateTree({ initial: true })
+    chartInstance.setCardXSpacing(250).updateTree({ initial: true })  // restore library default
     container?.classList.remove('compact-mode')
   }
 }
@@ -749,7 +750,7 @@ function toggleRadialMode() {
           .setCardDim({ width: 210, height: 90, text_x: 80, text_y: 20, img_x: 6, img_y: 6, img_w: 62, img_h: 62 })
           .setStyle('imageCircleRect')
           .setCardInnerHtmlCreator(undefined)
-        chartInstance.setCardXSpacing(20)
+        chartInstance.setCardXSpacing(250)
         chartContainer.value?.classList.remove('compact-mode')
       }
     }
