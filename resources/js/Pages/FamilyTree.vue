@@ -610,20 +610,11 @@ const radialData = computed(() => {
     if (visited.has(id)) return
     visited.add(id)
     const angle = (a0 + a1) / 2
-    // Dynamic radius: ensures at least 52px arc-length per node so rings spread out
-    let r
-    if (level === 0) r = 0
-    else if (relType === 'spouse') r = 90
-    else if (relType === 'parent') r = 130
-    else {
-      const arcSpan = Math.max(a1 - a0, 0.01)
-      const minR = Math.ceil(52 / arcSpan)  // push ring out until each node has 52px of arc
-      r = Math.max(level * 145, minR, 130)
-    }
-    positions[id] = { x: r * Math.cos(angle - Math.PI / 2), y: r * Math.sin(angle - Math.PI / 2), level, relType, angle }
+    // First-pass radius — child nodes will be corrected in second pass
+    const r = level === 0 ? 0 : relType === 'spouse' ? 90 : relType === 'parent' ? 130 : level * 160
+    positions[id] = { x: r * Math.cos(angle - Math.PI / 2), y: r * Math.sin(angle - Math.PI / 2), level, relType, angle, arcSpan: a1 - a0 }
 
     if (level === 0) {
-      // Center node: show parents, spouses, and children in first ring
       const parents  = (nodeMap[id]?.rels?.parents  || []).map(p => String(p)).filter(p => !visited.has(p))
       const spouses  = (nodeMap[id]?.rels?.spouses  || []).map(s => String(s)).filter(s => !visited.has(s))
       const children = (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
@@ -641,7 +632,6 @@ const radialData = computed(() => {
         cur += arc
       })
     } else if (relType !== 'spouse' && relType !== 'parent') {
-      // Non-spouse nodes: recurse into their children only
       const children = (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
       if (!children.length) return
       const sizes = children.map(c => subtreeSize(c, new Set(visited)))
@@ -658,13 +648,47 @@ const radialData = computed(() => {
 
   layout(centerId, 0, 0, 2 * Math.PI)
 
+  // ── Second pass: canonical per-generation radius + grape-cluster jitter ──
+  // Group child nodes by level (exclude root, spouses, parents)
+  const childByLevel = {}
+  Object.keys(positions).forEach(id => {
+    const pos = positions[id]
+    if (pos.level === 0 || pos.relType === 'spouse' || pos.relType === 'parent') return
+    if (!childByLevel[pos.level]) childByLevel[pos.level] = []
+    childByLevel[pos.level].push(id)
+  })
+
+  // Canonical radius per level: large enough for all nodes in that generation
+  const levelR = {}
+  Object.keys(childByLevel).forEach(lvl => {
+    const l = parseInt(lvl)
+    const n = childByLevel[lvl].length
+    const needed = Math.ceil(n * 58 / (2 * Math.PI))  // 58px min spacing per node
+    levelR[l] = Math.max(l * 160, needed, 140)
+  })
+
+  // Apply canonical radius + jitter (dense zones push out, sparse zones pull in)
+  Object.keys(childByLevel).forEach(lvl => {
+    const l      = parseInt(lvl)
+    const base   = levelR[l]
+    const ids    = childByLevel[lvl]
+    const avgArc = (2 * Math.PI) / ids.length
+    ids.forEach(id => {
+      const pos      = positions[id]
+      const arcRatio = pos.arcSpan / avgArc  // <1 dense, >1 sparse
+      // Dense → push outward (+); sparse → pull inward (-)
+      const jitter   = Math.max(-30, Math.min(50, (1 - arcRatio) * 45))
+      const r        = base + jitter
+      pos.x = r * Math.cos(pos.angle - Math.PI / 2)
+      pos.y = r * Math.sin(pos.angle - Math.PI / 2)
+    })
+  })
+
   const nodes = Object.keys(positions).map(id => {
     const n   = nodeMap[id]
     const pos = positions[id]
     const isRoot = id === centerId
     const nodeR  = isRoot ? 28 : 20
-
-    // Label placed radially outward from center so it doesn't overlap neighbours
     const angle  = pos.angle || 0
     const lDist  = nodeR + 11
     const lx = isRoot ? 0 : Math.cos(angle - Math.PI / 2) * lDist
