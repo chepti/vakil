@@ -108,18 +108,18 @@
             <!-- Relationship ring indicators -->
             <circle
               v-if="node.relType === 'spouse' && !node.isRoot"
-              r="24" fill="none" stroke="#e879f9" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.7"
+              :r="node.nodeR + 4" fill="none" stroke="#e879f9" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.7"
             />
             <circle
               v-if="node.relType === 'parent' && !node.isRoot"
-              r="24" fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.85"
+              :r="node.nodeR + 4" fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.85"
             />
             <!-- Avatar clip -->
             <clipPath :id="`rclip-${node.id}`">
-              <circle :r="node.isRoot ? 28 : 20" cx="0" cy="0"/>
+              <circle :r="node.nodeR" cx="0" cy="0"/>
             </clipPath>
             <circle
-              :r="node.isRoot ? 28 : 20"
+              :r="node.nodeR"
               :fill="radialNodeColor(node.gender)"
               :stroke="radialNodeStroke(node.gender)"
               :stroke-width="node.isRoot ? 3 : 1.5"
@@ -127,8 +127,8 @@
             <image
               v-if="node.avatar"
               :href="node.avatar"
-              :x="node.isRoot ? -28 : -20" :y="node.isRoot ? -28 : -20"
-              :width="node.isRoot ? 56 : 40" :height="node.isRoot ? 56 : 40"
+              :x="-node.nodeR" :y="-node.nodeR"
+              :width="node.nodeR * 2" :height="node.nodeR * 2"
               :clip-path="`url(#rclip-${node.id})`"
               preserveAspectRatio="xMidYMid slice"
             />
@@ -137,26 +137,18 @@
               text-anchor="middle" dominant-baseline="central"
               :font-size="node.isRoot ? 11 : 9"
               fill="#1a3a6b" font-family="Rubik, sans-serif" font-weight="500"
-            >{{ node.firstName.slice(0, 5) }}</text>
-            <!-- Name label below node — two lines: first + last -->
+            >{{ node.firstName.slice(0, 4) }}</text>
+            <!-- Name label placed radially outward — white stroke for readability -->
             <text
-              :y="node.isRoot ? 36 : 26"
+              :x="node.labelX" :y="node.labelY"
               text-anchor="middle"
+              :dominant-baseline="node.labelBaseline"
               font-family="Rubik, sans-serif"
-              :font-weight="node.isRoot ? '700' : '400'"
-            >
-              <tspan
-                x="0" dy="0"
-                :font-size="node.isRoot ? 12 : 9"
-                fill="#1a3a6b"
-              >{{ node.firstName }}</tspan>
-              <tspan
-                v-if="node.lastName"
-                x="0" dy="12"
-                :font-size="node.isRoot ? 10 : 8"
-                fill="#4a6a9b"
-              >{{ node.lastName }}</tspan>
-            </text>
+              :font-size="node.isRoot ? 12 : 8.5"
+              :font-weight="node.isRoot ? '700' : '500'"
+              fill="#1a3a6b"
+              stroke="rgba(240,246,255,0.85)" stroke-width="3" paint-order="stroke"
+            >{{ node.isRoot ? node.fullName : node.firstName }}</text>
             <title>{{ node.fullName }}{{ node.relType === 'spouse' ? ' (בן/בת זוג)' : node.relType === 'parent' ? ' (הורה)' : '' }}</title>
           </g>
         </svg>
@@ -618,12 +610,17 @@ const radialData = computed(() => {
     if (visited.has(id)) return
     visited.add(id)
     const angle = (a0 + a1) / 2
-    // Spouses sit closer in (75px), children spread outward (110px per level)
-    const r = level === 0 ? 0
-      : relType === 'spouse' ? 80
-      : relType === 'parent' ? 110
-      : Math.max(level * 120, 110)
-    positions[id] = { x: r * Math.cos(angle - Math.PI / 2), y: r * Math.sin(angle - Math.PI / 2), level, relType }
+    // Dynamic radius: ensures at least 52px arc-length per node so rings spread out
+    let r
+    if (level === 0) r = 0
+    else if (relType === 'spouse') r = 90
+    else if (relType === 'parent') r = 130
+    else {
+      const arcSpan = Math.max(a1 - a0, 0.01)
+      const minR = Math.ceil(52 / arcSpan)  // push ring out until each node has 52px of arc
+      r = Math.max(level * 145, minR, 130)
+    }
+    positions[id] = { x: r * Math.cos(angle - Math.PI / 2), y: r * Math.sin(angle - Math.PI / 2), level, relType, angle }
 
     if (level === 0) {
       // Center node: show parents, spouses, and children in first ring
@@ -664,15 +661,26 @@ const radialData = computed(() => {
   const nodes = Object.keys(positions).map(id => {
     const n   = nodeMap[id]
     const pos = positions[id]
+    const isRoot = id === centerId
+    const nodeR  = isRoot ? 28 : 20
+
+    // Label placed radially outward from center so it doesn't overlap neighbours
+    const angle  = pos.angle || 0
+    const lDist  = nodeR + 11
+    const lx = isRoot ? 0 : Math.cos(angle - Math.PI / 2) * lDist
+    const ly = isRoot ? nodeR + 9 : Math.sin(angle - Math.PI / 2) * lDist
+    const labelBaseline = ly > 3 ? 'hanging' : ly < -3 ? 'auto' : 'central'
+
     return {
       id,
       x: pos.x, y: pos.y, level: pos.level, relType: pos.relType,
+      nodeR, labelX: lx, labelY: ly, labelBaseline,
       gender:    n?.data?.gender,
       avatar:    n?.data?.avatar || null,
       firstName: n?.data?.['first name'] || '',
       lastName:  n?.data?.['last name']  || '',
       fullName:  `${n?.data?.['first name'] || ''} ${n?.data?.['last name'] || ''}`.trim(),
-      isRoot: id === centerId,
+      isRoot,
     }
   })
 
