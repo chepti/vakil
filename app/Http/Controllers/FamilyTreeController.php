@@ -169,8 +169,6 @@ class FamilyTreeController extends Controller
             'spouse_marriages.*.date_he' => 'nullable|string|max:60',
         ]);
 
-        $oldEmail = $person->email;
-
         $person->update([
             'birth_date_gregorian' => $data['birth_date_gregorian'] ?? null,
             'birth_date_hebrew'    => $data['birth_date_hebrew']    ?? null,
@@ -183,9 +181,6 @@ class FamilyTreeController extends Controller
             'phone'                => $data['phone']                ?? null,
             'bio'                  => $data['bio']                  ?? null,
         ]);
-
-        $newEmail = $person->email;
-        $invitationSent = $newEmail && $newEmail !== $oldEmail;
 
         foreach ($data['spouse_marriages'] ?? [] as $spouseId => $dates) {
             $sid = (int) $spouseId;
@@ -201,10 +196,7 @@ class FamilyTreeController extends Controller
                 ]);
         }
 
-        $treeData = $this->buildTreeData();
-        $treeData['__flash'] = $invitationSent ? "הזמנה נשלחה ל-{$newEmail}" : null;
-
-        return response()->json($treeData);
+        return response()->json($this->buildTreeData());
     }
 
     // ─────────────────────────────────────────────────────────────
