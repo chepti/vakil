@@ -160,7 +160,7 @@
 
             @if ($personName)
             <div class="highlight-box">
-                ✨ כבר יש לך כרטיס בעץ בשם <strong>{{ $personName }}</strong> — לאחר ההרשמה תיכנס ישירות אליו.
+                ✨ כבר יש לך כרטיס בעץ בשם <strong>{{ $personName }}</strong> — לאחר ההרשמה תיכנס/י ישירות אליו.
             </div>
             @endif
 

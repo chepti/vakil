@@ -32,7 +32,7 @@ const submit = () => {
         <div class="mb-6 text-center" dir="rtl">
             <h1 class="text-xl font-bold text-gray-800">ברוכים הבאים למשפחת ואקיל 🌳</h1>
             <p v-if="personName" class="mt-1 text-sm text-gray-600">
-                הצטרפי כ-<strong>{{ personName }}</strong>
+                הצטרף/י כ-<strong>{{ personName }}</strong>
             </p>
             <p class="mt-1 text-sm text-gray-500">{{ email }}</p>
         </div>
@@ -80,7 +80,7 @@ const submit = () => {
 
             <div class="mt-6 flex justify-center">
                 <PrimaryButton :disabled="form.processing" :class="{ 'opacity-25': form.processing }">
-                    הצטרפי עכשיו
+                    הצטרף/י עכשיו
                 </PrimaryButton>
             </div>
         </form>
