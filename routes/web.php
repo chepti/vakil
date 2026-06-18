@@ -60,6 +60,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/api/family-tree/person', [FamilyTreeController::class, 'apiSavePerson'])->name('api.tree.save');
     Route::delete('/api/family-tree/person/{id}', [FamilyTreeController::class, 'apiDeletePerson'])->name('api.tree.delete');
     Route::post('/api/family-tree/set-main/{id}', [FamilyTreeController::class, 'apiSetMain'])->name('api.tree.main');
+    Route::put('/api/family-tree/person/{id}/details', [FamilyTreeController::class, 'apiUpdateDetails'])->name('api.tree.details');
 });
 
 // Profile

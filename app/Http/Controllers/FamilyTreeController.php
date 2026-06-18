@@ -149,6 +149,56 @@ class FamilyTreeController extends Controller
         return response()->json($this->buildTreeData());
     }
 
+    public function apiUpdateDetails(Request $request, int $id): JsonResponse
+    {
+        $person = Person::findOrFail($id);
+
+        $data = $request->validate([
+            'birth_date_gregorian'       => 'nullable|date',
+            'birth_date_hebrew'          => 'nullable|string|max:60',
+            'is_deceased'                => 'boolean',
+            'death_date_gregorian'       => 'nullable|date',
+            'death_date_hebrew'          => 'nullable|string|max:60',
+            'current_occupation'         => 'nullable|string|max:255',
+            'city'                       => 'nullable|string|max:100',
+            'email'                      => 'nullable|email|max:255',
+            'phone'                      => 'nullable|string|max:30',
+            'bio'                        => 'nullable|string',
+            'spouse_marriages'           => 'nullable|array',
+            'spouse_marriages.*.date'    => 'nullable|date',
+            'spouse_marriages.*.date_he' => 'nullable|string|max:60',
+        ]);
+
+        $person->update([
+            'birth_date_gregorian' => $data['birth_date_gregorian'] ?? null,
+            'birth_date_hebrew'    => $data['birth_date_hebrew']    ?? null,
+            'is_deceased'          => $data['is_deceased']          ?? false,
+            'death_date_gregorian' => $data['death_date_gregorian'] ?? null,
+            'death_date_hebrew'    => $data['death_date_hebrew']    ?? null,
+            'current_occupation'   => $data['current_occupation']   ?? null,
+            'city'                 => $data['city']                 ?? null,
+            'email'                => $data['email']                ?? null,
+            'phone'                => $data['phone']                ?? null,
+            'bio'                  => $data['bio']                  ?? null,
+        ]);
+
+        foreach ($data['spouse_marriages'] ?? [] as $spouseId => $dates) {
+            $sid = (int) $spouseId;
+            if ($sid <= 0) continue;
+            Relationship::where('type', 'spouse')
+                ->where(fn($q) => $q
+                    ->where(fn($q2) => $q2->where('person1_id', $person->id)->where('person2_id', $sid))
+                    ->orWhere(fn($q2) => $q2->where('person1_id', $sid)->where('person2_id', $person->id))
+                )
+                ->update([
+                    'marriage_date_gregorian' => ($dates['date']    ?? '') ?: null,
+                    'marriage_date_hebrew'    => ($dates['date_he'] ?? '') ?: null,
+                ]);
+        }
+
+        return response()->json($this->buildTreeData());
+    }
+
     // ─────────────────────────────────────────────────────────────
 
     /**
@@ -160,8 +210,8 @@ class FamilyTreeController extends Controller
         $people = Person::select(
             'id', 'first_name', 'last_name', 'gender',
             'birth_date_gregorian', 'birth_date_hebrew',
-            'death_date_gregorian', 'is_deceased',
-            'current_occupation', 'city', 'email', 'profile_photo'
+            'death_date_gregorian', 'death_date_hebrew', 'is_deceased',
+            'current_occupation', 'city', 'email', 'phone', 'bio', 'profile_photo'
         )->get();
 
         $relationships = Relationship::orderByRaw('COALESCE(sort_order, 999) ASC')->get();
@@ -188,6 +238,15 @@ class FamilyTreeController extends Controller
                 ];
                 $marriages[$rel->person1_id][(string) $rel->person2_id] = $mData;
                 $marriages[$rel->person2_id][(string) $rel->person1_id] = $mData;
+            }
+        }
+
+        // ודא שכל בן-זוג מופיע ב-marriages גם ללא תאריך
+        foreach ($spouses as $pid => $spouseIds) {
+            foreach ($spouseIds as $spouseId) {
+                if (!isset($marriages[$pid][$spouseId])) {
+                    $marriages[$pid][$spouseId] = ['date' => null, 'date_he' => null];
+                }
             }
         }
 
@@ -240,12 +299,15 @@ class FamilyTreeController extends Controller
                     'last name'   => $p->last_name,
                     'birthday'    => $p->birth_date_gregorian?->format('Y-m-d'),
                     'birthday_he' => $p->birth_date_hebrew,
-                    'death_date'  => $p->death_date_gregorian?->format('Y-m-d'),
-                    'is_deceased' => $p->is_deceased,
-                    'occupation'  => $p->current_occupation,
-                    'city'        => $p->city,
-                    'email'       => $p->email,
-                    'marriages'   => (object) ($marriages[$p->id] ?? []),
+                    'death_date'    => $p->death_date_gregorian?->format('Y-m-d'),
+                    'death_date_he' => $p->death_date_hebrew,
+                    'is_deceased'   => $p->is_deceased,
+                    'occupation'    => $p->current_occupation,
+                    'city'          => $p->city,
+                    'email'         => $p->email,
+                    'phone'         => $p->phone,
+                    'bio'           => $p->bio,
+                    'marriages'     => (object) ($marriages[$p->id] ?? []),
                     'avatar'      => $p->profile_photo
                         ? asset('storage/' . $p->profile_photo)
                         : null,

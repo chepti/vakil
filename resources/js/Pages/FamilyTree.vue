@@ -6,7 +6,7 @@
       <div class="tree-header">
         <div class="tree-title">
           <h1>🌳 עץ משפחת ואקיל</h1>
-          <span class="people-count">{{ totalPeople }} דמויות</span>
+          <span class="people-count">{{ localNodes.length }} דמויות</span>
         </div>
         <div class="tree-controls">
           <!-- Search -->
@@ -60,7 +60,7 @@
       </div>
 
       <!-- Empty state -->
-      <div v-if="nodes.length === 0" class="empty-tree">
+      <div v-if="localNodes.length === 0" class="empty-tree">
         <div class="empty-icon">🌱</div>
         <h2>העץ ריק עדיין</h2>
         <p>התחל בהוספת הדמות הראשונה</p>
@@ -68,12 +68,12 @@
       </div>
 
       <!-- Tree container — v-show keeps the chart instance alive when toggling radial -->
-      <div v-show="nodes.length > 0 && !radialMode" class="tree-wrap">
+      <div v-show="localNodes.length > 0 && !radialMode" class="tree-wrap">
         <div ref="chartContainer" id="FamilyChart" class="f3"></div>
       </div>
 
       <!-- Radial view -->
-      <div v-show="nodes.length > 0 && radialMode" class="radial-wrap">
+      <div v-show="localNodes.length > 0 && radialMode" class="radial-wrap">
         <!-- breadcrumb: who is at center -->
         <div class="radial-center-label" v-if="radialCenterId && radialCenterId !== String(props.defaultMainPersonId || props.rootPersonId || props.nodes[0]?.id)">
           <button class="radial-back-btn" @click="resetRadialToRoot()">← חזור לשורש</button>
@@ -171,37 +171,71 @@
             <span v-if="currentDefaultId === String(selectedPerson.id)" class="badge-main">⭐ ראשי</span>
           </div>
 
-          <div class="panel-details">
-            <div v-if="selectedPerson.birthday" class="detail-row">
-              <span class="detail-icon">🎂</span>
-              <span>{{ formatDate(selectedPerson.birthday) }}
-                <span v-if="selectedPerson.birthday_he" class="detail-sub"> / {{ selectedPerson.birthday_he }}</span>
-              </span>
+          <!-- ─── Edit-details form ─── -->
+          <div class="ef-form">
+            <div class="ef-group">
+              <label class="ef-label">📅 תאריך לידה (לועזי)</label>
+              <input type="date" v-model="ef.birth_date_gregorian" class="ef-input" @change="autoFillHebrew('birth')" />
             </div>
-            <div v-if="selectedPerson.is_deceased && selectedPerson.death_date" class="detail-row">
-              <span class="detail-icon">🕯</span>
-              <span>{{ formatDate(selectedPerson.death_date) }}</span>
+            <div class="ef-group">
+              <label class="ef-label">📅 תאריך לידה עברי</label>
+              <input type="text" v-model="ef.birth_date_hebrew" class="ef-input" placeholder='כ"ה תשרי תשפ"ה' />
             </div>
-            <div v-if="selectedPerson.occupation" class="detail-row">
-              <span class="detail-icon">💼</span>
-              <span>{{ selectedPerson.occupation }}</span>
+
+            <label class="ef-checkbox-label">
+              <input type="checkbox" v-model="ef.is_deceased" />
+              <span>נפטר/ה</span>
+            </label>
+            <template v-if="ef.is_deceased">
+              <div class="ef-group">
+                <label class="ef-label">🕯 תאריך פטירה (לועזי)</label>
+                <input type="date" v-model="ef.death_date_gregorian" class="ef-input" @change="autoFillHebrew('death')" />
+              </div>
+              <div class="ef-group">
+                <label class="ef-label">🕯 תאריך פטירה עברי</label>
+                <input type="text" v-model="ef.death_date_hebrew" class="ef-input" placeholder='כ"ה תשרי תשפ"ה' />
+              </div>
+            </template>
+
+            <div class="ef-group">
+              <label class="ef-label">💼 עיסוק</label>
+              <input type="text" v-model="ef.occupation" class="ef-input" />
             </div>
-            <div v-if="selectedPerson.city" class="detail-row">
-              <span class="detail-icon">📍</span>
-              <span>{{ selectedPerson.city }}</span>
+            <div class="ef-group">
+              <label class="ef-label">📍 עיר מגורים</label>
+              <input type="text" v-model="ef.city" class="ef-input" />
             </div>
-            <div v-if="selectedPerson.email" class="detail-row">
-              <span class="detail-icon">✉️</span>
-              <span dir="ltr">{{ selectedPerson.email }}</span>
+            <div class="ef-group">
+              <label class="ef-label">✉️ מייל</label>
+              <input type="email" v-model="ef.email" class="ef-input" dir="ltr" />
             </div>
-            <template v-if="selectedPerson.marriages">
-              <template v-for="(m, sid) in selectedPerson.marriages" :key="sid">
-                <div v-if="m && (m.date || m.date_he)" class="detail-row">
-                  <span class="detail-icon">💍</span>
-                  <span>{{ m.date ? formatDate(m.date) : '' }}<span v-if="m.date_he" class="detail-sub"> / {{ m.date_he }}</span></span>
+            <div class="ef-group">
+              <label class="ef-label">📞 טלפון</label>
+              <input type="tel" v-model="ef.phone" class="ef-input" dir="ltr" />
+            </div>
+            <div class="ef-group">
+              <label class="ef-label">📝 מידע נוסף</label>
+              <textarea v-model="ef.bio" class="ef-input ef-textarea" rows="3"></textarea>
+            </div>
+
+            <template v-if="Object.keys(ef.marriages).length">
+              <div class="ef-section-title">💍 תאריכי נישואין</div>
+              <template v-for="(m, spouseId) in ef.marriages" :key="spouseId">
+                <div class="ef-marriage-label">עם {{ getSpouseName(spouseId) }}</div>
+                <div class="ef-group">
+                  <label class="ef-label">תאריך נישואין (לועזי)</label>
+                  <input type="date" v-model="m.date" class="ef-input" @change="autoFillHebrew('marriage', spouseId)" />
+                </div>
+                <div class="ef-group">
+                  <label class="ef-label">תאריך נישואין עברי</label>
+                  <input type="text" v-model="m.date_he" class="ef-input" placeholder='כ"ב אייר תש"פ' />
                 </div>
               </template>
             </template>
+
+            <button class="ef-save-btn" @click="savePerson" :disabled="efSaving">
+              {{ efSaving ? 'שומר...' : 'שמור שינויים' }}
+            </button>
           </div>
 
           <!-- ─── Add relative ─── -->
@@ -253,7 +287,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { createChart } from 'family-chart'
@@ -270,6 +304,7 @@ const props = defineProps({
 const chartContainer   = ref(null)
 const selectedPerson   = ref(null)
 const currentDefaultId = ref(props.defaultMainPersonId)
+const localNodes       = ref(props.nodes)  // mutable copy — updated when chart saves/deletes
 const depth            = ref(4)
 const showSiblings     = ref(true)
 const compactMode      = ref(false)
@@ -283,7 +318,7 @@ const searchOpen  = ref(false)
 const searchResults = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return []
-  return props.nodes
+  return localNodes.value
     .filter(n => {
       const name = `${n.data?.['first name'] || ''} ${n.data?.['last name'] || ''}`.toLowerCase()
       return name.includes(q)
@@ -301,7 +336,7 @@ function goToPerson(id) {
   searchOpen.value  = false
   if (!chartInstance) return
   chartInstance.updateMainId(id)
-  const node = props.nodes.find(n => n.id === id)
+  const node = localNodes.value.find(n => n.id === id)
   if (node) selectedPerson.value = { id: node.id, ...node.data }
 }
 
@@ -317,6 +352,31 @@ const relTypes = [
 const addRelType    = ref(null)
 const addRelSaving  = ref(false)
 const addRelForm    = ref({ first_name: '', last_name: '', birth_date_gregorian: '', birth_date_hebrew: '', marriage_date_gregorian: '', marriage_date_hebrew: '', gender: '' })
+
+// ─── Edit-details form ────────────────────────────────────────
+const ef       = ref({ birth_date_gregorian: '', birth_date_hebrew: '', is_deceased: false, death_date_gregorian: '', death_date_hebrew: '', occupation: '', city: '', email: '', phone: '', bio: '', marriages: {} })
+const efSaving = ref(false)
+
+watch(selectedPerson, (person) => {
+  if (!person) return
+  const marriages = {}
+  for (const [sid, mData] of Object.entries(person.marriages || {})) {
+    marriages[sid] = { date: mData?.date ?? '', date_he: mData?.date_he ?? '' }
+  }
+  ef.value = {
+    birth_date_gregorian: person.birthday      || '',
+    birth_date_hebrew:    person.birthday_he   || '',
+    is_deceased:          !!person.is_deceased,
+    death_date_gregorian: person.death_date    || '',
+    death_date_hebrew:    person.death_date_he || '',
+    occupation:           person.occupation    || '',
+    city:                 person.city          || '',
+    email:                person.email         || '',
+    phone:                person.phone         || '',
+    bio:                  person.bio           || '',
+    marriages,
+  }
+}, { immediate: true })
 
 function openAddRel(rel) {
   if (addRelType.value === rel.key) { addRelType.value = null; return }
@@ -360,7 +420,7 @@ async function submitAddRel() {
   }
 
   if (addRelType.value === 'sibling') {
-    const selfNode  = props.nodes.find(n => n.id === selfId)
+    const selfNode  = localNodes.value.find(n => n.id === selfId)
     const parentIds = selfNode?.rels?.parents ?? []
     datum = {
       id: 'new-sibling',
@@ -381,6 +441,7 @@ async function submitAddRel() {
 
   try {
     const freshNodes = await apiPost('/api/family-tree/person', datum)
+    localNodes.value = freshNodes
     chartInstance.updateData(freshNodes).updateTree({ tree_position: 'inherit' })
     addRelType.value = null
   } catch (err) {
@@ -460,6 +521,7 @@ function initChart() {
     .setOnSubmit(async (e, datum, applyChanges, postSubmit) => {
       try {
         const freshNodes = await apiPost('/api/family-tree/person', datum)
+        localNodes.value = freshNodes
         chartInstance.updateData(freshNodes).updateTree({ tree_position: 'inherit' })
         postSubmit()
       } catch (err) {
@@ -472,6 +534,7 @@ function initChart() {
       if (!confirm(`למחוק את ${name}?`)) return
       try {
         const freshNodes = await apiDelete(`/api/family-tree/person/${datum.id}`)
+        localNodes.value = freshNodes
         chartInstance.updateData(freshNodes).updateTree({ tree_position: 'inherit' })
         postSubmit({})
       } catch (err) {
@@ -589,11 +652,11 @@ const radialVB       = ref({ x: -550, y: -550, w: 1100, h: 1100 })
 let   radialDrag     = null
 
 const radialData = computed(() => {
-  if (!radialMode.value || !props.nodes.length) return { nodes: [], links: [] }
+  if (!radialMode.value || !localNodes.value.length) return { nodes: [], links: [] }
 
-  const centerId = String(radialCenterId.value || props.defaultMainPersonId || props.rootPersonId || props.nodes[0]?.id)
+  const centerId = String(radialCenterId.value || props.defaultMainPersonId || props.rootPersonId || localNodes.value[0]?.id)
   const nodeMap = {}
-  props.nodes.forEach(n => { nodeMap[String(n.id)] = n })
+  localNodes.value.forEach(n => { nodeMap[String(n.id)] = n })
 
   function subtreeSize(id, seen = new Set()) {
     if (seen.has(id)) return 0
@@ -773,7 +836,7 @@ function onRadialNodeClick(id) {
   // Single click: make this person the center + open side panel
   radialCenterId.value = String(id)
   radialVB.value = { x: -550, y: -550, w: 1100, h: 1100 }
-  const node = props.nodes.find(n => String(n.id) === String(id))
+  const node = localNodes.value.find(n => String(n.id) === String(id))
   if (!node) return
   selectedPerson.value = { id: node.id, ...node.data }
   addRelType.value = null
@@ -804,6 +867,65 @@ function toggleRadialMode() {
   }
   radialCenterId.value = null
   radialVB.value = { x: -550, y: -550, w: 1100, h: 1100 }
+}
+
+// ─── Edit-details helpers ─────────────────────────────────────
+
+function gregorianToHebrew(dateStr) {
+  if (!dateStr) return ''
+  try {
+    return new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' })
+      .format(new Date(dateStr + 'T12:00:00'))
+  } catch { return '' }
+}
+
+function autoFillHebrew(field, spouseId) {
+  if (field === 'birth')         ef.value.birth_date_hebrew = gregorianToHebrew(ef.value.birth_date_gregorian)
+  else if (field === 'death')    ef.value.death_date_hebrew = gregorianToHebrew(ef.value.death_date_gregorian)
+  else if (field === 'marriage') { const m = ef.value.marriages[spouseId]; if (m) m.date_he = gregorianToHebrew(m.date) }
+}
+
+function getSpouseName(spouseId) {
+  const node = localNodes.value.find(n => n.id === String(spouseId))
+  return node ? (`${node.data['first name'] || ''} ${node.data['last name'] || ''}`.trim() || `#${spouseId}`) : `#${spouseId}`
+}
+
+async function apiPut(url, body) {
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
+async function savePerson() {
+  if (!selectedPerson.value) return
+  efSaving.value = true
+  try {
+    const freshNodes = await apiPut(`/api/family-tree/person/${selectedPerson.value.id}/details`, {
+      birth_date_gregorian: ef.value.birth_date_gregorian || null,
+      birth_date_hebrew:    ef.value.birth_date_hebrew    || null,
+      is_deceased:          ef.value.is_deceased,
+      death_date_gregorian: ef.value.death_date_gregorian || null,
+      death_date_hebrew:    ef.value.death_date_hebrew    || null,
+      current_occupation:   ef.value.occupation           || null,
+      city:                 ef.value.city                 || null,
+      email:                ef.value.email                || null,
+      phone:                ef.value.phone                || null,
+      bio:                  ef.value.bio                  || null,
+      spouse_marriages:     ef.value.marriages,
+    })
+    chartInstance.updateData(freshNodes).updateTree({ tree_position: 'inherit' })
+    const freshNode = freshNodes.find(n => n.id === String(selectedPerson.value.id))
+    if (freshNode) selectedPerson.value = { id: freshNode.id, ...freshNode.data }
+  } catch (err) {
+    alert('שגיאה בשמירה')
+    console.error(err)
+  } finally {
+    efSaving.value = false
+  }
 }
 
 // helpers
@@ -1026,7 +1148,7 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 
 /* ── Side panel ── */
 .side-panel {
-  position: absolute; top: 0; right: 0; width: 285px; height: 100%;
+  position: absolute; top: 0; right: 0; width: 310px; height: 100%;
   background: white; box-shadow: -4px 0 24px rgba(0,50,150,.12);
   padding: 1.3rem; display: flex; flex-direction: column; gap: 0.9rem;
   z-index: 50; overflow-y: auto;
@@ -1051,10 +1173,37 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 .badge-deceased { background: #f1f5f9; border: 1px solid #cbd5e1; color: #64748b; padding: 0.12rem 0.45rem; border-radius: 5px; font-size: 0.78rem; }
 .badge-main { background: #fefce8; border: 1px solid #fde047; color: #854d0e; padding: 0.12rem 0.45rem; border-radius: 5px; font-size: 0.78rem; }
 
-.panel-details { display: flex; flex-direction: column; gap: 0.45rem; }
-.detail-row { display: flex; gap: 0.55rem; align-items: flex-start; font-size: 0.85rem; color: #4a5568; }
-.detail-icon { font-size: 0.9rem; flex-shrink: 0; }
-.detail-sub { opacity: 0.75; }
+/* ─── Edit-details form ─── */
+.ef-form { display: flex; flex-direction: column; gap: 0.4rem; }
+.ef-group { display: flex; flex-direction: column; gap: 0.15rem; }
+.ef-label { font-size: 0.72rem; color: #6b7a99; font-weight: 500; }
+.ef-input {
+  width: 100%; padding: 0.38rem 0.55rem;
+  border: 1.5px solid #d1dce8; border-radius: 7px;
+  font-size: 0.84rem; font-family: 'Rubik', sans-serif;
+  direction: rtl; box-sizing: border-box; background: white; color: #1a3a6b;
+}
+.ef-input:focus { outline: none; border-color: #2d6be4; }
+.ef-textarea { resize: vertical; min-height: 60px; direction: rtl; }
+.ef-checkbox-label {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.84rem; color: #4a5568; cursor: pointer;
+  padding: 0.2rem 0;
+}
+.ef-checkbox-label input { width: 15px; height: 15px; cursor: pointer; }
+.ef-section-title {
+  font-size: 0.78rem; font-weight: 600; color: #4a5568;
+  border-top: 1px solid #e4eefb; padding-top: 0.55rem; margin-top: 0.15rem;
+}
+.ef-marriage-label { font-size: 0.8rem; color: #2d6be4; font-weight: 500; margin-top: 0.2rem; }
+.ef-save-btn {
+  margin-top: 0.3rem; padding: 0.5rem;
+  background: #2d6be4; color: white; border: none;
+  border-radius: 8px; font-size: 0.88rem; font-weight: 600;
+  font-family: 'Rubik', sans-serif; cursor: pointer; transition: background 0.2s;
+}
+.ef-save-btn:hover:not(:disabled) { background: #1a55c8; }
+.ef-save-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .panel-actions { display: flex; flex-direction: column; gap: 0.45rem; margin-top: auto; }
 .panel-btn-primary { background: #2d6be4; color: white; text-decoration: none; padding: 0.55rem; border-radius: 9px; font-size: 0.88rem; font-weight: 600; text-align: center; display: block; }
