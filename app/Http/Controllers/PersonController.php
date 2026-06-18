@@ -2,13 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\InvitationMail;
-use App\Models\Invitation;
 use App\Models\Person;
 use App\Models\Relationship;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
