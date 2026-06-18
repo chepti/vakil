@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\FamilyPhotoController;
 use App\Http\Controllers\FamilyTreeController;
+use App\Http\Controllers\GameController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\ProfileController;
@@ -55,6 +56,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/family-photos/{familyPhoto}/tags/{photoTag}', [FamilyPhotoController::class, 'removeTag'])->name('family-photos.tag.remove');
 
     Route::get('/family-tree', [FamilyTreeController::class, 'index'])->name('family-tree');
+
+    // משחק — "הדרך אל סבתא ואקיל"
+    Route::get('/game', [GameController::class, 'index'])->name('game');
+    Route::get('/api/game/round', [GameController::class, 'round'])->name('game.round');
 
     // JSON API — inline tree editing (no page reload)
     Route::get('/api/family-tree', [FamilyTreeController::class, 'apiData'])->name('api.tree');

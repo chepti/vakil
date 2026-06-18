@@ -14,6 +14,7 @@
           <Link href="/family-tree" :class="['nav-link', { active: $page.url === '/family-tree' }]">🌳 עץ משפחה</Link>
           <Link href="/people" :class="['nav-link', { active: $page.url.startsWith('/people') && !$page.url.startsWith('/people/create') }]">בני המשפחה</Link>
           <Link href="/family-photos" :class="['nav-link', { active: $page.url.startsWith('/family-photos') }]">📸 תמונות</Link>
+          <Link href="/game" :class="['nav-link', { active: $page.url.startsWith('/game') }]">🎮 משחק</Link>
           <Link href="/people/create" class="nav-link-btn">+ הוסף דמות</Link>
         </div>
 
@@ -37,6 +38,7 @@
         <Link href="/family-tree" class="mobile-link" @click="mobileOpen = false">🌳 עץ משפחה</Link>
         <Link href="/people" class="mobile-link" @click="mobileOpen = false">בני המשפחה</Link>
         <Link href="/family-photos" class="mobile-link" @click="mobileOpen = false">📸 תמונות</Link>
+        <Link href="/game" class="mobile-link" @click="mobileOpen = false">🎮 משחק</Link>
         <Link href="/people/create" class="mobile-link" @click="mobileOpen = false">הוסף דמות</Link>
         <Link href="/profile" class="mobile-link" @click="mobileOpen = false">פרופיל</Link>
         <Link href="/logout" method="post" as="button" class="mobile-link mobile-logout" @click="mobileOpen = false">יציאה</Link>
