@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\InvitationMail;
+use App\Models\Invitation;
 use App\Models\Person;
 use App\Models\Relationship;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -330,7 +333,28 @@ class PersonController extends Controller
             'marriage_date_hebrew'   => 'nullable|string|max:50',
         ]);
 
+        $oldEmail = $person->email;
+        $newEmail = $data['email'] ?? null;
+
         $person->update($data);
+
+        // שלח הזמנה אם מייל חדש נוסף ואין לו עדיין משתמש/הזמנה פעילה
+        if ($newEmail && $newEmail !== $oldEmail) {
+            $alreadyUser = \App\Models\User::where('email', $newEmail)->exists();
+            $alreadyInvited = Invitation::where('email', $newEmail)
+                ->whereNull('used_at')
+                ->where('expires_at', '>', now())
+                ->exists();
+
+            if (! $alreadyUser && ! $alreadyInvited) {
+                $invitation = Invitation::generate(
+                    email:     $newEmail,
+                    invitedBy: Auth::id(),
+                    personId:  $person->id,
+                );
+                Mail::to($newEmail)->send(new InvitationMail($invitation));
+            }
+        }
 
         // עדכון הורים — מחק קיימים והוסף חדשים
         Relationship::where('person2_id', $person->id)->where('type', 'parent_child')->delete();
