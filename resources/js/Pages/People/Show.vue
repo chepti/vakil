@@ -164,12 +164,27 @@
           <h2>תמונות משפחתיות ({{ photosTagged.length }})</h2>
           <Link href="/family-photos" class="btn-add-inline">+ הוסף תמונה</Link>
         </div>
+        <p class="photos-hint">לחץ/י על "הגדר כפרופיל" כדי לבחור תמונת פנים מהתמונה</p>
         <div class="photos-grid">
-          <Link v-for="pt in photosTagged" :key="pt.id" :href="`/family-photos/${pt.id}`" class="photo-thumb-link">
-            <img :src="pt.url" :alt="pt.title || ''" />
-            <span v-if="pt.title" class="photo-caption">{{ pt.title }}</span>
-          </Link>
+          <div v-for="pt in photosTagged" :key="pt.tag_id" class="photo-thumb-wrap">
+            <Link :href="`/family-photos/${pt.id}`" class="photo-thumb-link">
+              <img :src="pt.url" :alt="pt.title || ''" />
+              <span v-if="pt.title" class="photo-caption">{{ pt.title }}</span>
+            </Link>
+            <button
+              class="btn-set-profile"
+              :class="{ loading: settingProfile === pt.tag_id }"
+              @click.prevent="cropAndSetProfile(pt)"
+              :disabled="!!settingProfile"
+              title="הגדר כתמונת פרופיל"
+            >
+              {{ settingProfile === pt.tag_id ? '...' : '📷 הגדר' }}
+            </button>
+          </div>
         </div>
+        <p v-if="profileSetMsg" class="profile-set-msg" :class="profileSetMsg.ok ? 'ok' : 'err'">
+          {{ profileSetMsg.text }}
+        </p>
       </div>
       <div class="photos-empty-action" v-else>
         <Link href="/family-photos" class="btn-add-inline">📸 הוסף תמונות משפחתיות</Link>
@@ -871,6 +886,63 @@ async function saveChildrenOrder() {
   }
 }
 
+// ─── Set profile from tagged photo ──────────────────────
+const settingProfile = ref(null)
+const profileSetMsg  = ref(null)
+
+async function cropAndSetProfile(pt) {
+  if (settingProfile.value) return
+  settingProfile.value = pt.tag_id
+  profileSetMsg.value  = null
+
+  try {
+    const blob = await cropFaceFromUrl(pt.url, pt)
+    if (!blob) throw new Error()
+
+    const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
+    const fd = new FormData()
+    fd.append('profile_photo', blob, 'face.jpg')
+    const res = await fetch(`/people/${props.person.id}/photo`, {
+      method:  'POST',
+      headers: { 'X-CSRF-TOKEN': token },
+      body:    fd,
+    })
+    if (!res.ok && !res.redirected) throw new Error()
+
+    photoPreview.value  = URL.createObjectURL(blob)
+    profileSetMsg.value = { ok: true, text: 'תמונת הפרופיל עודכנה' }
+  } catch {
+    profileSetMsg.value = { ok: false, text: 'שגיאה — נסה/י שוב' }
+  } finally {
+    settingProfile.value = null
+    setTimeout(() => { profileSetMsg.value = null }, 3500)
+  }
+}
+
+function cropFaceFromUrl(url, rect) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const nw = img.naturalWidth
+        const nh = img.naturalHeight
+        const sx = (rect.x_percent / 100) * nw
+        const sy = (rect.y_percent / 100) * nh
+        const sw = (rect.w_percent / 100) * nw
+        const sh = (rect.h_percent / 100) * nh
+        const canvas = document.createElement('canvas')
+        canvas.width  = Math.round(sw)
+        canvas.height = Math.round(sh)
+        canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh)
+        canvas.toBlob(resolve, 'image/jpeg', 0.92)
+      } catch { resolve(null) }
+    }
+    img.onerror = () => resolve(null)
+    img.src = url
+  })
+}
+
 // ─── Helpers ─────────────────────────────────────────────
 function initials(name) { return (name || '').split(' ').map(w => w[0]).join('').slice(0, 2) }
 function formatDate(d)  {
@@ -979,7 +1051,12 @@ h2 { font-size: 1rem; color: #2d4a7a; margin: 0; font-weight: 600; }
 
 /* ─── Photos section ─── */
 .photos-section { margin-top: 0; }
+.photos-hint { font-size: 0.78rem; color: #94a3b8; margin: -0.5rem 0 0.75rem; }
 .photos-grid { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+.photo-thumb-wrap {
+  display: flex; flex-direction: column; gap: 0.35rem; width: 110px;
+}
 .photo-thumb-link {
   display: block; width: 110px; border-radius: 10px; overflow: hidden;
   text-decoration: none; border: 1px solid #e4eefb;
@@ -988,6 +1065,28 @@ h2 { font-size: 1rem; color: #2d4a7a; margin: 0; font-weight: 600; }
 .photo-thumb-link:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,50,150,.1); }
 .photo-thumb-link img { width: 100%; height: 90px; object-fit: cover; display: block; }
 .photo-caption { display: block; font-size: 0.72rem; color: #2d4a7a; padding: 0.25rem 0.4rem; background: #f8faff; }
+
+.btn-set-profile {
+  width: 100%;
+  padding: 0.3rem 0;
+  font-size: 0.75rem;
+  font-family: 'Rubik', sans-serif;
+  border: 1.5px solid #2d6be4;
+  border-radius: 7px;
+  background: white;
+  color: #2d6be4;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-set-profile:hover:not(:disabled) { background: #edf3ff; }
+.btn-set-profile:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-set-profile.loading { border-color: #94a3b8; color: #94a3b8; }
+
+.profile-set-msg {
+  margin-top: 0.75rem; font-size: 0.85rem; padding: 0.5rem 0.75rem; border-radius: 8px;
+}
+.profile-set-msg.ok  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.profile-set-msg.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
 .photos-empty-action { margin-top: 0.5rem; text-align: center; padding: 0.5rem 0 1rem; }
 

@@ -165,10 +165,13 @@ class PersonController extends Controller
                 ->get()
                 ->map(fn($t) => [
                     'id'        => $t->family_photo_id,
+                    'tag_id'    => $t->id,
                     'url'       => $t->familyPhoto->url,
                     'title'     => $t->familyPhoto->title,
-                    'x_percent' => $t->x_percent,
-                    'y_percent' => $t->y_percent,
+                    'x_percent' => (float) $t->x_percent,
+                    'y_percent' => (float) $t->y_percent,
+                    'w_percent' => (float) ($t->w_percent ?? 10),
+                    'h_percent' => (float) ($t->h_percent ?? 10),
                 ]);
         } catch (\Exception $e) {
             $photosTagged = collect();
@@ -442,6 +445,7 @@ class PersonController extends Controller
             'bio'                  => $person->bio,
             'city'                 => $person->city,
             'email'                => $person->email,
+            'phone'                => $person->phone,
             'photo_url'            => $person->profile_photo_url,
         ];
     }
