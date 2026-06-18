@@ -667,17 +667,30 @@ const radialData = computed(() => {
     levelR[l] = Math.max(l * 160, needed, 140)
   })
 
+  // Enforce strict monotonic increase — each generation MUST be further out than the previous
+  const sortedLevels = Object.keys(levelR).map(Number).sort((a, b) => a - b)
+  for (let i = 1; i < sortedLevels.length; i++) {
+    const l = sortedLevels[i], lPrev = sortedLevels[i - 1]
+    levelR[l] = Math.max(levelR[l], levelR[lPrev] + 100)
+  }
+
   // Apply canonical radius + jitter (dense zones push out, sparse zones pull in)
+  // Jitter is capped so nodes can't overshoot into the next generation's band
   Object.keys(childByLevel).forEach(lvl => {
     const l      = parseInt(lvl)
     const base   = levelR[l]
     const ids    = childByLevel[lvl]
     const avgArc = (2 * Math.PI) / ids.length
+    // Max inward/outward jitter: stay within 35% of the gap to adjacent levels
+    const prevBase  = levelR[l - 1] || 0
+    const nextBase  = levelR[l + 1] || base + 200
+    const maxOut = Math.min(45, (nextBase - base) * 0.35)
+    const maxIn  = Math.min(30, (base - prevBase) * 0.35)
     ids.forEach(id => {
       const pos      = positions[id]
       const arcRatio = pos.arcSpan / avgArc  // <1 dense, >1 sparse
       // Dense → push outward (+); sparse → pull inward (-)
-      const jitter   = Math.max(-30, Math.min(50, (1 - arcRatio) * 45))
+      const jitter   = Math.max(-maxIn, Math.min(maxOut, (1 - arcRatio) * 40))
       const r        = base + jitter
       pos.x = r * Math.cos(pos.angle - Math.PI / 2)
       pos.y = r * Math.sin(pos.angle - Math.PI / 2)
