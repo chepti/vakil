@@ -339,6 +339,7 @@ class PersonController extends Controller
         $person->update($data);
 
         // שלח הזמנה אם מייל חדש נוסף ואין לו עדיין משתמש/הזמנה פעילה
+        $invitationSent = false;
         if ($newEmail && $newEmail !== $oldEmail) {
             $alreadyUser = \App\Models\User::where('email', $newEmail)->exists();
             $alreadyInvited = Invitation::where('email', $newEmail)
@@ -353,6 +354,7 @@ class PersonController extends Controller
                     personId:  $person->id,
                 );
                 Mail::to($newEmail)->send(new InvitationMail($invitation));
+                $invitationSent = true;
             }
         }
 
@@ -376,7 +378,11 @@ class PersonController extends Controller
             ]);
         }
 
-        return redirect()->route('people.show', $person)->with('success', 'הפרטים עודכנו');
+        $message = $invitationSent
+            ? "הפרטים עודכנו — הזמנה נשלחה ל-{$newEmail}"
+            : 'הפרטים עודכנו';
+
+        return redirect()->route('people.show', $person)->with('success', $message);
     }
 
     public function uploadPhoto(Request $request, Person $person)
