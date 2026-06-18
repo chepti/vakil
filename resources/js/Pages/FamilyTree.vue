@@ -52,8 +52,8 @@
           <button class="ctrl-btn" :class="{ active: compactMode }" @click="toggleCompactMode" title="פסים אנכיים — מכווץ את הרוחב, רחף להרחיב">
             {{ compactMode ? '⊠ מצב רגיל' : '⊟ קומפקטי' }}
           </button>
-          <button class="ctrl-btn" :class="{ active: radialMode }" @click="toggleRadialMode" title="תצוגה עגולה/ספיראלית">
-            {{ radialMode ? '⊞ עץ רגיל' : '◎ עגול' }}
+          <button class="ctrl-btn" :class="{ active: !radialMode }" @click="toggleRadialMode" title="תצוגה עגולה / עץ רגיל">
+            {{ radialMode ? '🌳 עץ רגיל' : '◎ עגול' }}
           </button>
           <Link v-if="isAdmin" href="/people/create" class="ctrl-btn-primary">+ הוסף דמות</Link>
         </div>
@@ -171,73 +171,6 @@
             <span v-if="currentDefaultId === String(selectedPerson.id)" class="badge-main">⭐ ראשי</span>
           </div>
 
-          <!-- ─── Edit-details form ─── -->
-          <div class="ef-form">
-            <div class="ef-group">
-              <label class="ef-label">📅 תאריך לידה (לועזי)</label>
-              <input type="date" v-model="ef.birth_date_gregorian" class="ef-input" @change="autoFillHebrew('birth')" />
-            </div>
-            <div class="ef-group">
-              <label class="ef-label">📅 תאריך לידה עברי</label>
-              <input type="text" v-model="ef.birth_date_hebrew" class="ef-input" placeholder='כ"ה תשרי תשפ"ה' />
-            </div>
-
-            <label class="ef-checkbox-label">
-              <input type="checkbox" v-model="ef.is_deceased" />
-              <span>נפטר/ה</span>
-            </label>
-            <template v-if="ef.is_deceased">
-              <div class="ef-group">
-                <label class="ef-label">🕯 תאריך פטירה (לועזי)</label>
-                <input type="date" v-model="ef.death_date_gregorian" class="ef-input" @change="autoFillHebrew('death')" />
-              </div>
-              <div class="ef-group">
-                <label class="ef-label">🕯 תאריך פטירה עברי</label>
-                <input type="text" v-model="ef.death_date_hebrew" class="ef-input" placeholder='כ"ה תשרי תשפ"ה' />
-              </div>
-            </template>
-
-            <div class="ef-group">
-              <label class="ef-label">💼 עיסוק</label>
-              <input type="text" v-model="ef.occupation" class="ef-input" />
-            </div>
-            <div class="ef-group">
-              <label class="ef-label">📍 עיר מגורים</label>
-              <input type="text" v-model="ef.city" class="ef-input" />
-            </div>
-            <div class="ef-group">
-              <label class="ef-label">✉️ מייל</label>
-              <input type="email" v-model="ef.email" class="ef-input" dir="ltr" />
-            </div>
-            <div class="ef-group">
-              <label class="ef-label">📞 טלפון</label>
-              <input type="tel" v-model="ef.phone" class="ef-input" dir="ltr" />
-            </div>
-            <div class="ef-group">
-              <label class="ef-label">📝 מידע נוסף</label>
-              <textarea v-model="ef.bio" class="ef-input ef-textarea" rows="3"></textarea>
-            </div>
-
-            <template v-if="Object.keys(ef.marriages).length">
-              <div class="ef-section-title">💍 תאריכי נישואין</div>
-              <template v-for="(m, spouseId) in ef.marriages" :key="spouseId">
-                <div class="ef-marriage-label">עם {{ getSpouseName(spouseId) }}</div>
-                <div class="ef-group">
-                  <label class="ef-label">תאריך נישואין (לועזי)</label>
-                  <input type="date" v-model="m.date" class="ef-input" @change="autoFillHebrew('marriage', spouseId)" />
-                </div>
-                <div class="ef-group">
-                  <label class="ef-label">תאריך נישואין עברי</label>
-                  <input type="text" v-model="m.date_he" class="ef-input" placeholder='כ"ב אייר תש"פ' />
-                </div>
-              </template>
-            </template>
-
-            <button class="ef-save-btn" @click="savePerson" :disabled="efSaving">
-              {{ efSaving ? 'שומר...' : 'שמור שינויים' }}
-            </button>
-          </div>
-
           <!-- ─── Add relative ─── -->
           <div class="add-relative-section">
             <div class="add-rel-title">הוסף קרוב משפחה</div>
@@ -278,6 +211,47 @@
               class="panel-btn-star" :class="{ active: currentDefaultId === String(selectedPerson.id) }">
               {{ currentDefaultId === String(selectedPerson.id) ? '⭐ ברירת מחדל לכולם' : '☆ הגדר כברירת מחדל' }}
             </button>
+          </div>
+
+          <!-- ─── Edit details — compact, placeholder-based, at bottom ─── -->
+          <div class="ef-form">
+            <div class="ef-pair">
+              <input type="date" v-model="ef.birth_date_gregorian" class="ef-input" title="תאריך לידה (לועזי)" @change="autoFillHebrew('birth')" />
+              <input type="text" v-model="ef.birth_date_hebrew" class="ef-input" placeholder='🎂 לידה עברי' />
+            </div>
+            <input type="text" v-model="ef.occupation" class="ef-input" placeholder="💼 עיסוק" />
+            <input type="text" v-model="ef.city" class="ef-input" placeholder="📍 עיר מגורים" />
+            <input type="email" v-model="ef.email" class="ef-input" dir="ltr" placeholder="✉️ מייל" />
+            <input type="tel" v-model="ef.phone" class="ef-input" dir="ltr" placeholder="📞 טלפון" />
+            <textarea v-model="ef.bio" class="ef-input ef-textarea" rows="2" placeholder="📝 מידע נוסף"></textarea>
+
+            <template v-if="Object.keys(ef.marriages).length">
+              <template v-for="(m, spouseId) in ef.marriages" :key="spouseId">
+                <div class="ef-marriage-label">💍 עם {{ getSpouseName(spouseId) }}</div>
+                <div class="ef-pair">
+                  <input type="date" v-model="m.date" class="ef-input" title="תאריך נישואין (לועזי)" @change="autoFillHebrew('marriage', spouseId)" />
+                  <input type="text" v-model="m.date_he" class="ef-input" placeholder='נישואין עברי' />
+                </div>
+              </template>
+            </template>
+
+            <button class="ef-save-btn" @click="savePerson" :disabled="efSaving">
+              {{ efSaving ? 'שומר...' : 'שמור שינויים' }}
+            </button>
+
+            <!-- נפטר — ממש בתחתית, פחות בולט -->
+            <div class="ef-deceased-area">
+              <label class="ef-checkbox-label">
+                <input type="checkbox" v-model="ef.is_deceased" />
+                <span>נפטר/ה</span>
+              </label>
+              <template v-if="ef.is_deceased">
+                <div class="ef-pair">
+                  <input type="date" v-model="ef.death_date_gregorian" class="ef-input" title="תאריך פטירה (לועזי)" @change="autoFillHebrew('death')" />
+                  <input type="text" v-model="ef.death_date_hebrew" class="ef-input" placeholder='🕯 פטירה עברי' />
+                </div>
+              </template>
+            </div>
           </div>
         </div>
       </Transition>
@@ -646,10 +620,19 @@ function toggleCompactMode() {
 }
 
 // ── Radial view ──────────────────────────────────────────────
-const radialMode     = ref(false)
-const radialCenterId = ref(null)   // null = use root
+const radialMode     = ref(true)   // default: radial on entry
+const radialCenterId = ref(null)   // null = use defaultMainPersonId
 const radialVB       = ref({ x: -550, y: -550, w: 1100, h: 1100 })
-let   radialDrag     = null
+
+// Pointer tracking — supports both single-finger drag and two-finger pinch zoom
+const radialActivePtrs = new Map()   // pointerId → {x, y}
+let   radialDrag       = null        // single-pointer drag state
+let   radialPinch      = null        // two-pointer pinch state
+
+function _pinchDist() {
+  const pts = [...radialActivePtrs.values()]
+  return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y)
+}
 
 const radialData = computed(() => {
   if (!radialMode.value || !localNodes.value.length) return { nodes: [], links: [] }
@@ -811,24 +794,42 @@ function onRadialWheel(e) {
   radialVB.value = { x: vb.x - (newW - vb.w) / 2, y: vb.y - (newH - vb.h) / 2, w: newW, h: newH }
 }
 
-// Drag only starts from the SVG background — nodes use @pointerdown.stop to block this
+// Background pointer events — nodes use @pointerdown.stop so they don't start drag/pinch
 function onRadialBgPointerDown(e) {
-  radialDrag = { px: e.clientX, py: e.clientY, vb: { ...radialVB.value }, moved: false }
-}
-function onRadialPointerMove(e) {
-  if (!radialDrag) return
-  const dx = e.clientX - radialDrag.px
-  const dy = e.clientY - radialDrag.py
-  if (!radialDrag.moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) radialDrag.moved = true
-  const vb  = radialDrag.vb
-  const rect = e.currentTarget.getBoundingClientRect()
-  radialVB.value = {
-    x: vb.x - dx * vb.w / rect.width,
-    y: vb.y - dy * vb.h / rect.height,
-    w: vb.w, h: vb.h,
+  radialActivePtrs.set(e.pointerId, { x: e.clientX, y: e.clientY })
+  if (radialActivePtrs.size === 1) {
+    radialDrag  = { px: e.clientX, py: e.clientY, vb: { ...radialVB.value }, moved: false }
+    radialPinch = null
+  } else if (radialActivePtrs.size === 2) {
+    radialDrag  = null
+    radialPinch = { startDist: _pinchDist(), startVB: { ...radialVB.value } }
   }
 }
-function onRadialPointerUp() { radialDrag = null }
+function onRadialPointerMove(e) {
+  if (!radialActivePtrs.has(e.pointerId)) return
+  radialActivePtrs.set(e.pointerId, { x: e.clientX, y: e.clientY })
+  if (radialActivePtrs.size >= 2 && radialPinch) {
+    // Pinch zoom
+    const scale = radialPinch.startDist / _pinchDist()
+    const svb   = radialPinch.startVB
+    const newW  = Math.min(3000, Math.max(300, svb.w * scale))
+    const newH  = Math.min(3000, Math.max(300, svb.h * scale))
+    radialVB.value = { x: svb.x - (newW - svb.w) / 2, y: svb.y - (newH - svb.h) / 2, w: newW, h: newH }
+  } else if (radialDrag) {
+    // Single-finger pan
+    const dx = e.clientX - radialDrag.px
+    const dy = e.clientY - radialDrag.py
+    if (!radialDrag.moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) radialDrag.moved = true
+    const vb   = radialDrag.vb
+    const rect = e.currentTarget.getBoundingClientRect()
+    radialVB.value = { x: vb.x - dx * vb.w / rect.width, y: vb.y - dy * vb.h / rect.height, w: vb.w, h: vb.h }
+  }
+}
+function onRadialPointerUp(e) {
+  radialActivePtrs.delete(e.pointerId)
+  if (radialActivePtrs.size < 2) radialPinch = null
+  if (radialActivePtrs.size === 0) radialDrag = null
+}
 
 function onRadialNodeClick(id) {
   // Ignore if this ended a drag
@@ -1174,38 +1175,41 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 .badge-main { background: #fefce8; border: 1px solid #fde047; color: #854d0e; padding: 0.12rem 0.45rem; border-radius: 5px; font-size: 0.78rem; }
 
 /* ─── Edit-details form ─── */
-.ef-form { display: flex; flex-direction: column; gap: 0.4rem; }
-.ef-group { display: flex; flex-direction: column; gap: 0.15rem; }
-.ef-label { font-size: 0.72rem; color: #6b7a99; font-weight: 500; }
+.ef-form {
+  display: flex; flex-direction: column; gap: 0.3rem;
+  border-top: 1.5px solid #e4eefb; padding-top: 0.6rem; margin-top: 0.1rem;
+}
 .ef-input {
-  width: 100%; padding: 0.38rem 0.55rem;
+  width: 100%; padding: 0.3rem 0.45rem;
   border: 1.5px solid #d1dce8; border-radius: 7px;
-  font-size: 0.84rem; font-family: 'Rubik', sans-serif;
+  font-size: 0.82rem; font-family: 'Rubik', sans-serif;
   direction: rtl; box-sizing: border-box; background: white; color: #1a3a6b;
 }
 .ef-input:focus { outline: none; border-color: #2d6be4; }
-.ef-textarea { resize: vertical; min-height: 60px; direction: rtl; }
-.ef-checkbox-label {
-  display: flex; align-items: center; gap: 0.5rem;
-  font-size: 0.84rem; color: #4a5568; cursor: pointer;
-  padding: 0.2rem 0;
-}
-.ef-checkbox-label input { width: 15px; height: 15px; cursor: pointer; }
-.ef-section-title {
-  font-size: 0.78rem; font-weight: 600; color: #4a5568;
-  border-top: 1px solid #e4eefb; padding-top: 0.55rem; margin-top: 0.15rem;
-}
-.ef-marriage-label { font-size: 0.8rem; color: #2d6be4; font-weight: 500; margin-top: 0.2rem; }
+.ef-input::placeholder { color: #9bacc8; }
+.ef-textarea { resize: vertical; min-height: 52px; direction: rtl; }
+.ef-pair { display: flex; gap: 0.3rem; }
+.ef-pair .ef-input { flex: 1; min-width: 0; }
+.ef-marriage-label { font-size: 0.78rem; color: #2d6be4; font-weight: 500; margin-top: 0.15rem; }
 .ef-save-btn {
-  margin-top: 0.3rem; padding: 0.5rem;
+  margin-top: 0.2rem; padding: 0.45rem;
   background: #2d6be4; color: white; border: none;
-  border-radius: 8px; font-size: 0.88rem; font-weight: 600;
+  border-radius: 8px; font-size: 0.86rem; font-weight: 600;
   font-family: 'Rubik', sans-serif; cursor: pointer; transition: background 0.2s;
 }
 .ef-save-btn:hover:not(:disabled) { background: #1a55c8; }
 .ef-save-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.ef-deceased-area {
+  border-top: 1px dashed #e4eefb; margin-top: 0.3rem; padding-top: 0.35rem;
+  display: flex; flex-direction: column; gap: 0.3rem;
+}
+.ef-checkbox-label {
+  display: flex; align-items: center; gap: 0.45rem;
+  font-size: 0.8rem; color: #8a9ab5; cursor: pointer;
+}
+.ef-checkbox-label input { cursor: pointer; }
 
-.panel-actions { display: flex; flex-direction: column; gap: 0.45rem; margin-top: auto; }
+.panel-actions { display: flex; flex-direction: column; gap: 0.45rem; }
 .panel-btn-primary { background: #2d6be4; color: white; text-decoration: none; padding: 0.55rem; border-radius: 9px; font-size: 0.88rem; font-weight: 600; text-align: center; display: block; }
 .panel-btn-primary:hover { background: #1a55c8; }
 .panel-btn-secondary { background: #f0f7ff; color: #2d6be4; text-decoration: none; padding: 0.55rem; border-radius: 9px; font-size: 0.88rem; text-align: center; display: block; }
