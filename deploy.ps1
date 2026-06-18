@@ -30,29 +30,26 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "No code changes to commit - continuing to asset deploy" -ForegroundColor Yellow
 }
 
-Write-Host "=== 3/5  Uploading build to server (public/build) ===" -ForegroundColor Cyan
-# Laravel reads the manifest from public/build via public_path()
-scp -P $SshPort -i $SshKey -r "$ProjectRoot\public\build" "${SshTarget}:${RemoteRoot}/public/"
-if ($LASTEXITCODE -ne 0) { Write-Host "SCP FAILED" -ForegroundColor Red; exit 1 }
-
-Write-Host "=== 4/5  Syncing code + build on server ===" -ForegroundColor Cyan
-# git pull for PHP code, cp to public_html (web root), clear caches
+Write-Host "=== 3/4  Deploying on server (git pull + sync + clear caches) ===" -ForegroundColor Cyan
+# public/build IS tracked in git, so git pull delivers both PHP code and built assets.
+# The checkout/clean before pull discards any local drift in public/build so pull never conflicts.
 $remoteScript = @"
 cd $RemoteRoot
+git checkout -- public/build 2>/dev/null || true
+git clean -fd public/build
 git pull origin main
-cp -rf public/build/. public_html/build/
 cp -rf public/. public_html/
 $Php artisan migrate --force
 $Php artisan config:clear
 $Php artisan route:clear
 $Php artisan view:clear
 $Php artisan storage:link 2>/dev/null || true
-echo '--- caches cleared, code and assets synced ---'
+echo '--- code and assets synced, caches cleared ---'
 "@
 ssh -p $SshPort -i $SshKey $SshTarget $remoteScript
 if ($LASTEXITCODE -ne 0) { Write-Host "Remote deploy FAILED" -ForegroundColor Red; exit 1 }
 
-Write-Host "=== 5/5  Sanity check ===" -ForegroundColor Cyan
+Write-Host "=== 4/4  Sanity check ===" -ForegroundColor Cyan
 try {
     $r = Invoke-WebRequest -Uri "https://vakil.chepti.com" -UseBasicParsing -TimeoutSec 20 -MaximumRedirection 0 -ErrorAction SilentlyContinue
     Write-Host "Site responds: $($r.StatusCode)" -ForegroundColor Green

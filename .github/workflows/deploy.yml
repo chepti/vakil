@@ -11,38 +11,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: mbstring, pdo_mysql, gd, exif, fileinfo
-
-      - name: Install & build
-        run: |
-          composer install --no-dev --optimize-autoloader --no-interaction
-          npm ci
-          npm run build
-
-      # ה-build נמצא ב-.gitignore — לכן git pull לא מביא אותו.
-      # מעלים את התיקייה הבנויה גם ל-public/build (ש-Laravel קורא ממנו)
-      # וגם ל-public_html/build (ש-web server מגיש ממנו).
-      - name: Upload built assets to public/build
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          source: "public/build/**"
-          target: "~/domains/vakil.chepti.com"
-          strip_components: 0
-
-      - name: Deploy via SSH (pull code + sync + clear caches)
+      # public/build מנוהל ב-git, לכן git pull מביא גם את הקוד וגם את ה-assets הבנויים.
+      # אין צורך ב-npm build / scp — רק משיכה בשרת וסנכרון ל-public_html.
+      - name: Deploy via SSH (pull code + assets, sync, clear caches)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -51,8 +22,9 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd ~/domains/vakil.chepti.com
+            git checkout -- public/build 2>/dev/null || true
+            git clean -fd public/build
             git pull origin main
-            cp -rf public/build/. public_html/build/
             cp -rf public/. public_html/
             /opt/alt/php83/usr/bin/php artisan migrate --force
             /opt/alt/php83/usr/bin/php artisan config:clear
