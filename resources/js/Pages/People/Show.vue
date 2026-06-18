@@ -32,6 +32,14 @@
               <span v-if="person.maiden_name" class="chip">👰 שם נעורים: {{ person.maiden_name }}</span>
               <span v-if="person.email" class="chip" dir="ltr">✉️ {{ person.email }}</span>
               <span v-if="person.phone" class="chip" dir="ltr">📞 {{ person.phone }}</span>
+              <button
+                v-if="person.email"
+                class="chip chip-invite"
+                :disabled="resendingInvite"
+                @click="resendInvite"
+              >
+                {{ resendingInvite ? 'שולח...' : '📨 שלח הזמנה שוב' }}
+              </button>
             </div>
             <p v-if="person.bio" class="bio-text">{{ person.bio }}</p>
           </div>
@@ -633,6 +641,16 @@ function submitEdit() {
   })
 }
 
+// ─── Resend invitation ───────────────────────────────────
+const resendingInvite = ref(false)
+function resendInvite() {
+  resendingInvite.value = true
+  router.post(`/people/${props.person.id}/resend-invite`, {}, {
+    preserveScroll: true,
+    onFinish: () => { resendingInvite.value = false },
+  })
+}
+
 // ─── Add parent ──────────────────────────────────────────
 const showAddParent = ref(false)
 const parentTab     = ref('new')
@@ -897,6 +915,9 @@ h1 { font-size: 1.8rem; color: #1a3a6b; margin: 0; }
 .meta-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
 .chip { background: #f0f7ff; border: 1px solid #d1e5fb; border-radius: 20px; padding: 0.25rem 0.75rem; font-size: 0.85rem; color: #2d4a7a; }
 .chip-gray { background: #f1f5f9; border-color: #e2e8f0; color: #64748b; }
+.chip-invite { cursor: pointer; background: #eff6ff; border-color: #3b82f6; color: #2563eb; font-weight: 600; transition: background 0.15s; }
+.chip-invite:hover:not(:disabled) { background: #dbeafe; }
+.chip-invite:disabled { opacity: 0.6; cursor: default; }
 .hebrew-date { opacity: 0.8; }
 .bio-text { color: #4a5568; font-size: 0.95rem; line-height: 1.6; margin: 0; }
 

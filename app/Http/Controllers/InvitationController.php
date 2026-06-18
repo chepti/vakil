@@ -60,6 +60,35 @@ class InvitationController extends Controller
     }
 
     /**
+     * Resend an invitation to a person who already has an email
+     */
+    public function resend(Person $person)
+    {
+        if (! $person->email) {
+            return back()->withErrors(['email' => 'לדמות אין כתובת מייל']);
+        }
+
+        if (User::where('email', $person->email)->exists()) {
+            return back()->withErrors(['email' => "{$person->email} כבר רשום/ה במערכת"]);
+        }
+
+        // Invalidate previous pending invitations for this email
+        Invitation::where('email', $person->email)
+            ->whereNull('used_at')
+            ->update(['expires_at' => now()->subMinute()]);
+
+        $invitation = Invitation::generate(
+            email:     $person->email,
+            invitedBy: auth()->id(),
+            personId:  $person->id,
+        );
+
+        Mail::to($person->email)->send(new InvitationMail($invitation));
+
+        return back()->with('success', "הזמנה נשלחה שוב ל-{$person->email}");
+    }
+
+    /**
      * Show the registration form for an invited user
      */
     public function show(string $token)

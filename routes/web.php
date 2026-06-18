@@ -44,6 +44,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/people/{person}/parent', [PersonController::class, 'addParent'])->name('people.parent');
     Route::post('/people/{person}/sibling', [PersonController::class, 'addSibling'])->name('people.sibling');
     Route::post('/people/{person}/reorder-children', [PersonController::class, 'reorderChildren'])->name('people.reorder-children');
+    Route::post('/people/{person}/resend-invite', [InvitationController::class, 'resend'])->name('people.resend-invite');
 
     // Family photos
     Route::get('/family-photos', [FamilyPhotoController::class, 'index'])->name('family-photos.index');
