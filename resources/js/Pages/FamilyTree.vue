@@ -87,6 +87,14 @@
           @pointerup="onRadialPointerUp"
           @pointercancel="onRadialPointerUp"
         >
+          <!-- Parents/spouse sector — soft amber wedge behind the relatives -->
+          <path
+            v-if="radialData.sectorPath"
+            :d="radialData.sectorPath"
+            fill="rgba(251,191,36,0.12)"
+            stroke="rgba(245,158,11,0.35)"
+            stroke-width="1"
+          />
           <!-- Links — child=solid, spouse=dashed -->
           <line
             v-for="link in radialData.links" :key="link.key"
@@ -663,6 +671,10 @@ const radialData = computed(() => {
   const positions = {}
   const links = []
   const visited = new Set()
+  const NODE_D  = 44        // effective node diameter + gap
+  let   relSector = 0       // angular width of the parents/spouse wedge (filled at level 0)
+  const REL_R_PAR = 145     // parents radius
+  const REL_R_SP  = 95      // spouse radius
 
   function layout(id, level, a0, a1, relType = 'child') {
     if (visited.has(id)) return
@@ -676,17 +688,44 @@ const radialData = computed(() => {
       const parents  = (nodeMap[id]?.rels?.parents  || []).map(p => String(p)).filter(p => !visited.has(p))
       const spouses  = (nodeMap[id]?.rels?.spouses  || []).map(s => String(s)).filter(s => !visited.has(s))
       const children = (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
-      const firstRing = [
-        ...parents.map(p => ({ id: p, type: 'parent', size: 1 })),
-        ...spouses.map(s => ({ id: s, type: 'spouse', size: 1 })),
-        ...children.map(c => ({ id: c, type: 'child', size: subtreeSize(c, new Set(visited)) })),
-      ]
-      const total = firstRing.reduce((s, x) => s + x.size, 0) || 1
-      let cur = a0
-      firstRing.forEach(({ id: nid, type, size }) => {
-        const arc = (a1 - a0) * size / total
-        links.push({ key: `${id}-${nid}`, from: id, to: nid, type })
-        layout(nid, 1, cur, cur + arc, type)
+
+      // ── Reserved top wedge for parents + spouse (angle 0 = straight up) ──
+      const angPar = parents.length ? (NODE_D + 14) / REL_R_PAR : 0
+      const angSp  = spouses.length ? (NODE_D + 14) / REL_R_SP  : 0
+      if (parents.length || spouses.length) {
+        relSector = Math.max(parents.length * angPar, spouses.length * angSp, 0.55)
+        relSector = Math.min(relSector, Math.PI * 0.85)
+      }
+
+      // Place a row of relatives spread evenly across the wedge, centered on top (angle 0)
+      const placeRow = (ids, radius, type) => {
+        const n = ids.length
+        if (!n) return
+        const step  = n > 1 ? relSector / n : 0
+        const start = -((n - 1) / 2) * step
+        ids.forEach((rid, i) => {
+          const a = start + i * step
+          visited.add(rid)
+          positions[rid] = {
+            x: radius * Math.cos(a - Math.PI / 2), y: radius * Math.sin(a - Math.PI / 2),
+            level: 1, relType: type, angle: a, arcSpan: step || relSector,
+          }
+          links.push({ key: `${id}-${rid}`, from: id, to: rid, type })
+        })
+      }
+      placeRow(parents, REL_R_PAR, 'parent')
+      placeRow(spouses, REL_R_SP,  'spouse')
+
+      // ── Children fan out across the rest of the circle (outside the wedge) ──
+      const childStart = relSector / 2
+      const childEnd   = 2 * Math.PI - relSector / 2
+      const sizes  = children.map(c => subtreeSize(c, new Set(visited)))
+      const totalC = sizes.reduce((a, b) => a + b, 0) || 1
+      let cur = childStart
+      children.forEach((cid, i) => {
+        const arc = (childEnd - childStart) * sizes[i] / totalC
+        links.push({ key: `${id}-${cid}`, from: id, to: cid, type: 'child' })
+        layout(cid, 1, cur, cur + arc, 'child')
         cur += arc
       })
     } else if (relType !== 'spouse' && relType !== 'parent') {
@@ -731,7 +770,6 @@ const radialData = computed(() => {
   })
 
   // Canonical base radius per level — using 2-row capacity estimate (halves needed radius)
-  const NODE_D = 44  // effective node diameter + gap
   const levelR = {}
   Object.keys(childByLevel).forEach(lvl => {
     const l = parseInt(lvl)
@@ -814,7 +852,17 @@ const radialData = computed(() => {
       x2: positions[l.to].x,   y2: positions[l.to].y,
     }))
 
-  return { nodes, links: linkLines }
+  // Background wedge for the parents/spouse sector (SVG pie slice from center)
+  let sectorPath = null
+  if (relSector > 0) {
+    const R   = REL_R_PAR + 40
+    const aL  = -relSector / 2, aR = relSector / 2
+    const p1x = R * Math.cos(aL - Math.PI / 2), p1y = R * Math.sin(aL - Math.PI / 2)
+    const p2x = R * Math.cos(aR - Math.PI / 2), p2y = R * Math.sin(aR - Math.PI / 2)
+    sectorPath = `M 0 0 L ${p1x.toFixed(1)} ${p1y.toFixed(1)} A ${R} ${R} 0 0 1 ${p2x.toFixed(1)} ${p2y.toFixed(1)} Z`
+  }
+
+  return { nodes, links: linkLines, sectorPath }
 })
 
 function radialNodeColor(gender) {
