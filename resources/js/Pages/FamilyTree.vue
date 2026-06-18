@@ -911,11 +911,30 @@ function toggleRadialMode() {
 
 // ─── Edit-details helpers ─────────────────────────────────────
 
+// המרת מספר לאותיות גימטריה (כ"ז, תשע"ח). לשנים מורידים את האלפים (5778 → תשע"ח)
+function toGematria(num) {
+  const ones     = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט']
+  const tens     = ['', 'י', 'כ', 'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'צ']
+  const hundreds = ['', 'ק', 'ר', 'ש', 'ת', 'תק', 'תר', 'תש', 'תת', 'תתק']
+  let n = num % 1000
+  let s = hundreds[Math.floor(n / 100)]
+  n %= 100
+  if (n === 15)      s += 'טו'   // לא יה
+  else if (n === 16) s += 'טז'   // לא יו
+  else               s += tens[Math.floor(n / 10)] + ones[n % 10]
+  if (s.length <= 1) return s + '׳'                 // גרש לאות בודדת
+  return s.slice(0, -1) + '"' + s.slice(-1)         // גרשיים לפני האות האחרונה
+}
+
 function gregorianToHebrew(dateStr) {
   if (!dateStr) return ''
   try {
-    return new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' })
-      .format(new Date(dateStr + 'T12:00:00'))
+    const parts = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' })
+      .formatToParts(new Date(dateStr + 'T12:00:00'))
+    return parts.map(p => {
+      if (p.type === 'day' || p.type === 'year') return toGematria(parseInt(p.value, 10))
+      return p.value
+    }).join('')
   } catch { return '' }
 }
 
