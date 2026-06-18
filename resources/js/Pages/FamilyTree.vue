@@ -413,16 +413,28 @@ async function submitAddRel() {
     }
   }
 
+  let freshNodes
   try {
-    const freshNodes = await apiPost('/api/family-tree/person', datum)
-    localNodes.value = freshNodes
-    chartInstance.updateData(freshNodes).updateTree({ tree_position: 'inherit' })
-    addRelType.value = null
+    freshNodes = await apiPost('/api/family-tree/person', datum)
   } catch (err) {
+    console.error('add-relative save failed:', err)
     alert('שגיאה בהוספה')
-    console.error(err)
-  } finally {
     addRelSaving.value = false
+    return
+  }
+  // השמירה הצליחה — מכאן שגיאת רינדור לא נחשבת ככשל שמירה
+  localNodes.value = freshNodes
+  refreshChart(freshNodes)
+  addRelType.value = null
+  addRelSaving.value = false
+}
+
+// עדכון הגרף בנפרד מהשמירה — כשל ברינדור לא אמור להיראות ככשל שמירה
+function refreshChart(freshNodes) {
+  try {
+    chartInstance?.updateData(freshNodes).updateTree({ tree_position: 'inherit' })
+  } catch (err) {
+    console.error('chart refresh failed (data already saved):', err)
   }
 }
 
@@ -930,9 +942,12 @@ async function apiPut(url, body) {
 
 async function savePerson() {
   if (!selectedPerson.value) return
+  const personId = String(selectedPerson.value.id)
   efSaving.value = true
+
+  let freshNodes
   try {
-    const freshNodes = await apiPut(`/api/family-tree/person/${selectedPerson.value.id}/details`, {
+    freshNodes = await apiPut(`/api/family-tree/person/${personId}/details`, {
       birth_date_gregorian: ef.value.birth_date_gregorian || null,
       birth_date_hebrew:    ef.value.birth_date_hebrew    || null,
       is_deceased:          ef.value.is_deceased,
@@ -945,15 +960,18 @@ async function savePerson() {
       bio:                  ef.value.bio                  || null,
       spouse_marriages:     ef.value.marriages,
     })
-    chartInstance.updateData(freshNodes).updateTree({ tree_position: 'inherit' })
-    const freshNode = freshNodes.find(n => n.id === String(selectedPerson.value.id))
-    if (freshNode) selectedPerson.value = { id: freshNode.id, ...freshNode.data }
   } catch (err) {
+    console.error('save-person failed:', err)
     alert('שגיאה בשמירה')
-    console.error(err)
-  } finally {
     efSaving.value = false
+    return
   }
+  // השמירה הצליחה — מכאן שגיאת רינדור לא נחשבת ככשל שמירה
+  localNodes.value = freshNodes
+  refreshChart(freshNodes)
+  const freshNode = freshNodes.find(n => n.id === personId)
+  if (freshNode) selectedPerson.value = { id: freshNode.id, ...freshNode.data }
+  efSaving.value = false
 }
 
 // helpers
