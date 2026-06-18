@@ -37,11 +37,11 @@
             </div>
             <div class="form-group">
               <label>תאריך לידה (לועזי)</label>
-              <input v-model="form.birth_date_gregorian" type="date" />
+              <input v-model="form.birth_date_gregorian" type="date" @change="syncHeb('birth_date_gregorian','birth_date_hebrew')" />
             </div>
             <div class="form-group">
               <label>תאריך לידה עברי</label>
-              <input v-model="form.birth_date_hebrew" type="text" />
+              <input v-model="form.birth_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' @change="syncGreg('birth_date_gregorian','birth_date_hebrew')" />
             </div>
           </div>
 
@@ -73,11 +73,11 @@
             <div v-if="form.is_deceased" class="form-row" style="margin-top: 1rem">
               <div class="form-group">
                 <label>תאריך פטירה (לועזי)</label>
-                <input v-model="form.death_date_gregorian" type="date" />
+                <input v-model="form.death_date_gregorian" type="date" @change="syncHeb('death_date_gregorian','death_date_hebrew')" />
               </div>
               <div class="form-group">
                 <label>תאריך פטירה עברי</label>
-                <input v-model="form.death_date_hebrew" type="text" />
+                <input v-model="form.death_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' @change="syncGreg('death_date_gregorian','death_date_hebrew')" />
               </div>
             </div>
           </div>
@@ -155,6 +155,11 @@
 import { computed, ref } from 'vue'
 import { Link, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { gregorianToHebrew, hebrewToGregorian } from '@/utils/hebrewDate'
+
+// המרה דו-כיוונית של תאריך — ממלא רק אם ההמרה הצליחה
+function syncHeb(gKey, hKey)  { const v = gregorianToHebrew(form[gKey]); if (v) form[hKey] = v }
+function syncGreg(gKey, hKey) { const v = hebrewToGregorian(form[hKey]); if (v) form[gKey] = v }
 
 const props = defineProps({
   person:    { type: Object, required: true },

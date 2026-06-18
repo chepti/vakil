@@ -74,21 +74,17 @@ export function hebrewToGregorian(hebrewStr) {
     // ניקוי גרשיים/גרשים והפיכה לטוקנים
     const clean  = hebrewStr.replace(/["'״׳`]/g, '').trim()
     const tokens = clean.split(/\s+/).filter(Boolean)
-    if (tokens.length < 2) return ''
+    if (tokens.length < 3) return ''   // צריך יום + חודש + שנה (אדר א'/ב' = חודש דו-מילתי)
 
-    // איתור טוקן החודש (אולי עם תחילית ב')
-    let monthIdx = -1, enMonth = null
-    for (let i = 0; i < tokens.length; i++) {
-      let t = tokens[i]
-      if (EN_MONTH_FROM_HEB[t]) { monthIdx = i; enMonth = EN_MONTH_FROM_HEB[t]; break }
-      if (t.startsWith('ב') && EN_MONTH_FROM_HEB[t.slice(1)]) { monthIdx = i; enMonth = EN_MONTH_FROM_HEB[t.slice(1)]; break }
-    }
-    if (monthIdx < 1 || monthIdx >= tokens.length - 1) return ''
+    // בתאריך עברי: היום ראשון, השנה אחרונה, והחודש כל מה שביניהם
+    const day  = fromGematria(tokens[0])
+    let year   = fromGematria(tokens[tokens.length - 1])
+    if (year < 1000) year += 5000      // תשע"ח → 778 → 5778
 
-    const day = fromGematria(tokens[monthIdx - 1])
-    let year  = fromGematria(tokens[monthIdx + 1])
-    if (year < 1000) year += 5000     // תשע"ח → 778 → 5778
-    if (!day || !year) return ''
+    let monthStr = tokens.slice(1, -1).join('')   // "אדר"+"ב" → "אדרב"
+    if (monthStr.startsWith('ב')) monthStr = monthStr.slice(1)   // הסרת תחילית "ב"
+    const enMonth = EN_MONTH_FROM_HEB[monthStr]
+    if (!enMonth || !day || !year) return ''
 
     let hd
     try { hd = new HDate(day, enMonth, year) }

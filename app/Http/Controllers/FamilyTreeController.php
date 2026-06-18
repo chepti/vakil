@@ -224,11 +224,15 @@ class FamilyTreeController extends Controller
         $parents   = [];   // child_id  → [parent_id, ...]
         $spouses   = [];   // person_id → [spouse_id, ...]
         $marriages = [];   // person_id → {spouse_id → {date, date_he}}
+        $childSort = [];   // child_id  → sort_order (סדר אחים שהאדמין קבע, אם קיים)
 
         foreach ($relationships as $rel) {
             if ($rel->type === 'parent_child') {
                 $children[$rel->person1_id][] = (string) $rel->person2_id;
                 $parents[$rel->person2_id][]  = (string) $rel->person1_id;
+                if ($rel->sort_order !== null) {
+                    $childSort[(string) $rel->person2_id] = $rel->sort_order;
+                }
             } elseif ($rel->type === 'spouse') {
                 $spouses[$rel->person1_id][] = (string) $rel->person2_id;
                 $spouses[$rel->person2_id][] = (string) $rel->person1_id;
@@ -275,16 +279,22 @@ class FamilyTreeController extends Controller
             }
         }
 
-        // מיין ילדים: לפי sort_order (כבר נשמר בסדר הנכון ברשומות) → birth_date_gregorian.
-        // הופך לסדר יורד (צעיר ראשון) כדי שבגרף LTR הבכור יופיע מימין (RTL-ראשון).
+        // מיין ילדים לסדר קנוני: sort_order (הסדר שהאדמין קבע, בכור ראשון) → תאריך לידה כגיבוי.
+        // זהה לתצוגת בני-המשפחה (People/Show), כך שאפשר לסמוך עליו גם כשאין תאריכי לידה.
         foreach ($children as $parentId => &$childIds) {
-            usort($childIds, function ($aId, $bId) use ($birthDates) {
+            usort($childIds, function ($aId, $bId) use ($childSort, $birthDates) {
+                $sa = $childSort[(string) $aId] ?? null;
+                $sb = $childSort[(string) $bId] ?? null;
+                if ($sa !== null && $sb !== null) return $sa <=> $sb; // sort_order עולה: בכור (1) ראשון
+                if ($sa !== null) return -1; // ילד עם סדר ידוע — לפני חסרי-סדר
+                if ($sb !== null) return 1;
+                // שניהם ללא sort_order — נופלים לתאריך לידה (עולה: מבוגר ראשון)
                 $a = $birthDates[(int) $aId] ?? null;
                 $b = $birthDates[(int) $bId] ?? null;
                 if ($a === $b) return 0;
-                if ($a === null) return -1; // ללא תאריך — משמאל
-                if ($b === null) return 1;
-                return $b <=> $a; // יורד: צעיר ראשון → בכור אחרון (ימין בגרף)
+                if ($a === null) return 1; // ללא תאריך — אחרון
+                if ($b === null) return -1;
+                return $a <=> $b;
             });
         }
         unset($childIds);

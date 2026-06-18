@@ -193,11 +193,11 @@
             <div v-if="addRelType" class="add-rel-form">
               <input v-model="addRelForm.first_name" type="text" placeholder="שם פרטי *" class="rel-input" />
               <input v-model="addRelForm.last_name" type="text" placeholder="שם משפחה" class="rel-input" />
-              <input v-model="addRelForm.birth_date_gregorian" type="date" class="rel-input" />
-              <input v-model="addRelForm.birth_date_hebrew" type="text" placeholder='תאריך לידה עברי (כ"ה תשרי תשפ"ה)' class="rel-input" />
+              <input v-model="addRelForm.birth_date_gregorian" type="date" class="rel-input" @change="addRelForm.birth_date_hebrew = gregorianToHebrew(addRelForm.birth_date_gregorian) || addRelForm.birth_date_hebrew" />
+              <input v-model="addRelForm.birth_date_hebrew" type="text" placeholder='תאריך לידה עברי (כ"ה תשרי תשפ"ה)' class="rel-input" @change="addRelForm.birth_date_gregorian = hebrewToGregorian(addRelForm.birth_date_hebrew) || addRelForm.birth_date_gregorian" />
               <template v-if="addRelType === 'spouse'">
-                <input v-model="addRelForm.marriage_date_gregorian" type="date" class="rel-input" />
-                <input v-model="addRelForm.marriage_date_hebrew" type="text" placeholder='תאריך נישואין עברי (כ"ב אייר תש"פ)' class="rel-input" />
+                <input v-model="addRelForm.marriage_date_gregorian" type="date" class="rel-input" @change="addRelForm.marriage_date_hebrew = gregorianToHebrew(addRelForm.marriage_date_gregorian) || addRelForm.marriage_date_hebrew" />
+                <input v-model="addRelForm.marriage_date_hebrew" type="text" placeholder='תאריך נישואין עברי (כ"ב אייר תש"פ)' class="rel-input" @change="addRelForm.marriage_date_gregorian = hebrewToGregorian(addRelForm.marriage_date_hebrew) || addRelForm.marriage_date_gregorian" />
               </template>
               <div class="rel-gender">
                 <button type="button" :class="{ active: addRelForm.gender === 'M' }" @click="addRelForm.gender = 'M'">זכר</button>
@@ -225,7 +225,7 @@
           <div class="ef-form">
             <div class="ef-pair">
               <input type="date" v-model="ef.birth_date_gregorian" class="ef-input" title="תאריך לידה (לועזי)" @change="autoFillHebrew('birth')" />
-              <input type="text" v-model="ef.birth_date_hebrew" class="ef-input" placeholder='🎂 לידה עברי' />
+              <input type="text" v-model="ef.birth_date_hebrew" class="ef-input" placeholder='🎂 לידה עברי' @change="autoFillGregorian('birth')" />
             </div>
             <input type="text" v-model="ef.occupation" class="ef-input" placeholder="💼 עיסוק" />
             <input type="text" v-model="ef.city" class="ef-input" placeholder="📍 כתובת" />
@@ -238,7 +238,7 @@
                 <div class="ef-marriage-label">💍 עם {{ getSpouseName(spouseId) }}</div>
                 <div class="ef-pair">
                   <input type="date" v-model="m.date" class="ef-input" title="תאריך נישואין (לועזי)" @change="autoFillHebrew('marriage', spouseId)" />
-                  <input type="text" v-model="m.date_he" class="ef-input" placeholder='נישואין עברי' />
+                  <input type="text" v-model="m.date_he" class="ef-input" placeholder='נישואין עברי' @change="autoFillGregorian('marriage', spouseId)" />
                 </div>
               </template>
             </template>
@@ -256,7 +256,7 @@
               <template v-if="ef.is_deceased">
                 <div class="ef-pair">
                   <input type="date" v-model="ef.death_date_gregorian" class="ef-input" title="תאריך פטירה (לועזי)" @change="autoFillHebrew('death')" />
-                  <input type="text" v-model="ef.death_date_hebrew" class="ef-input" placeholder='🕯 פטירה עברי' />
+                  <input type="text" v-model="ef.death_date_hebrew" class="ef-input" placeholder='🕯 פטירה עברי' @change="autoFillGregorian('death')" />
                 </div>
               </template>
             </div>
@@ -274,6 +274,7 @@ import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { createChart } from 'family-chart'
 import 'family-chart/styles/family-chart.css'
+import { gregorianToHebrew, hebrewToGregorian } from '@/utils/hebrewDate'
 
 const props = defineProps({
   nodes:               { type: Array,   default: () => [] },
@@ -668,17 +669,10 @@ const radialData = computed(() => {
     return 1 + children.reduce((s, c) => s + subtreeSize(c, seen), 0)
   }
 
-  // Order children oldest → youngest (those with a birthday first, by date)
-  function byBirth(a, b) {
-    const da = nodeMap[a]?.data?.birthday || ''
-    const db = nodeMap[b]?.data?.birthday || ''
-    if (da && db) return da < db ? -1 : da > db ? 1 : 0
-    if (da) return -1
-    if (db) return 1
-    return 0
-  }
+  // Children arrive from the server already in canonical sibling order
+  // (admin-defined sort_order, oldest first). Just filter out already-placed nodes.
   const sortedChildren = (id) =>
-    (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c)).sort(byBirth)
+    (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
 
   const positions = {}
   const links = []
@@ -971,37 +965,18 @@ function toggleRadialMode() {
 
 // ─── Edit-details helpers ─────────────────────────────────────
 
-// המרת מספר לאותיות גימטריה (כ"ז, תשע"ח). לשנים מורידים את האלפים (5778 → תשע"ח)
-function toGematria(num) {
-  const ones     = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט']
-  const tens     = ['', 'י', 'כ', 'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'צ']
-  const hundreds = ['', 'ק', 'ר', 'ש', 'ת', 'תק', 'תר', 'תש', 'תת', 'תתק']
-  let n = num % 1000
-  let s = hundreds[Math.floor(n / 100)]
-  n %= 100
-  if (n === 15)      s += 'טו'   // לא יה
-  else if (n === 16) s += 'טז'   // לא יו
-  else               s += tens[Math.floor(n / 10)] + ones[n % 10]
-  if (s.length <= 1) return s + '׳'                 // גרש לאות בודדת
-  return s.slice(0, -1) + '"' + s.slice(-1)         // גרשיים לפני האות האחרונה
-}
-
-function gregorianToHebrew(dateStr) {
-  if (!dateStr) return ''
-  try {
-    const parts = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' })
-      .formatToParts(new Date(dateStr + 'T12:00:00'))
-    return parts.map(p => {
-      if (p.type === 'day' || p.type === 'year') return toGematria(parseInt(p.value, 10))
-      return p.value
-    }).join('')
-  } catch { return '' }
-}
-
+// לועזי → עברי
 function autoFillHebrew(field, spouseId) {
   if (field === 'birth')         ef.value.birth_date_hebrew = gregorianToHebrew(ef.value.birth_date_gregorian)
   else if (field === 'death')    ef.value.death_date_hebrew = gregorianToHebrew(ef.value.death_date_gregorian)
   else if (field === 'marriage') { const m = ef.value.marriages[spouseId]; if (m) m.date_he = gregorianToHebrew(m.date) }
+}
+
+// עברי → לועזי (רק אם ההמרה הצליחה — לא מוחק קלט קיים)
+function autoFillGregorian(field, spouseId) {
+  if (field === 'birth')      { const g = hebrewToGregorian(ef.value.birth_date_hebrew); if (g) ef.value.birth_date_gregorian = g }
+  else if (field === 'death') { const g = hebrewToGregorian(ef.value.death_date_hebrew); if (g) ef.value.death_date_gregorian = g }
+  else if (field === 'marriage') { const m = ef.value.marriages[spouseId]; if (m) { const g = hebrewToGregorian(m.date_he); if (g) m.date = g } }
 }
 
 function getSpouseName(spouseId) {
