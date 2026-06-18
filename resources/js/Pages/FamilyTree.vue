@@ -694,8 +694,12 @@ const radialData = computed(() => {
 
   layout(centerId, 0, 0, 2 * Math.PI)
 
-  // ── Second pass: canonical per-generation radius + grape-cluster jitter ──
-  // Group child nodes by level (exclude root, spouses, parents)
+  // ── Second pass: multi-row band layout per generation ──────────────────
+  // Build child→parent map from the links collected in the first pass
+  const parentOf = {}
+  links.forEach(l => { if (l.type === 'child') parentOf[l.to] = l.from })
+
+  // Group child nodes by level
   const childByLevel = {}
   Object.keys(positions).forEach(id => {
     const pos = positions[id]
@@ -704,40 +708,63 @@ const radialData = computed(() => {
     childByLevel[pos.level].push(id)
   })
 
-  // Canonical radius per level: large enough for all nodes in that generation
+  // Group by (level, parent) for per-family row decisions
+  const siblingGroups = {}
+  Object.keys(positions).forEach(id => {
+    const pos = positions[id]
+    if (pos.level === 0 || pos.relType === 'spouse' || pos.relType === 'parent') return
+    const key = `${pos.level}:${parentOf[id] || '_'}`
+    if (!siblingGroups[key]) siblingGroups[key] = []
+    siblingGroups[key].push(id)
+  })
+
+  // Canonical base radius per level — using 2-row capacity estimate (halves needed radius)
+  const NODE_D = 44  // effective node diameter + gap
   const levelR = {}
   Object.keys(childByLevel).forEach(lvl => {
     const l = parseInt(lvl)
     const n = childByLevel[lvl].length
-    const needed = Math.ceil(n * 58 / (2 * Math.PI))  // 58px min spacing per node
-    levelR[l] = Math.max(l * 160, needed, 140)
+    const needed = Math.ceil(n * NODE_D / (4 * Math.PI))  // 2-row capacity
+    levelR[l] = Math.max(l * 130, needed, 120)
   })
 
-  // Enforce strict monotonic increase — each generation MUST be further out than the previous
+  // Enforce monotonic increase — 140px min gap between level base radii
+  // (accommodates ±30px band on each side + nodeR + clearance)
   const sortedLevels = Object.keys(levelR).map(Number).sort((a, b) => a - b)
   for (let i = 1; i < sortedLevels.length; i++) {
     const l = sortedLevels[i], lPrev = sortedLevels[i - 1]
-    levelR[l] = Math.max(levelR[l], levelR[lPrev] + 100)
+    levelR[l] = Math.max(levelR[l], levelR[lPrev] + 140)
   }
 
-  // Apply canonical radius + jitter (dense zones push out, sparse zones pull in)
-  // Jitter is capped so nodes can't overshoot into the next generation's band
-  Object.keys(childByLevel).forEach(lvl => {
-    const l      = parseInt(lvl)
-    const base   = levelR[l]
-    const ids    = childByLevel[lvl]
-    const avgArc = (2 * Math.PI) / ids.length
-    // Max inward/outward jitter: stay within 35% of the gap to adjacent levels
-    const prevBase  = levelR[l - 1] || 0
-    const nextBase  = levelR[l + 1] || base + 200
-    const maxOut = Math.min(45, (nextBase - base) * 0.35)
-    const maxIn  = Math.min(30, (base - prevBase) * 0.35)
-    ids.forEach(id => {
-      const pos      = positions[id]
-      const arcRatio = pos.arcSpan / avgArc  // <1 dense, >1 sparse
-      // Dense → push outward (+); sparse → pull inward (-)
-      const jitter   = Math.max(-maxIn, Math.min(maxOut, (1 - arcRatio) * 40))
-      const r        = base + jitter
+  // Assign final positions: multi-row within each sibling group
+  const ROW_OFFSET = 30  // inner row at base-30, outer at base+30
+  Object.keys(siblingGroups).forEach(key => {
+    const l    = parseInt(key.split(':')[0])
+    const base = levelR[l]
+    const ids  = siblingGroups[key]
+
+    // Sort siblings by angle so row alternation groups them spatially
+    ids.sort((a, b) => positions[a].angle - positions[b].angle)
+
+    // Arc span of this sibling cluster
+    const angles = ids.map(id => positions[id].angle)
+    const span   = ids.length > 1
+      ? Math.max(...angles) - Math.min(...angles) + NODE_D / base
+      : NODE_D / base
+
+    // Capacity in 1 row at base radius over that arc
+    const cap1 = Math.max(1, Math.floor(base * span / NODE_D))
+    const numRows = ids.length <= cap1 ? 1
+      : ids.length <= cap1 * 2 ? 2
+      : 3
+
+    const rowRadii = numRows === 1 ? [base]
+      : numRows === 2 ? [base - ROW_OFFSET, base + ROW_OFFSET]
+      : [base - ROW_OFFSET, base, base + ROW_OFFSET]
+
+    ids.forEach((id, i) => {
+      const pos = positions[id]
+      const r   = rowRadii[i % numRows]
       pos.x = r * Math.cos(pos.angle - Math.PI / 2)
       pos.y = r * Math.sin(pos.angle - Math.PI / 2)
     })

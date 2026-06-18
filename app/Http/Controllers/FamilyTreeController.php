@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\InvitationMail;
+use App\Models\Invitation;
 use App\Models\Person;
 use App\Models\Relationship;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
 class FamilyTreeController extends Controller

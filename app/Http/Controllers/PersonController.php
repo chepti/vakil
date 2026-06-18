@@ -338,26 +338,6 @@ class PersonController extends Controller
 
         $person->update($data);
 
-        // שלח הזמנה אם מייל חדש נוסף ואין לו עדיין משתמש/הזמנה פעילה
-        $invitationSent = false;
-        if ($newEmail && $newEmail !== $oldEmail) {
-            $alreadyUser = \App\Models\User::where('email', $newEmail)->exists();
-            $alreadyInvited = Invitation::where('email', $newEmail)
-                ->whereNull('used_at')
-                ->where('expires_at', '>', now())
-                ->exists();
-
-            if (! $alreadyUser && ! $alreadyInvited) {
-                $invitation = Invitation::generate(
-                    email:     $newEmail,
-                    invitedBy: Auth::id(),
-                    personId:  $person->id,
-                );
-                Mail::to($newEmail)->send(new InvitationMail($invitation));
-                $invitationSent = true;
-            }
-        }
-
         // עדכון הורים — מחק קיימים והוסף חדשים
         Relationship::where('person2_id', $person->id)->where('type', 'parent_child')->delete();
         foreach ($data['parent_ids'] ?? [] as $parentId) {
@@ -378,7 +358,7 @@ class PersonController extends Controller
             ]);
         }
 
-        $message = $invitationSent
+        $message = ($newEmail && $newEmail !== $oldEmail)
             ? "הפרטים עודכנו — הזמנה נשלחה ל-{$newEmail}"
             : 'הפרטים עודכנו';
 

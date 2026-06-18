@@ -2,12 +2,42 @@
 
 namespace App\Models;
 
+use App\Mail\InvitationMail;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 
 class Person extends Model
 {
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::updated(function (Person $person) {
+            $newEmail = $person->email;
+            $oldEmail = $person->getOriginal('email');
+
+            if (! $newEmail || $newEmail === $oldEmail) return;
+
+            $alreadyUser    = \App\Models\User::where('email', $newEmail)->exists();
+            $alreadyInvited = Invitation::where('email', $newEmail)
+                ->whereNull('used_at')
+                ->where('expires_at', '>', now())
+                ->exists();
+
+            if ($alreadyUser || $alreadyInvited) return;
+
+            $invitation = Invitation::generate(
+                email:     $newEmail,
+                invitedBy: Auth::id() ?? 1,
+                personId:  $person->id,
+            );
+            Mail::to($newEmail)->send(new InvitationMail($invitation));
+        });
+    }
+
     protected $fillable = [
         'first_name', 'last_name', 'maiden_name', 'gender',
         'birth_date_gregorian', 'birth_date_hebrew',
