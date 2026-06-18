@@ -53,6 +53,13 @@ class GameController extends Controller
             $childrenOf[$r->person1_id][] = $r->person2_id;
         }
 
+        // Spouse map (used for relational hints).
+        $spouseOf = [];   // person_id => [spouse_id, ...]
+        foreach (Relationship::where('type', 'spouse')->get() as $r) {
+            $spouseOf[$r->person1_id][] = $r->person2_id;
+            $spouseOf[$r->person2_id][] = $r->person1_id;
+        }
+
         // BFS down from main → all blood descendants.
         $descendants = [];
         $queue = [$main->id];
@@ -115,17 +122,25 @@ class GameController extends Controller
             return response()->json(['error' => 'no_path'], 422);
         }
 
+        // People lookup (names + gender) for distractors, hints and labels.
+        $people  = Person::select('id', 'first_name', 'last_name', 'gender')->get()->keyBy('id');
+        $genderOf = $people->map(fn($p) => $p->gender);
+
         // Distractor pool: everyone except the target and the people on the path.
         $onPath  = array_flip($path);
-        $genderOf = Person::pluck('gender', 'id');
         $poolAll = array_values(array_filter(
-            $genderOf->keys()->all(),
+            $people->keys()->all(),
             fn($id) => $id !== $target && ! isset($onPath[$id])
         ));
 
-        // Build per-step data: correct answer + 3 distractors + relation label.
+        // Build per-step data. The "child" of step i is the target (i=0) or the
+        // previous blood-line ancestor; we expose BOTH of the child's parents so a
+        // married-in parent guess is accepted (not an error), plus progressive hints.
         $steps = [];
         foreach ($path as $i => $correctId) {
+            $childId = $i === 0 ? $target : $path[$i - 1];
+
+            // Distractors of the same gender when possible.
             $sameGender = array_values(array_filter(
                 $poolAll,
                 fn($id) => ($genderOf[$id] ?? null) === ($genderOf[$correctId] ?? null)
@@ -138,10 +153,16 @@ class GameController extends Controller
             $options[] = $correctId;
             shuffle($options);
 
+            $answer = $people[$correctId] ?? null;
+
             $steps[] = [
-                'correct_id' => $correctId,
-                'options'    => array_values($options),
-                'label'      => $this->relationLabel($i),
+                'correct_id'      => $correctId,
+                'parent_ids'      => array_values(array_unique($parentsOf[$childId] ?? [])),
+                'options'         => array_values($options),
+                'label'           => $this->relationLabel($i),
+                'first_name'      => $answer?->first_name,
+                'last_name'       => $answer?->last_name,
+                'relation_hint'   => $this->relationalHint($correctId, $childId, $onPath, $childrenOf, $spouseOf, $people),
             ];
         }
 
@@ -150,6 +171,27 @@ class GameController extends Controller
             'main_id'   => $main->id,
             'steps'     => $steps,
         ]);
+    }
+
+    /**
+     * A textual relational clue for the answer person — e.g. "also the parent
+     * of {sibling}" or "married to {spouse}". Returns null when none is useful.
+     */
+    private function relationalHint(int $answerId, int $childId, array $onPath, array $childrenOf, array $spouseOf, $people): ?string
+    {
+        // Prefer a sibling of the current child (another child of the answer)
+        // that isn't already part of the chain — strong, recognizable clue.
+        foreach ($childrenOf[$answerId] ?? [] as $otherChild) {
+            if ($otherChild == $childId || isset($onPath[$otherChild])) continue;
+            $p = $people[$otherChild] ?? null;
+            if ($p) return 'הוא/היא גם ההורה של ' . $p->first_name . ' ' . $p->last_name;
+        }
+        // Otherwise reveal the spouse.
+        foreach ($spouseOf[$answerId] ?? [] as $spouseId) {
+            $p = $people[$spouseId] ?? null;
+            if ($p) return 'נשוי/אה ל' . $p->first_name . ' ' . $p->last_name;
+        }
+        return null;
     }
 
     private function relationLabel(int $depth): string

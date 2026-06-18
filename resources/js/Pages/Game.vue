@@ -15,10 +15,8 @@
         כדי לשחק צריך להגדיר דמות מרכזית (סבתא ואקיל) בעץ המשפחה.
       </div>
 
-      <!-- טעינה -->
       <div v-else-if="loading" class="notice">טוען סבב חדש…</div>
 
-      <!-- שגיאה -->
       <div v-else-if="loadError" class="notice">
         {{ loadError }}
         <button class="btn-primary" @click="newRound">נסה שוב</button>
@@ -26,8 +24,8 @@
 
       <template v-else>
         <p class="game-intro">
-          זו <strong>{{ targetName }}</strong>. בנו את שרשרת המשפחה כלפי מעלה עד שתגיעו אל
-          <strong>סבתא ואקיל</strong> — מי ההורה? מי הסבא/סבתא? וכן הלאה.
+          מי הדמות בתמונה? 🤔 בנו את שרשרת המשפחה כלפי מעלה — מי ההורה? מי הסבא/סבתא? — עד שתגיעו אל
+          <strong>סבתא ואקיל</strong>. לא יודעים? בקשו רמז (זה עולה בנקודות).
         </p>
 
         <div class="game-board">
@@ -50,7 +48,7 @@
             <div class="connector" :class="{ active: finished }"></div>
 
             <!-- שלבים מהאב הקדמון העליון כלפי מטה -->
-            <template v-for="(step, i) in reversedSteps" :key="'step-' + step.idx">
+            <template v-for="step in reversedSteps" :key="'step-' + step.idx">
               <div
                 class="rung slot"
                 :class="{
@@ -71,6 +69,9 @@
                   <div class="rung-info">
                     <span class="rung-label">{{ step.label }}</span>
                     <span class="rung-name">{{ name(placed[step.idx]) }} ✓</span>
+                    <span v-if="marriedIn[step.idx]" class="married-badge">
+                      💍 גם {{ name(marriedIn[step.idx]) }}
+                    </span>
                   </div>
                 </template>
 
@@ -78,7 +79,10 @@
                   <div class="avatar drop" :class="{ hover: dragOverSlot }">?</div>
                   <div class="rung-info">
                     <span class="rung-label">מי {{ step.label }}?</span>
-                    <span class="rung-hint-text">גררו לכאן דמות, או הקלידו למטה</span>
+                    <span v-if="marriedIn[step.idx]" class="married-badge">
+                      💍 {{ name(marriedIn[step.idx]) }} (נכנס/ה בנישואין) — חסר ההורה מצד המשפחה
+                    </span>
+                    <span v-else class="rung-hint-text">גררו לכאן דמות, או הקלידו למטה</span>
                   </div>
                 </template>
 
@@ -92,15 +96,15 @@
               <div class="connector" :class="{ active: placed[step.idx] !== null }"></div>
             </template>
 
-            <!-- דמות המוצא -->
+            <!-- דמות המוצא — פנים בלבד, ללא שם -->
             <div class="rung target">
-              <div class="avatar" :class="genderClass(round.target_id)">
-                <img v-if="photo(round.target_id)" :src="photo(round.target_id)" :alt="targetName" />
-                <span v-else class="initials">{{ initials(targetName) }}</span>
+              <div class="avatar mystery" :class="genderClass(round.target_id)">
+                <img v-if="photo(round.target_id)" :src="photo(round.target_id)" alt="?" />
+                <span v-else class="initials">?</span>
               </div>
               <div class="rung-info">
                 <span class="rung-label">נקודת ההתחלה</span>
-                <span class="rung-name">{{ targetName }}</span>
+                <span class="rung-name mystery-name">מי זה? 🤔</span>
               </div>
             </div>
           </div>
@@ -108,7 +112,7 @@
           <!-- ── לוח שליטה ── -->
           <div class="controls" v-if="!finished">
             <div class="current-question">
-              מי <strong>{{ currentStep?.label }}</strong> של {{ targetName }}?
+              מי <strong>{{ currentStep?.label }}</strong> של {{ childLabel(currentIndex) }}?
             </div>
 
             <input
@@ -139,12 +143,17 @@
               <div v-if="query && !searchResults.length" class="no-results">לא נמצאו תוצאות</div>
             </div>
 
-            <button class="btn-hint" @click="useHint" :disabled="hintUsed.has(currentIndex)">
-              💡 {{ hintUsed.has(currentIndex) ? 'רמז נוצל' : 'רמז (פחות נקודות)' }}
+            <!-- רמזים מתגלים -->
+            <div v-if="hintLines.length || hintLevel[currentIndex] >= 4" class="hint-box">
+              <p v-for="(line, i) in hintLines" :key="i" class="hint-line">💡 {{ line }}</p>
+            </div>
+
+            <button class="btn-hint" @click="useHint" :disabled="hintLevel[currentIndex] >= 4">
+              {{ hintButtonLabel }}
             </button>
 
-            <!-- אפשרויות רמז -->
-            <div v-if="hintUsed.has(currentIndex)" class="hint-options">
+            <!-- אפשרויות (רמז אחרון) -->
+            <div v-if="hintLevel[currentIndex] >= 4" class="hint-options">
               <p class="hint-title">אחת מאלה היא התשובה:</p>
               <div class="results">
                 <div
@@ -166,7 +175,7 @@
               </div>
             </div>
 
-            <p v-if="feedback" class="feedback" :class="feedback.ok ? 'ok' : 'err'">{{ feedback.text }}</p>
+            <p v-if="feedback" class="feedback" :class="feedback.type">{{ feedback.text }}</p>
           </div>
 
           <!-- ── ניצחון ── -->
@@ -194,7 +203,10 @@ const props = defineProps({
   allPeople:  { type: Array,  default: () => [] },
 })
 
-// ── מצב ──────────────────────────────────────────────
+// כמה כל רמז עולה (מצטבר לפי דרגה)
+const HINT_PENALTY = { 0: 0, 1: 40, 2: 80, 3: 110, 4: 125 }
+const BASE_POINTS = 150
+
 const peopleById = computed(() => {
   const m = {}
   for (const p of props.allPeople) m[p.id] = p
@@ -203,11 +215,12 @@ const peopleById = computed(() => {
 
 const loading   = ref(false)
 const loadError = ref(null)
-const round     = ref(null)        // { target_id, main_id, steps:[{correct_id, options, label}] }
-const quizSteps = ref([])          // השלבים שצריך לנחש (ללא סבתא עצמה)
-const placed    = ref([])          // person id לכל שלב, או null
+const round     = ref(null)
+const quizSteps = ref([])
+const placed    = ref([])
+const marriedIn = ref([])       // הורה שנכנס בנישואין שזוהה (לכל שלב)
 const currentIndex = ref(0)
-const hintUsed  = ref(new Set())
+const hintLevel = ref([])       // דרגת רמז לכל שלב (0..4)
 const wrongAttempts = ref([])
 const score     = ref(0)
 const lastRoundScore = ref(0)
@@ -220,16 +233,10 @@ const dragOverSlot = ref(false)
 
 const confettiCanvas = ref(null)
 
-// ── מחושבים ──────────────────────────────────────────
-const targetName = computed(() => round.value ? name(round.value.target_id) : '')
 const currentStep = computed(() => quizSteps.value[currentIndex.value] ?? null)
 
-// תצוגת הסולם: מהאב הקדמון העליון כלפי מטה (היפוך הסדר)
 const reversedSteps = computed(() =>
-  quizSteps.value
-    .map((s, idx) => ({ ...s, idx }))
-    .slice()
-    .reverse()
+  quizSteps.value.map((s, idx) => ({ ...s, idx })).slice().reverse()
 )
 
 const searchResults = computed(() => {
@@ -242,13 +249,39 @@ const searchResults = computed(() => {
     .slice(0, 8)
 })
 
-// ── עזרי תצוגה ───────────────────────────────────────
+// רמזים שהתגלו לשלב הנוכחי
+const hintLines = computed(() => {
+  const step = currentStep.value
+  const lvl = hintLevel.value[currentIndex.value] || 0
+  if (!step) return []
+  const lines = []
+  if (lvl >= 1) lines.push('שם פרטי: ' + (step.first_name || '—'))
+  if (lvl >= 2) lines.push('שם משפחה: ' + (step.last_name || '—'))
+  if (lvl >= 3 && step.relation_hint) lines.push(step.relation_hint)
+  return lines
+})
+
+const hintButtonLabel = computed(() => {
+  const lvl = hintLevel.value[currentIndex.value] || 0
+  const hasRel = !!currentStep.value?.relation_hint
+  if (lvl === 0) return '💡 רמז: שם פרטי'
+  if (lvl === 1) return '💡 רמז: שם משפחה'
+  if (lvl === 2) return hasRel ? '💡 רמז: קשר משפחתי' : '💡 רמז: הצג אפשרויות'
+  if (lvl === 3) return '💡 רמז: הצג אפשרויות'
+  return 'אין עוד רמזים'
+})
+
 function name(id)   { return peopleById.value[id]?.full_name ?? '—' }
 function photo(id)  { return peopleById.value[id]?.photo_url ?? null }
 function genderClass(id) { return peopleById.value[id]?.gender === 'female' ? 'female' : 'male' }
 function initials(n) { return (n || '').split(' ').map(w => w[0]).join('').slice(0, 2) }
 
-// ── סבב חדש ──────────────────────────────────────────
+// מי ה"ילד" של השלב — נקודת ההתחלה (סודית) או אב קדמון שכבר זוהה
+function childLabel(idx) {
+  if (idx === 0) return 'הדמות בתמונה'
+  return name(placed.value[idx - 1])
+}
+
 async function newRound() {
   loading.value = true
   loadError.value = null
@@ -264,20 +297,19 @@ async function newRound() {
     }
     const data = await res.json()
     round.value = data
-    // מסננים את סבתא עצמה — היא היעד המוצג למעלה
     quizSteps.value = data.steps.filter(s => s.correct_id !== data.main_id)
     placed.value = quizSteps.value.map(() => null)
+    marriedIn.value = quizSteps.value.map(() => null)
     wrongAttempts.value = quizSteps.value.map(() => 0)
-    hintUsed.value = new Set()
+    hintLevel.value = quizSteps.value.map(() => 0)
     currentIndex.value = 0
     query.value = ''
 
     if (quizSteps.value.length === 0) {
-      // דמות שהיא ילד/ה ישיר/ה של סבתא — ניצחון מיידי
       finished.value = true
       lastRoundScore.value = 50
       score.value += 50
-      celebrate(true)
+      celebrate()
     }
   } catch (e) {
     loadError.value = e.message
@@ -286,7 +318,6 @@ async function newRound() {
   }
 }
 
-// ── ניסיון הצבה ──────────────────────────────────────
 function placeFirstResult() {
   if (searchResults.value.length) attemptPlace(searchResults.value[0].id)
 }
@@ -294,27 +325,35 @@ function placeFirstResult() {
 function attemptPlace(personId) {
   if (finished.value || !currentStep.value) return
   const idx = currentIndex.value
+  const step = currentStep.value
 
-  if (personId === currentStep.value.correct_id) {
+  if (personId === step.correct_id) {
     placed.value[idx] = personId
-    const wasHint = hintUsed.value.has(idx)
-    const base = wasHint ? 60 : 150          // הקלדת השם המדויק → בונוס
-    const award = Math.max(20, base - 15 * wrongAttempts.value[idx])
+    const lvl = hintLevel.value[idx] || 0
+    const award = Math.max(20, BASE_POINTS - HINT_PENALTY[lvl] - 15 * wrongAttempts.value[idx])
     score.value += award
     lastRoundScore.value += award
-    feedback.value = { ok: true, text: wasHint ? `נכון! +${award}` : `מצוין! ניחשתם את השם +${award} 🎯` }
+    feedback.value = { type: 'ok', text: lvl === 0 ? `מצוין! ניחשתם לבד +${award} 🎯` : `נכון! +${award}` }
     query.value = ''
     burstFromActiveSlot()
 
     if (idx + 1 >= quizSteps.value.length) {
       finished.value = true
-      celebrate(true)
+      celebrate()
     } else {
       currentIndex.value++
     }
+  } else if ((step.parent_ids || []).includes(personId)) {
+    // הורה אמיתי — אבל זה שנכנס בנישואין. לא שגיאה!
+    marriedIn.value[idx] = personId
+    feedback.value = {
+      type: 'info',
+      text: `נכון, ${name(personId)} הוא/היא הורה! אבל זה ההורה שהתחתן/ה לתוך המשפחה — מי ההורה השני, מצד המשפחה?`,
+    }
+    query.value = ''
   } else {
     wrongAttempts.value[idx]++
-    feedback.value = { ok: false, text: 'לא מדויק… נסו שוב או בקשו רמז 💡' }
+    feedback.value = { type: 'err', text: 'לא מדויק… נסו שוב או בקשו רמז 💡' }
     shakeIdx.value = idx
     setTimeout(() => { shakeIdx.value = null }, 500)
   }
@@ -328,12 +367,15 @@ function onDropSlot(idx) {
 }
 
 function useHint() {
-  if (currentStep.value) hintUsed.value = new Set(hintUsed.value).add(currentIndex.value)
+  const idx = currentIndex.value
+  let lvl = (hintLevel.value[idx] || 0) + 1
+  // דלג על דרגת "קשר משפחתי" אם אין רמז כזה
+  if (lvl === 3 && !currentStep.value?.relation_hint) lvl = 4
+  hintLevel.value[idx] = Math.min(lvl, 4)
 }
 
-// ── קונפטי ───────────────────────────────────────────
+// ── קונפטי ──
 function burstFromActiveSlot() { fireConfetti(60, window.innerWidth / 2, window.innerHeight / 2) }
-
 function celebrate() { fireConfetti(220, window.innerWidth / 2, window.innerHeight / 3) }
 
 function fireConfetti(count, ox, oy) {
@@ -359,11 +401,7 @@ function fireConfetti(count, ox, oy) {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     let alive = false
     for (const p of parts) {
-      p.vy += p.g
-      p.x += p.vx
-      p.y += p.vy
-      p.rot += p.vr
-      p.life++
+      p.vy += p.g; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life++
       if (p.y < canvas.height + 30) alive = true
       ctx.save()
       ctx.translate(p.x, p.y)
@@ -439,6 +477,7 @@ onMounted(() => { if (props.mainPerson) newRound() })
 .avatar.female { background: #fdf4ff; color: #8b5cf6; border-color: #e9d5ff; }
 .avatar.grandma { border-color: #fbbf24; background: #fef3c7; color: #b45309; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar.mystery { border-color: #f59e0b; box-shadow: 0 0 0 3px #fef3c7; }
 .avatar.drop { background: #eef4ff; border: 2.5px dashed #2d6be4; color: #2d6be4; font-size: 1.6rem; }
 .avatar.drop.hover { background: #dbeafe; transform: scale(1.06); }
 .avatar.locked { background: #f1f5f9; border: 2.5px dashed #cbd5e1; color: #94a3b8; }
@@ -447,7 +486,9 @@ onMounted(() => { if (props.mainPerson) newRound() })
 .goal-crown { font-weight: 700; color: #b45309; font-size: 0.95rem; }
 .rung-label { font-size: 0.78rem; color: #8a9ab5; }
 .rung-name { font-size: 1rem; color: #1a3a6b; font-weight: 600; }
+.mystery-name { color: #b45309; }
 .rung-hint-text { font-size: 0.72rem; color: #aab; }
+.married-badge { font-size: 0.72rem; color: #b45309; background: #fff7ed; border-radius: 6px; padding: 0.1rem 0.4rem; margin-top: 0.15rem; }
 
 .connector { width: 3px; height: 22px; background: #d1dce8; }
 .connector.active { background: #22c55e; }
@@ -484,6 +525,9 @@ onMounted(() => { if (props.mainPerson) newRound() })
 .chip-name { font-size: 0.9rem; color: #2d4a7a; font-weight: 500; }
 .no-results { font-size: 0.85rem; color: #aab; text-align: center; padding: 0.5rem; }
 
+.hint-box { margin-top: 0.85rem; background: #fffaf0; border: 1px solid #fde68a; border-radius: 9px; padding: 0.5rem 0.75rem; }
+.hint-line { font-size: 0.85rem; color: #92400e; margin: 0.15rem 0; }
+
 .btn-hint {
   margin-top: 0.85rem; width: 100%; padding: 0.55rem; border: 1.5px solid #f59e0b;
   background: #fffaf0; color: #b45309; border-radius: 9px; cursor: pointer;
@@ -495,8 +539,9 @@ onMounted(() => { if (props.mainPerson) newRound() })
 .hint-title { font-size: 0.82rem; color: #b45309; margin: 0 0 0.4rem; }
 
 .feedback { margin-top: 0.85rem; font-size: 0.9rem; padding: 0.5rem 0.75rem; border-radius: 9px; text-align: center; }
-.feedback.ok  { background: #f0fdf4; color: #166534; }
-.feedback.err { background: #fef2f2; color: #991b1b; }
+.feedback.ok   { background: #f0fdf4; color: #166534; }
+.feedback.err  { background: #fef2f2; color: #991b1b; }
+.feedback.info { background: #eff6ff; color: #1e40af; }
 
 /* ── ניצחון ── */
 .controls.win { text-align: center; }
@@ -511,9 +556,7 @@ onMounted(() => { if (props.mainPerson) newRound() })
 }
 .btn-primary:hover { background: #1a55c8; }
 
-.confetti-canvas {
-  position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-}
+.confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 9999; }
 
 @media (max-width: 640px) {
   .controls { position: static; }
