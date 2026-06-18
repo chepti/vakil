@@ -668,6 +668,18 @@ const radialData = computed(() => {
     return 1 + children.reduce((s, c) => s + subtreeSize(c, seen), 0)
   }
 
+  // Order children oldest → youngest (those with a birthday first, by date)
+  function byBirth(a, b) {
+    const da = nodeMap[a]?.data?.birthday || ''
+    const db = nodeMap[b]?.data?.birthday || ''
+    if (da && db) return da < db ? -1 : da > db ? 1 : 0
+    if (da) return -1
+    if (db) return 1
+    return 0
+  }
+  const sortedChildren = (id) =>
+    (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c)).sort(byBirth)
+
   const positions = {}
   const links = []
   const visited = new Set()
@@ -687,7 +699,7 @@ const radialData = computed(() => {
     if (level === 0) {
       const parents  = (nodeMap[id]?.rels?.parents  || []).map(p => String(p)).filter(p => !visited.has(p))
       const spouses  = (nodeMap[id]?.rels?.spouses  || []).map(s => String(s)).filter(s => !visited.has(s))
-      const children = (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
+      const children = sortedChildren(id)
 
       // ── Reserved top wedge for parents + spouse (angle 0 = straight up) ──
       const angPar = parents.length ? (NODE_D + 14) / REL_R_PAR : 0
@@ -729,7 +741,7 @@ const radialData = computed(() => {
         cur += arc
       })
     } else if (relType !== 'spouse' && relType !== 'parent') {
-      const children = (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
+      const children = sortedChildren(id)
       if (!children.length) return
       const sizes = children.map(c => subtreeSize(c, new Set(visited)))
       const total  = sizes.reduce((a, b) => a + b, 0) || 1
