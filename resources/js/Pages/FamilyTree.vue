@@ -220,7 +220,7 @@
               <input type="text" v-model="ef.birth_date_hebrew" class="ef-input" placeholder='🎂 לידה עברי' />
             </div>
             <input type="text" v-model="ef.occupation" class="ef-input" placeholder="💼 עיסוק" />
-            <input type="text" v-model="ef.city" class="ef-input" placeholder="📍 עיר מגורים" />
+            <input type="text" v-model="ef.city" class="ef-input" placeholder="📍 כתובת" />
             <input type="email" v-model="ef.email" class="ef-input" dir="ltr" placeholder="✉️ מייל" />
             <input type="tel" v-model="ef.phone" class="ef-input" dir="ltr" placeholder="📞 טלפון" />
             <textarea v-model="ef.bio" class="ef-input ef-textarea" rows="2" placeholder="📝 מידע נוסף"></textarea>
