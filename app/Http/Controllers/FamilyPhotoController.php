@@ -19,10 +19,11 @@ class FamilyPhotoController extends Controller
             ->latest()
             ->get()
             ->map(fn($p) => [
-                'id'         => $p->id,
-                'url'        => $p->url,
-                'title'      => $p->title,
-                'tags_count' => $p->tags->count(),
+                'id'          => $p->id,
+                'url'         => $p->url,
+                'title'       => $p->title,
+                'tags_count'  => $p->tags->count(),
+                'uploaded_by' => $p->uploaded_by,
             ]);
 
         return Inertia::render('FamilyPhotos/Index', ['photos' => $photos]);
@@ -57,10 +58,11 @@ class FamilyPhotoController extends Controller
 
         return Inertia::render('FamilyPhotos/Show', [
             'photo' => [
-                'id'    => $familyPhoto->id,
-                'url'   => $familyPhoto->url,
-                'title' => $familyPhoto->title,
-                'tags'  => $familyPhoto->tags->map(fn($t) => [
+                'id'          => $familyPhoto->id,
+                'url'         => $familyPhoto->url,
+                'title'       => $familyPhoto->title,
+                'uploaded_by' => $familyPhoto->uploaded_by,
+                'tags'        => $familyPhoto->tags->map(fn($t) => [
                     'id'          => $t->id,
                     'person_id'   => $t->person_id,
                     'person_name' => $t->person->full_name,
@@ -116,6 +118,11 @@ class FamilyPhotoController extends Controller
 
     public function destroy(FamilyPhoto $familyPhoto)
     {
+        $user = Auth::user();
+        if (!$user->isAdmin() && $familyPhoto->uploaded_by !== $user->id) {
+            abort(403);
+        }
+
         Storage::disk('public')->delete($familyPhoto->path);
         $familyPhoto->delete();
         return redirect()->route('family-photos.index')->with('success', 'התמונה נמחקה');

@@ -35,22 +35,29 @@
 
       <!-- Photos grid -->
       <div class="photos-grid">
-        <Link
+        <div
           v-for="photo in photos"
           :key="photo.id"
-          :href="`/family-photos/${photo.id}`"
-          class="photo-card"
+          class="photo-card-wrapper"
         >
-          <div class="photo-thumb">
-            <img :src="photo.url" :alt="photo.title || 'תמונה משפחתית'" />
-            <div class="photo-tags-count" v-if="photo.tags_count > 0">
-              {{ photo.tags_count }} מתויגים
+          <Link :href="`/family-photos/${photo.id}`" class="photo-card">
+            <div class="photo-thumb">
+              <img :src="photo.url" :alt="photo.title || 'תמונה משפחתית'" />
+              <div class="photo-tags-count" v-if="photo.tags_count > 0">
+                {{ photo.tags_count }} מתויגים
+              </div>
             </div>
-          </div>
-          <div class="photo-info">
-            <span class="photo-title">{{ photo.title || 'ללא כותרת' }}</span>
-          </div>
-        </Link>
+            <div class="photo-info">
+              <span class="photo-title">{{ photo.title || 'ללא כותרת' }}</span>
+            </div>
+          </Link>
+          <button
+            v-if="canDelete(photo)"
+            class="btn-delete-photo"
+            @click="deletePhoto(photo)"
+            title="מחק תמונה"
+          >×</button>
+        </div>
       </div>
 
     </div>
@@ -59,12 +66,23 @@
 
 <script setup>
 import { ref } from 'vue'
-import { Link, router } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineProps({
   photos: { type: Array, default: () => [] },
 })
+
+const authUser = usePage().props.auth.user
+
+function canDelete(photo) {
+  return authUser?.role === 'admin' || photo.uploaded_by === authUser?.id
+}
+
+function deletePhoto(photo) {
+  if (!confirm('למחוק את התמונה לצמיתות?')) return
+  router.delete(`/family-photos/${photo.id}`)
+}
 
 const uploadFile    = ref(null)
 const uploadPreview = ref(null)
@@ -164,6 +182,13 @@ input[type="text"]:focus { outline: none; border-color: #2d6be4; }
   gap: 1rem;
 }
 
+.photo-card-wrapper {
+  position: relative;
+}
+.photo-card-wrapper:hover .btn-delete-photo {
+  opacity: 1;
+}
+
 .photo-card {
   text-decoration: none; border-radius: 12px; overflow: hidden;
   background: white; box-shadow: 0 2px 10px rgba(0,50,150,.07);
@@ -171,6 +196,28 @@ input[type="text"]:focus { outline: none; border-color: #2d6be4; }
   display: block;
 }
 .photo-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,50,150,.13); }
+
+.btn-delete-photo {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.4rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(220, 38, 38, 0.85);
+  color: white;
+  border: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.15s;
+  z-index: 2;
+}
+.btn-delete-photo:hover { background: rgba(185, 28, 28, 1); }
 
 .photo-thumb {
   position: relative; width: 100%; height: 160px; overflow: hidden;

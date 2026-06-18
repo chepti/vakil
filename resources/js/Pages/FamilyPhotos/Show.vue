@@ -5,6 +5,7 @@
       <div class="page-header">
         <Link href="/family-photos" class="btn-back">← כל התמונות</Link>
         <h1>{{ photo.title || 'תמונה משפחתית' }}</h1>
+        <button v-if="canDelete" class="btn-delete" @click="deletePhoto">🗑 מחק תמונה</button>
       </div>
 
       <div class="photo-layout">
@@ -111,13 +112,21 @@
 
 <script setup>
 import { ref, computed, nextTick } from 'vue'
-import { Link } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 const props = defineProps({
   photo:     { type: Object, required: true },
   allPeople: { type: Array,  default: () => [] },
 })
+
+const authUser = usePage().props.auth.user
+const canDelete = authUser?.role === 'admin' || props.photo.uploaded_by === authUser?.id
+
+function deletePhoto() {
+  if (!confirm('למחוק את התמונה לצמיתות?')) return
+  router.delete(`/family-photos/${props.photo.id}`)
+}
 
 const photoImg       = ref(null)
 const photoContainer = ref(null)
@@ -366,9 +375,22 @@ function initials(name) {
   gap: 1.5rem;
   margin-bottom: 1.25rem;
 }
-h1 { font-size: 1.4rem; color: #1a3a6b; margin: 0; }
+h1 { font-size: 1.4rem; color: #1a3a6b; margin: 0; flex: 1; }
 h3 { font-size: 1rem; color: #1a3a6b; margin: 0 0 0.8rem; }
 .btn-back { color: #2d6be4; text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
+.btn-delete {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-family: 'Rubik', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-delete:hover { background: #b91c1c; }
 
 .photo-layout {
   display: flex;

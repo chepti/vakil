@@ -1,8 +1,10 @@
 name: Deploy to Hostinger
 
+# הפעלה ידנית בלבד — Hostinger חוסם את כתובות ה-IP של GitHub Actions,
+# כך שה-SSH נכשל ב-timeout. הפריסה היומיומית נעשית מקומית עם deploy.ps1.
+# מי שרוצה לנסות פריסה דרך GitHub: Actions -> Deploy to Hostinger -> Run workflow.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -26,7 +28,21 @@ jobs:
           npm ci
           npm run build
 
-      - name: Deploy via SSH (git pull + artisan)
+      # ה-build נמצא ב-.gitignore — לכן git pull לא מביא אותו.
+      # מעלים את התיקייה הבנויה גם ל-public/build (ש-Laravel קורא ממנו)
+      # וגם ל-public_html/build (ש-web server מגיש ממנו).
+      - name: Upload built assets to public/build
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "public/build/**"
+          target: "~/domains/vakil.chepti.com"
+          strip_components: 0
+
+      - name: Deploy via SSH (pull code + sync + clear caches)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -36,7 +52,9 @@ jobs:
           script: |
             cd ~/domains/vakil.chepti.com
             git pull origin main
+            cp -rf public/build/. public_html/build/
             cp -rf public/. public_html/
             /opt/alt/php83/usr/bin/php artisan migrate --force
-            /opt/alt/php83/usr/bin/php artisan config:cache
-            /opt/alt/php83/usr/bin/php artisan view:cache
+            /opt/alt/php83/usr/bin/php artisan config:clear
+            /opt/alt/php83/usr/bin/php artisan route:clear
+            /opt/alt/php83/usr/bin/php artisan view:clear
