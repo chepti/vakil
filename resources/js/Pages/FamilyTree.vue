@@ -441,7 +441,7 @@ async function submitAddRel() {
 // עדכון הגרף בנפרד מהשמירה — כשל ברינדור לא אמור להיראות ככשל שמירה
 function refreshChart(freshNodes) {
   try {
-    chartInstance?.updateData(freshNodes).updateTree({ tree_position: 'inherit' })
+    chartInstance?.updateData(chartFeed(freshNodes)).updateTree({ tree_position: 'inherit' })
   } catch (err) {
     console.error('chart refresh failed (data already saved):', err)
   }
@@ -478,9 +478,18 @@ async function apiDelete(url) {
   return res.json()
 }
 
+// Backend serves children oldest-first (canonical). family-chart is LTR, so reverse
+// each child list to keep the oldest on the right (natural RTL reading).
+function chartFeed(nodes) {
+  return nodes.map(n => ({
+    ...n,
+    rels: { ...n.rels, children: [...(n.rels?.children || [])].reverse() },
+  }))
+}
+
 function initChart() {
   const cont = chartContainer.value
-  chartInstance = createChart(cont, props.nodes)
+  chartInstance = createChart(cont, chartFeed(props.nodes))
 
   // setCardHtml() returns a CardHtml instance (not chartInstance) — store it for reuse
   cardHtml = chartInstance
@@ -517,7 +526,7 @@ function initChart() {
       try {
         const freshNodes = await apiPost('/api/family-tree/person', datum)
         localNodes.value = freshNodes
-        chartInstance.updateData(freshNodes).updateTree({ tree_position: 'inherit' })
+        chartInstance.updateData(chartFeed(freshNodes)).updateTree({ tree_position: 'inherit' })
         postSubmit()
       } catch (err) {
         alert('שגיאה בשמירה')
@@ -530,7 +539,7 @@ function initChart() {
       try {
         const freshNodes = await apiDelete(`/api/family-tree/person/${datum.id}`)
         localNodes.value = freshNodes
-        chartInstance.updateData(freshNodes).updateTree({ tree_position: 'inherit' })
+        chartInstance.updateData(chartFeed(freshNodes)).updateTree({ tree_position: 'inherit' })
         postSubmit({})
       } catch (err) {
         if (err.message === '403') alert('רק מנהל יכול למחוק')
