@@ -4,22 +4,21 @@
     <nav class="app-nav" dir="rtl">
       <div class="nav-inner">
         <!-- לוגו -->
-        <Link href="/people" class="nav-logo">
-          <span class="logo-icon">🌳</span>
+        <Link href="/family-tree" class="nav-logo">
+          <TreePine class="logo-icon" :size="22" />
           <span class="logo-text">משפחת ואקיל</span>
         </Link>
 
         <!-- ניווט ראשי -->
         <div class="nav-links">
-          <Link href="/family-tree" :class="['nav-link', { active: $page.url === '/family-tree' }]">🌳 עץ משפחה</Link>
-          <Link href="/people" :class="['nav-link', { active: $page.url.startsWith('/people') && !$page.url.startsWith('/people/create') }]">בני המשפחה</Link>
-          <Link href="/family-photos" :class="['nav-link', { active: $page.url.startsWith('/family-photos') }]">📸 תמונות</Link>
-          <Link href="/events" :class="['nav-link', { active: $page.url.startsWith('/events') }]">📅 אירועים</Link>
-          <Link href="/game" :class="['nav-link', { active: $page.url.startsWith('/game') }]">🎮 משחק</Link>
-          <Link href="/stats" :class="['nav-link', { active: $page.url.startsWith('/stats') }]">📊 סטטיסטיקות</Link>
-          <Link href="/print/tree" :class="['nav-link', { active: $page.url.startsWith('/print') }]">🖨️ הדפסה</Link>
-          <Link v-if="$page.props.auth.user.role === 'admin'" href="/admin" :class="['nav-link', { active: $page.url.startsWith('/admin') }]">⚙️ ניהול</Link>
-          <Link href="/people/create" class="nav-link-btn">+ הוסף דמות</Link>
+          <Link href="/family-tree" :class="['nav-link', { active: $page.url === '/family-tree' }]"><Network :size="18" /> עץ משפחה</Link>
+          <Link href="/people" :class="['nav-link', { active: $page.url.startsWith('/people') && !$page.url.startsWith('/people/create') }]"><Users :size="18" /> בני המשפחה</Link>
+          <Link href="/family-photos" :class="['nav-link', { active: $page.url.startsWith('/family-photos') }]"><Images :size="18" /> תמונות</Link>
+          <Link href="/events" :class="['nav-link', { active: $page.url.startsWith('/events') }]"><CalendarDays :size="18" /> אירועים</Link>
+          <Link href="/game" :class="['nav-link', { active: $page.url.startsWith('/game') }]"><Gamepad2 :size="18" /> משחק</Link>
+          <Link href="/stats" :class="['nav-link', { active: $page.url.startsWith('/stats') }]"><BarChart3 :size="18" /> מספרים</Link>
+          <Link href="/print/tree" :class="['nav-link', { active: $page.url.startsWith('/print') }]"><Printer :size="18" /> הדפסה</Link>
+          <Link v-if="$page.props.auth.user.role === 'admin'" href="/admin" :class="['nav-link', { active: $page.url.startsWith('/admin') }]"><Settings :size="18" /> ניהול</Link>
         </div>
 
         <!-- משתמש -->
@@ -39,15 +38,14 @@
 
       <!-- תפריט מובייל -->
       <div v-if="mobileOpen" class="mobile-menu" dir="rtl">
-        <Link href="/family-tree" class="mobile-link" @click="mobileOpen = false">🌳 עץ משפחה</Link>
-        <Link href="/people" class="mobile-link" @click="mobileOpen = false">בני המשפחה</Link>
-        <Link href="/family-photos" class="mobile-link" @click="mobileOpen = false">📸 תמונות</Link>
-        <Link href="/events" class="mobile-link" @click="mobileOpen = false">📅 אירועים</Link>
-        <Link href="/game" class="mobile-link" @click="mobileOpen = false">🎮 משחק</Link>
-        <Link href="/stats" class="mobile-link" @click="mobileOpen = false">📊 סטטיסטיקות</Link>
-        <Link href="/print/tree" class="mobile-link" @click="mobileOpen = false">🖨️ הדפסה</Link>
-        <Link v-if="$page.props.auth.user.role === 'admin'" href="/admin" class="mobile-link" @click="mobileOpen = false">⚙️ ניהול</Link>
-        <Link href="/people/create" class="mobile-link" @click="mobileOpen = false">הוסף דמות</Link>
+        <Link href="/family-tree" class="mobile-link" @click="mobileOpen = false"><Network :size="18" /> עץ משפחה</Link>
+        <Link href="/people" class="mobile-link" @click="mobileOpen = false"><Users :size="18" /> בני המשפחה</Link>
+        <Link href="/family-photos" class="mobile-link" @click="mobileOpen = false"><Images :size="18" /> תמונות</Link>
+        <Link href="/events" class="mobile-link" @click="mobileOpen = false"><CalendarDays :size="18" /> אירועים</Link>
+        <Link href="/game" class="mobile-link" @click="mobileOpen = false"><Gamepad2 :size="18" /> משחק</Link>
+        <Link href="/stats" class="mobile-link" @click="mobileOpen = false"><BarChart3 :size="18" /> מספרים</Link>
+        <Link href="/print/tree" class="mobile-link" @click="mobileOpen = false"><Printer :size="18" /> הדפסה</Link>
+        <Link v-if="$page.props.auth.user.role === 'admin'" href="/admin" class="mobile-link" @click="mobileOpen = false"><Settings :size="18" /> ניהול</Link>
         <Link href="/profile" class="mobile-link" @click="mobileOpen = false">פרופיל</Link>
         <Link href="/logout" method="post" as="button" class="mobile-link mobile-logout" @click="mobileOpen = false">יציאה</Link>
       </div>
@@ -68,6 +66,7 @@
 <script setup>
 import { ref } from 'vue'
 import { Link } from '@inertiajs/vue3'
+import { TreePine, Network, Users, Images, CalendarDays, Gamepad2, BarChart3, Printer, Settings } from 'lucide-vue-next'
 
 defineProps({
   title: { type: String, default: '' },
@@ -113,7 +112,7 @@ const mobileOpen = ref(false)
   flex-shrink: 0;
 }
 
-.logo-icon { font-size: 1.4rem; }
+.logo-icon { color: #2d8a4e; flex-shrink: 0; }
 
 .logo-text {
   font-size: 1.05rem;
@@ -129,6 +128,9 @@ const mobileOpen = ref(false)
 }
 
 .nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   color: #4a5568;
   text-decoration: none;
   font-size: 0.93rem;
@@ -136,6 +138,9 @@ const mobileOpen = ref(false)
   border-radius: 6px;
   transition: all 0.2s;
 }
+
+.nav-link svg { color: #8aa0c2; transition: color 0.2s; flex-shrink: 0; }
+.nav-link:hover svg, .nav-link.active svg { color: #2d6be4; }
 
 .nav-link:hover, .nav-link.active {
   color: #2d6be4;
@@ -217,6 +222,9 @@ const mobileOpen = ref(false)
 }
 
 .mobile-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.65rem 0.75rem;
   color: #2d4a7a;
   text-decoration: none;
@@ -228,6 +236,8 @@ const mobileOpen = ref(false)
   font-family: 'Rubik', sans-serif;
   text-align: right;
 }
+
+.mobile-link svg { color: #8aa0c2; flex-shrink: 0; }
 
 .mobile-link:hover { background: #edf3ff; }
 .mobile-logout { color: #e74c3c; }

@@ -55,7 +55,6 @@
           <button class="ctrl-btn" :class="{ active: !radialMode }" @click="toggleRadialMode" title="תצוגה עגולה / עץ רגיל">
             {{ radialMode ? '🌳 עץ רגיל' : '◎ עגול' }}
           </button>
-          <Link v-if="isAdmin" href="/people/create" class="ctrl-btn-primary">+ הוסף דמות</Link>
         </div>
       </div>
 
