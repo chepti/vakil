@@ -256,6 +256,7 @@
               <input type="date" v-model="ef.birth_date_gregorian" class="ef-input" title="תאריך לידה (לועזי)" @change="autoFillHebrew('birth')" />
               <input type="text" v-model="ef.birth_date_hebrew" class="ef-input" placeholder='🎂 לידה עברי' @change="autoFillGregorian('birth')" />
             </div>
+            <input v-if="selectedPerson.gender === 'F'" type="text" v-model="ef.maiden_name" class="ef-input" placeholder="👰 שם נעורים" />
             <input type="text" v-model="ef.occupation" class="ef-input" placeholder="💼 עיסוק" />
             <input type="text" v-model="ef.city" class="ef-input" placeholder="📍 כתובת" />
             <input type="email" v-model="ef.email" class="ef-input" dir="ltr" placeholder="✉️ מייל" />
@@ -263,13 +264,19 @@
             <textarea v-model="ef.bio" class="ef-input ef-textarea" rows="2" placeholder="📝 מידע נוסף"></textarea>
 
             <template v-if="Object.keys(ef.marriages).length">
-              <template v-for="(m, spouseId) in ef.marriages" :key="spouseId">
-                <div class="ef-marriage-label">💍 עם {{ getSpouseName(spouseId) }}</div>
+              <div v-for="(m, spouseId) in ef.marriages" :key="spouseId" class="ef-marriage" :class="{ 'ef-marriage-former': m.is_former }">
+                <div class="ef-marriage-label">
+                  {{ m.is_former ? '💔' : '💍' }} {{ m.is_former ? 'לשעבר: ' : '' }}{{ getSpouseName(spouseId) }}
+                </div>
                 <div class="ef-pair">
                   <input type="date" v-model="m.date" class="ef-input" title="תאריך נישואין (לועזי)" @change="autoFillHebrew('marriage', spouseId)" />
                   <input type="text" v-model="m.date_he" class="ef-input" placeholder='נישואין עברי' @change="autoFillGregorian('marriage', spouseId)" />
                 </div>
-              </template>
+                <label class="ef-former-toggle">
+                  <input type="checkbox" v-model="m.is_former" />
+                  <span>בן/בת זוג לשעבר</span>
+                </label>
+              </div>
             </template>
 
             <button class="ef-save-btn" @click="savePerson" :disabled="efSaving">
@@ -366,16 +373,17 @@ const addRelSaving  = ref(false)
 const addRelForm    = ref({ first_name: '', last_name: '', birth_date_gregorian: '', birth_date_hebrew: '', marriage_date_gregorian: '', marriage_date_hebrew: '', gender: '' })
 
 // ─── Edit-details form ────────────────────────────────────────
-const ef       = ref({ birth_date_gregorian: '', birth_date_hebrew: '', is_deceased: false, death_date_gregorian: '', death_date_hebrew: '', occupation: '', city: '', email: '', phone: '', bio: '', marriages: {} })
+const ef       = ref({ maiden_name: '', birth_date_gregorian: '', birth_date_hebrew: '', is_deceased: false, death_date_gregorian: '', death_date_hebrew: '', occupation: '', city: '', email: '', phone: '', bio: '', marriages: {} })
 const efSaving = ref(false)
 
 watch(selectedPerson, (person) => {
   if (!person) return
   const marriages = {}
   for (const [sid, mData] of Object.entries(person.marriages || {})) {
-    marriages[sid] = { date: mData?.date ?? '', date_he: mData?.date_he ?? '' }
+    marriages[sid] = { date: mData?.date ?? '', date_he: mData?.date_he ?? '', is_former: !!mData?.is_former }
   }
   ef.value = {
+    maiden_name:          person.maiden_name   || '',
     birth_date_gregorian: person.birthday      || '',
     birth_date_hebrew:    person.birthday_he   || '',
     is_deceased:          !!person.is_deceased,
@@ -1083,6 +1091,7 @@ async function savePerson() {
   let freshNodes
   try {
     freshNodes = await apiPut(`/api/family-tree/person/${personId}/details`, {
+      maiden_name:          ef.value.maiden_name || null,
       birth_date_gregorian: ef.value.birth_date_gregorian || null,
       birth_date_hebrew:    ef.value.birth_date_hebrew    || null,
       is_deceased:          ef.value.is_deceased,
@@ -1370,7 +1379,17 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 .ef-textarea { resize: vertical; min-height: 52px; direction: rtl; }
 .ef-pair { display: flex; gap: 0.3rem; }
 .ef-pair .ef-input { flex: 1; min-width: 0; }
-.ef-marriage-label { font-size: 0.78rem; color: #2d6be4; font-weight: 500; margin-top: 0.15rem; }
+.ef-marriage { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.25rem; }
+.ef-marriage-label { font-size: 0.78rem; color: #2d6be4; font-weight: 500; }
+.ef-former-toggle {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.74rem; color: #8a9ab5; cursor: pointer;
+}
+.ef-former-toggle input { cursor: pointer; }
+/* בן/בת זוג לשעבר — אפור ועמום */
+.ef-marriage-former { opacity: 0.62; }
+.ef-marriage-former .ef-marriage-label { color: #94a3b8; }
+.ef-marriage-former .ef-input { background: #f7f8fa; color: #64748b; }
 .ef-save-btn {
   margin-top: 0.2rem; padding: 0.45rem;
   background: #2d6be4; color: white; border: none;

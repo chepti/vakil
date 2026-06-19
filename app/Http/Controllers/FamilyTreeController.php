@@ -154,22 +154,25 @@ class FamilyTreeController extends Controller
         $person = Person::findOrFail($id);
 
         $data = $request->validate([
-            'birth_date_gregorian'       => 'nullable|date',
-            'birth_date_hebrew'          => 'nullable|string|max:60',
-            'is_deceased'                => 'boolean',
-            'death_date_gregorian'       => 'nullable|date',
-            'death_date_hebrew'          => 'nullable|string|max:60',
-            'current_occupation'         => 'nullable|string|max:255',
-            'city'                       => 'nullable|string|max:100',
-            'email'                      => 'nullable|email|max:255',
-            'phone'                      => 'nullable|string|max:30',
-            'bio'                        => 'nullable|string',
-            'spouse_marriages'           => 'nullable|array',
-            'spouse_marriages.*.date'    => 'nullable|date',
-            'spouse_marriages.*.date_he' => 'nullable|string|max:60',
+            'maiden_name'                 => 'nullable|string|max:100',
+            'birth_date_gregorian'        => 'nullable|date',
+            'birth_date_hebrew'           => 'nullable|string|max:60',
+            'is_deceased'                 => 'boolean',
+            'death_date_gregorian'        => 'nullable|date',
+            'death_date_hebrew'           => 'nullable|string|max:60',
+            'current_occupation'          => 'nullable|string|max:255',
+            'city'                        => 'nullable|string|max:100',
+            'email'                       => 'nullable|email|max:255',
+            'phone'                       => 'nullable|string|max:30',
+            'bio'                         => 'nullable|string',
+            'spouse_marriages'            => 'nullable|array',
+            'spouse_marriages.*.date'     => 'nullable|date',
+            'spouse_marriages.*.date_he'  => 'nullable|string|max:60',
+            'spouse_marriages.*.is_former'=> 'boolean',
         ]);
 
         $person->update([
+            'maiden_name'          => $person->gender === 'female' ? ($data['maiden_name'] ?? null) : $person->maiden_name,
             'birth_date_gregorian' => $data['birth_date_gregorian'] ?? null,
             'birth_date_hebrew'    => $data['birth_date_hebrew']    ?? null,
             'is_deceased'          => $data['is_deceased']          ?? false,
@@ -193,6 +196,7 @@ class FamilyTreeController extends Controller
                 ->update([
                     'marriage_date_gregorian' => ($dates['date']    ?? '') ?: null,
                     'marriage_date_hebrew'    => ($dates['date_he'] ?? '') ?: null,
+                    'is_former'               => (bool) ($dates['is_former'] ?? false),
                 ]);
         }
 
@@ -208,7 +212,7 @@ class FamilyTreeController extends Controller
     private function buildTreeData(): array
     {
         $people = Person::select(
-            'id', 'first_name', 'last_name', 'gender',
+            'id', 'first_name', 'last_name', 'maiden_name', 'gender',
             'birth_date_gregorian', 'birth_date_hebrew',
             'death_date_gregorian', 'death_date_hebrew', 'is_deceased',
             'current_occupation', 'city', 'email', 'phone', 'bio', 'profile_photo'
@@ -240,8 +244,9 @@ class FamilyTreeController extends Controller
                 $spouses[$rel->person1_id][] = (string) $rel->person2_id;
                 $spouses[$rel->person2_id][] = (string) $rel->person1_id;
                 $mData = [
-                    'date'    => $rel->marriage_date_gregorian?->format('Y-m-d'),
-                    'date_he' => $rel->marriage_date_hebrew,
+                    'date'      => $rel->marriage_date_gregorian?->format('Y-m-d'),
+                    'date_he'   => $rel->marriage_date_hebrew,
+                    'is_former' => (bool) $rel->is_former,
                 ];
                 $marriages[$rel->person1_id][(string) $rel->person2_id] = $mData;
                 $marriages[$rel->person2_id][(string) $rel->person1_id] = $mData;
@@ -252,7 +257,7 @@ class FamilyTreeController extends Controller
         foreach ($spouses as $pid => $spouseIds) {
             foreach ($spouseIds as $spouseId) {
                 if (!isset($marriages[$pid][$spouseId])) {
-                    $marriages[$pid][$spouseId] = ['date' => null, 'date_he' => null];
+                    $marriages[$pid][$spouseId] = ['date' => null, 'date_he' => null, 'is_former' => false];
                 }
             }
         }
@@ -312,6 +317,7 @@ class FamilyTreeController extends Controller
                     'gender'      => $p->gender === 'male' ? 'M' : 'F',
                     'first name'  => $p->first_name,
                     'last name'   => $p->last_name,
+                    'maiden_name' => $p->maiden_name,
                     'birthday'    => $p->birth_date_gregorian?->format('Y-m-d'),
                     'birthday_he' => $p->birth_date_hebrew,
                     'death_date'    => $p->death_date_gregorian?->format('Y-m-d'),
