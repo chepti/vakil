@@ -32,7 +32,7 @@ class InvitationMail extends Mailable
                 'inviterName' => $this->invitation->invitedBy->name,
                 'personName'  => $this->invitation->person?->full_name,
                 'registerUrl' => route('invitation.accept', $this->invitation->token),
-                'expiresAt'   => $this->invitation->expires_at->format('d/m/Y'),
+                'loginUrl'    => route('login'),
             ],
         );
     }

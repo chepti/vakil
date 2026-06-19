@@ -172,12 +172,17 @@
                 <a href="{{ $registerUrl }}" class="btn">הצטרף/י עכשיו</a>
             </div>
 
-            <p class="expiry-note">הקישור בתוקף עד {{ $expiresAt }}</p>
+            <div class="divider"></div>
+
+            <p class="text" style="font-size:14px; color:#4b5563;">
+                כבר יצרת/ה חשבון?
+                <a href="{{ $loginUrl }}" style="color:#3b82f6; font-weight:600;">לחץ/י כאן להתחברות לאתר</a>
+            </p>
 
             <div class="divider"></div>
 
             <p class="link-fallback">
-                אם הכפתור לא עובד, העתק/י את הקישור הבא:<br>
+                אם כפתור ההרשמה לא עובד, העתק/י את הקישור הבא:<br>
                 <a href="{{ $registerUrl }}">{{ $registerUrl }}</a>
             </p>
 

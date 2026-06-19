@@ -26,7 +26,7 @@ class Invitation extends Model
             'token'      => Str::random(64),
             'invited_by' => $invitedBy,
             'person_id'  => $personId,
-            'expires_at' => now()->addDays(config('app.invitation_expiry_days', 7)),
+            'expires_at' => now()->addYears(100),
         ]);
     }
 
