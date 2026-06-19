@@ -143,4 +143,27 @@ class Person extends Model
     {
         return $this->hasMany(Relationship::class, 'person1_id');
     }
+
+    // ─── Helpers ──────────────────────────────────────────────────
+
+    /** כל מזהי הצאצאים (רקורסיבי) — לקהל יעד מסוג "ענף: צאצאי X" */
+    public function descendantIds(): array
+    {
+        $collected = [];
+        $stack = $this->children()->pluck('people.id')->all();
+
+        while ($stack) {
+            $id = array_pop($stack);
+            if (isset($collected[$id])) continue;
+            $collected[$id] = true;
+
+            $childIds = Relationship::where('type', 'parent_child')
+                ->where('person1_id', $id)
+                ->pluck('person2_id')
+                ->all();
+            foreach ($childIds as $cid) $stack[] = $cid;
+        }
+
+        return array_keys($collected);
+    }
 }

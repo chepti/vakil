@@ -9,21 +9,50 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Event extends Model
 {
     protected $fillable = [
-        'person_id', 'type', 'event_date', 'hebrew_date', 'title', 'description',
+        'person_id', 'type', 'event_date', 'event_time', 'hebrew_date', 'title', 'description',
+        'location', 'invitation_image', 'photos_link', 'audience', 'audience_branch_person_id',
+        'created_by',
     ];
 
     protected $casts = [
         'event_date' => 'date',
+        'audience'   => 'array',
     ];
+
+    // ─── Accessors ────────────────────────────────────────────────
+
+    public function getInvitationImageUrlAttribute(): ?string
+    {
+        return $this->invitation_image
+            ? asset('storage/' . $this->invitation_image)
+            : null;
+    }
+
+    // ─── Relationships ────────────────────────────────────────────
 
     public function person(): BelongsTo
     {
         return $this->belongsTo(Person::class);
     }
 
+    public function audienceBranch(): BelongsTo
+    {
+        return $this->belongsTo(Person::class, 'audience_branch_person_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function blessings(): HasMany
     {
         return $this->hasMany(Blessing::class);
+    }
+
+    public function reactions(): HasMany
+    {
+        return $this->hasMany(EventReaction::class);
     }
 
     public function mazalTovs(): HasMany

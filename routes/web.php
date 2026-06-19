@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\EventController;
 use App\Http\Controllers\FamilyPhotoController;
 use App\Http\Controllers\FamilyTreeController;
 use App\Http\Controllers\GameController;
@@ -58,6 +59,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/family-photos/{familyPhoto}/tags/{photoTag}', [FamilyPhotoController::class, 'removeTag'])->name('family-photos.tag.remove');
 
     Route::get('/family-tree', [FamilyTreeController::class, 'index'])->name('family-tree');
+
+    // אירועים + לוח שנה
+    Route::resource('events', EventController::class);
+    Route::post('/events/{event}/blessings', [EventController::class, 'addBlessing'])->name('events.blessings');
+    Route::post('/events/{event}/reactions', [EventController::class, 'toggleReaction'])->name('events.reactions');
 
     // סטטיסטיקות — פתוח לכל המשתמשים
     Route::get('/stats', [StatsController::class, 'index'])->name('stats');
