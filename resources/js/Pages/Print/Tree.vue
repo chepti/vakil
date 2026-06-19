@@ -2,19 +2,28 @@
   <div class="print-page" dir="rtl">
     <!-- בקרה (לא מודפס) -->
     <div class="controls no-print">
-      <Link href="/admin" class="back">→ חזרה לניהול</Link>
+      <Link href="/family-tree" class="back">→ חזרה לעץ</Link>
+
       <div class="control-group">
         <label>אדם שורש:</label>
         <select v-model="rootId">
           <option v-for="p in people" :key="p.id" :value="p.id">{{ p.label }}</option>
         </select>
       </div>
+
       <div class="control-group">
         <label>דורות:</label>
         <select v-model.number="generations">
           <option v-for="g in 6" :key="g" :value="g">{{ g }}</option>
         </select>
       </div>
+
+      <div class="mode-toggle">
+        <button :class="{ active: mode === 'tree' }" @click="mode = 'tree'">🌳 עץ</button>
+        <button :class="{ active: mode === 'list' }" @click="mode = 'list'">☰ רשימה</button>
+        <button :class="{ active: mode === 'radial' }" @click="mode = 'radial'">◎ מעוגל</button>
+      </div>
+
       <button class="print-btn" @click="print">🖨️ הדפס / שמור כ-PDF</button>
     </div>
 
@@ -22,9 +31,21 @@
     <div class="printable">
       <h1 class="print-title">משפחת ואקיל — {{ rootName }}</h1>
       <p class="print-sub">{{ generations }} דורות · {{ countShown }} בני משפחה</p>
-      <ul class="tree-root">
-        <TreeNode v-if="tree" :node="tree" />
-      </ul>
+
+      <div class="tree-scroll">
+        <!-- עץ מלמעלה למטה -->
+        <ul v-if="mode === 'tree' && tree" class="tree-root vertical">
+          <TreeNodeVertical :node="tree" />
+        </ul>
+
+        <!-- רשימה צידית -->
+        <ul v-else-if="mode === 'list' && tree" class="tree-root">
+          <TreeNode :node="tree" />
+        </ul>
+
+        <!-- מעוגל -->
+        <RadialTree v-else-if="mode === 'radial' && tree" :tree="tree" :depth="generations" />
+      </div>
     </div>
   </div>
 </template>
@@ -33,6 +54,8 @@
 import { ref, computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import TreeNode from './TreeNode.vue'
+import TreeNodeVertical from './TreeNodeVertical.vue'
+import RadialTree from './RadialTree.vue'
 
 const props = defineProps({
   nodes:         { type: Array, default: () => [] },
@@ -42,6 +65,7 @@ const props = defineProps({
 
 const rootId = ref(props.defaultRootId)
 const generations = ref(4)
+const mode = ref('tree')
 
 const byId = computed(() => {
   const m = new Map()
@@ -59,7 +83,6 @@ function buildSubtree(id, depth, visited) {
   if (!node) return null
   shownCount++
 
-  // בני זוג (מסומנים מ-byId, ללא ספירה כצאצא)
   const spouses = (node.rels.spouses || [])
     .map(sid => byId.value.get(String(sid)))
     .filter(Boolean)
@@ -71,7 +94,6 @@ function buildSubtree(id, depth, visited) {
       is_deceased: s.data.is_deceased,
     }))
 
-  // ילדים — רק עד מספר הדורות שנבחר
   const children = depth < generations.value
     ? (node.rels.children || [])
         .map(cid => buildSubtree(cid, depth + 1, visited))
@@ -84,8 +106,7 @@ function buildSubtree(id, depth, visited) {
 const tree = computed(() => {
   shownCount = 0
   if (!rootId.value) return null
-  const t = buildSubtree(rootId.value, 0, new Set())
-  return t
+  return buildSubtree(rootId.value, 0, new Set())
 })
 
 const countShown = computed(() => { void tree.value; return shownCount })
@@ -127,6 +148,14 @@ function print() {
   padding: 0.4rem 0.6rem; border: 1px solid #d7e2f5; border-radius: 8px;
   font-family: inherit; font-size: 0.9rem;
 }
+
+.mode-toggle { display: flex; gap: 0.25rem; background: #f0f4fb; padding: 0.2rem; border-radius: 9px; }
+.mode-toggle button {
+  border: none; background: none; padding: 0.4rem 0.75rem; border-radius: 7px;
+  cursor: pointer; font-family: inherit; font-size: 0.85rem; color: #6b7a99;
+}
+.mode-toggle button.active { background: white; color: #2d6be4; font-weight: 600; box-shadow: 0 1px 4px rgba(0,50,150,0.1); }
+
 .print-btn {
   margin-right: auto;
   background: #2d6be4; color: white; border: none; border-radius: 9px;
@@ -144,13 +173,16 @@ function print() {
 .print-title { font-size: 1.5rem; color: #1a3a6b; margin: 0 0 0.25rem; text-align: center; }
 .print-sub { text-align: center; color: #6b7a99; margin: 0 0 2rem; font-size: 0.9rem; }
 
+.tree-scroll { overflow-x: auto; }
 .tree-root { list-style: none; margin: 0; padding: 0; }
+.tree-root.vertical { display: flex; justify-content: center; min-width: max-content; }
 
 /* הדפסה */
 @media print {
   .no-print { display: none !important; }
   .print-page { background: white; padding: 0; }
   .printable { box-shadow: none; border-radius: 0; padding: 0; }
+  .tree-scroll { overflow: visible; }
   @page { margin: 1cm; }
 }
 </style>

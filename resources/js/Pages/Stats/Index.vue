@@ -3,7 +3,7 @@
     <div class="stats-page" dir="rtl">
       <div class="page-header">
         <h1>📊 המשפחה במספרים</h1>
-        <p class="subtitle">מבט מהיר על משפחת ואקיל</p>
+        <p class="subtitle">מבט מהיר על משפחת ואקיל · חודש {{ hebMonth.monthHe }} {{ hebMonth.yearHe }}</p>
       </div>
 
       <!-- כרטיסי מספרים -->
@@ -42,50 +42,57 @@
                   <span class="baby-chain" v-if="b.chain.length">
                     {{ b.gender === 'female' ? 'בתה' : 'בנה' }} של {{ b.chain.join(', של ') }}
                   </span>
-                  <span class="baby-date">{{ b.birth_date }}</span>
+                  <span class="baby-date">
+                    <b>{{ b.hebFull }}</b>
+                    <span class="greg"> · {{ b.greg }}</span>
+                  </span>
                 </span>
               </Link>
             </li>
           </ul>
         </section>
 
-        <!-- ימי הולדת קרובים -->
+        <!-- ימי הולדת בחודש העברי הנוכחי -->
         <section class="panel">
-          <h2>🎂 ימי הולדת ב-30 הימים הקרובים</h2>
+          <h2>🎂 ימי הולדת בחודש {{ hebMonth.monthHe }}</h2>
           <ul class="event-list" v-if="birthdays.length">
             <li v-for="b in birthdays" :key="b.id">
               <Link :href="`/people/${b.id}`" class="event-link">
-                <span class="event-date">{{ b.date }}</span>
+                <span class="event-date">
+                  <b>{{ b.hebDM }}</b>
+                  <span class="greg">{{ b.greg }}</span>
+                </span>
                 <span class="event-name">{{ b.full_name }}</span>
                 <span class="event-extra">{{ b.turning }} 🎉</span>
               </Link>
             </li>
           </ul>
-          <p v-else class="empty">אין ימי הולדת בקרוב</p>
+          <p v-else class="empty">אין ימי הולדת החודש</p>
         </section>
 
-        <!-- ימי נישואין -->
+        <!-- ימי נישואין החודש -->
         <section class="panel">
-          <h2>💍 ימי נישואין קרובים</h2>
+          <h2>💍 ימי נישואין בחודש {{ hebMonth.monthHe }}</h2>
           <ul class="event-list" v-if="anniversaries.length">
             <li v-for="(a, i) in anniversaries" :key="i">
-              <span class="event-date">{{ a.date }}</span>
+              <span class="event-date">
+                <b>{{ a.hebDM }}</b>
+                <span class="greg">{{ a.greg }}</span>
+              </span>
               <span class="event-name">{{ a.couple }}</span>
               <span class="event-extra">{{ a.years }} שנה</span>
             </li>
           </ul>
-          <p v-else class="empty">אין ימי נישואין בקרוב (או שלא הוזנו תאריכי חתונה)</p>
+          <p v-else class="empty">אין ימי נישואין החודש (או שלא הוזנו תאריכי חתונה)</p>
         </section>
 
-        <!-- ערים -->
-        <section class="panel" v-if="cities.length">
-          <h2>🏙️ פיזור גאוגרפי</h2>
-          <ul class="city-list">
-            <li v-for="c in cities" :key="c.city">
-              <span class="city-name">{{ c.city }}</span>
-              <span class="city-count">{{ c.count }}</span>
-            </li>
-          </ul>
+        <!-- פיזור גאוגרפי — מפה -->
+        <section class="panel map-panel" v-if="cities.length">
+          <h2>🗺️ פיזור גאוגרפי</h2>
+          <div ref="mapEl" class="map"></div>
+          <p v-if="unplaced.length" class="map-note">
+            ללא מיקום על המפה: {{ unplaced.map(u => u.city).join('، ') }}
+          </p>
         </section>
       </div>
     </div>
@@ -93,16 +100,103 @@
 </template>
 
 <script setup>
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import {
+  gregorianToHebrewParts,
+  hebrewDayMonth,
+  currentHebrewMonth,
+} from '@/utils/hebrewDate'
+import { geocodeCity, ISRAEL_CENTER } from '@/utils/israelGeo'
+import 'leaflet/dist/leaflet.css'
 
-defineProps({
-  stats:         { type: Object, default: () => ({}) },
-  cities:        { type: Array, default: () => [] },
-  babies:        { type: Array, default: () => [] },
-  birthdays:     { type: Array, default: () => [] },
-  anniversaries: { type: Array, default: () => [] },
+const props = defineProps({
+  stats:                 { type: Object, default: () => ({}) },
+  cities:                { type: Array, default: () => [] },
+  babies:                { type: Array, default: () => [] },
+  birthdayCandidates:    { type: Array, default: () => [] },
+  anniversaryCandidates: { type: Array, default: () => [] },
 })
+
+const hebMonth = currentHebrewMonth()
+
+// ── תינוקות עם תאריך עברי מלא ──
+const babies = computed(() =>
+  props.babies.map(b => {
+    const p = gregorianToHebrewParts(b.iso)
+    return { ...b, hebFull: p ? `${p.dayHe} ב${p.monthHe} ${p.yearHe}` : b.greg }
+  })
+)
+
+// ── ימי הולדת בחודש העברי הנוכחי ──
+const birthdays = computed(() =>
+  props.birthdayCandidates
+    .map(b => {
+      const p = gregorianToHebrewParts(b.iso)
+      return p ? { ...b, parts: p, hebDM: `${p.dayHe} ${p.monthHe}`, turning: hebMonth.year - p.year } : null
+    })
+    .filter(b => b && b.parts.monthHe === hebMonth.monthHe)
+    .sort((a, b) => a.parts.day - b.parts.day)
+)
+
+// ── ימי נישואין בחודש העברי הנוכחי ──
+const anniversaries = computed(() =>
+  props.anniversaryCandidates
+    .map(a => {
+      const p = gregorianToHebrewParts(a.iso)
+      return p ? { ...a, parts: p, hebDM: `${p.dayHe} ${p.monthHe}`, years: hebMonth.year - p.year } : null
+    })
+    .filter(a => a && a.parts.monthHe === hebMonth.monthHe)
+    .sort((a, b) => a.parts.day - b.parts.day)
+)
+
+// ── מפה: גאוקוד הערים ואיחוד לפי מקום ──
+const placed = computed(() => {
+  const byPlace = {}
+  for (const c of props.cities) {
+    const g = geocodeCity(c.city)
+    if (!g) continue
+    if (!byPlace[g.name]) byPlace[g.name] = { name: g.name, lat: g.lat, lng: g.lng, count: 0 }
+    byPlace[g.name].count += c.count
+  }
+  return Object.values(byPlace)
+})
+
+const unplaced = computed(() => props.cities.filter(c => !geocodeCity(c.city)))
+
+const mapEl = ref(null)
+let map = null
+
+onMounted(async () => {
+  if (!mapEl.value || !placed.value.length) return
+  const L = (await import('leaflet')).default
+
+  map = L.map(mapEl.value, { scrollWheelZoom: false, attributionControl: true }).setView(ISRAEL_CENTER, 7)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '© OpenStreetMap',
+  }).addTo(map)
+
+  const maxCount = Math.max(...placed.value.map(p => p.count), 1)
+  const bounds = []
+  for (const p of placed.value) {
+    const radius = 8 + Math.round((p.count / maxCount) * 18)
+    L.circleMarker([p.lat, p.lng], {
+      radius,
+      color: '#2d6be4',
+      fillColor: '#4d8bf5',
+      fillOpacity: 0.55,
+      weight: 2,
+    })
+      .bindTooltip(`${p.name} · ${p.count}`, { direction: 'top' })
+      .addTo(map)
+    bounds.push([p.lat, p.lng])
+  }
+  if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] })
+})
+
+onBeforeUnmount(() => { if (map) { map.remove(); map = null } })
 </script>
 
 <style scoped>
@@ -117,42 +211,27 @@ defineProps({
 .page-header h1 { font-size: 1.6rem; color: #1a3a6b; margin: 0; }
 .subtitle { color: #6b7a99; margin: 0.25rem 0 0; }
 
-/* כרטיסי מספרים */
 .stat-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
   margin-bottom: 1.75rem;
 }
-
 .stat-card {
-  background: white;
-  border-radius: 14px;
-  padding: 1.25rem 1rem;
-  text-align: center;
-  box-shadow: 0 2px 10px rgba(0,50,150,0.06);
-  border: 1px solid #e6eefb;
+  background: white; border-radius: 14px; padding: 1.25rem 1rem; text-align: center;
+  box-shadow: 0 2px 10px rgba(0,50,150,0.06); border: 1px solid #e6eefb;
 }
-
 .stat-card.living { background: linear-gradient(135deg, #e8f5ff, #f4f8ff); }
 .stat-num { font-size: 2rem; font-weight: 700; color: #2d6be4; }
 .stat-label { font-size: 0.85rem; color: #6b7a99; margin-top: 0.25rem; }
 
-/* גריד פאנלים */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.25rem;
-}
+.stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+.map-panel { grid-column: 1 / -1; }
 
 .panel {
-  background: white;
-  border-radius: 14px;
-  padding: 1.25rem 1.5rem;
-  box-shadow: 0 2px 10px rgba(0,50,150,0.05);
-  border: 1px solid #e6eefb;
+  background: white; border-radius: 14px; padding: 1.25rem 1.5rem;
+  box-shadow: 0 2px 10px rgba(0,50,150,0.05); border: 1px solid #e6eefb;
 }
-
 .panel h2 { font-size: 1.1rem; color: #1a3a6b; margin: 0 0 1rem; }
 
 ul { list-style: none; margin: 0; padding: 0; }
@@ -161,38 +240,39 @@ ul { list-style: none; margin: 0; padding: 0; }
 .baby-list li { margin-bottom: 0.65rem; }
 .baby-link { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: inherit; }
 .baby-avatar {
-  width: 44px; height: 44px; border-radius: 50%;
-  background: #edf3ff; display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: 50%; background: #edf3ff;
+  display: flex; align-items: center; justify-content: center;
   font-size: 1.3rem; overflow: hidden; flex-shrink: 0;
 }
 .baby-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.baby-text { display: flex; flex-direction: column; line-height: 1.4; }
+.baby-text { display: flex; flex-direction: column; line-height: 1.45; }
 .baby-text strong { color: #1a3a6b; }
 .baby-chain { font-size: 0.85rem; color: #6b7a99; }
-.baby-date { font-size: 0.75rem; color: #9aa7c0; }
+.baby-date { font-size: 0.82rem; color: #2d6be4; }
+.baby-date .greg { color: #9aa7c0; font-size: 0.75rem; }
 
 /* רשימות אירועים */
 .event-list li, .city-list li {
   display: flex; align-items: center; gap: 0.75rem;
   padding: 0.55rem 0; border-bottom: 1px solid #f0f4fb;
 }
-.event-list li:last-child, .city-list li:last-child { border-bottom: none; }
+.event-list li:last-child { border-bottom: none; }
 .event-link { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: inherit; flex: 1; }
 .event-date {
-  background: #edf3ff; color: #2d6be4; font-weight: 600;
-  border-radius: 8px; padding: 0.25rem 0.6rem; font-size: 0.85rem; min-width: 48px; text-align: center;
+  background: #edf3ff; border-radius: 8px; padding: 0.25rem 0.55rem;
+  min-width: 76px; text-align: center; line-height: 1.25;
+  display: flex; flex-direction: column;
 }
+.event-date b { color: #2d6be4; font-size: 0.82rem; }
+.event-date .greg { color: #9aa7c0; font-size: 0.68rem; }
 .event-name { flex: 1; color: #2d4a7a; }
-.event-extra { font-size: 0.85rem; color: #6b7a99; }
-
-/* ערים */
-.city-name { flex: 1; color: #2d4a7a; }
-.city-count {
-  background: #f0f4fb; color: #6b7a99; border-radius: 20px;
-  padding: 0.1rem 0.7rem; font-size: 0.85rem; font-weight: 600;
-}
+.event-extra { font-size: 0.85rem; color: #6b7a99; white-space: nowrap; }
 
 .empty { color: #9aa7c0; font-size: 0.9rem; }
+
+/* מפה */
+.map { height: 380px; border-radius: 12px; overflow: hidden; border: 1px solid #e6eefb; }
+.map-note { font-size: 0.8rem; color: #9aa7c0; margin: 0.6rem 0 0; }
 
 @media (max-width: 720px) {
   .stat-cards { grid-template-columns: repeat(2, 1fr); }

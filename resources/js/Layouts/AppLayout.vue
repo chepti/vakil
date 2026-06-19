@@ -16,6 +16,7 @@
           <Link href="/family-photos" :class="['nav-link', { active: $page.url.startsWith('/family-photos') }]">📸 תמונות</Link>
           <Link href="/game" :class="['nav-link', { active: $page.url.startsWith('/game') }]">🎮 משחק</Link>
           <Link href="/stats" :class="['nav-link', { active: $page.url.startsWith('/stats') }]">📊 סטטיסטיקות</Link>
+          <Link href="/print/tree" :class="['nav-link', { active: $page.url.startsWith('/print') }]">🖨️ הדפסה</Link>
           <Link v-if="$page.props.auth.user.role === 'admin'" href="/admin" :class="['nav-link', { active: $page.url.startsWith('/admin') }]">⚙️ ניהול</Link>
           <Link href="/people/create" class="nav-link-btn">+ הוסף דמות</Link>
         </div>
@@ -42,6 +43,7 @@
         <Link href="/family-photos" class="mobile-link" @click="mobileOpen = false">📸 תמונות</Link>
         <Link href="/game" class="mobile-link" @click="mobileOpen = false">🎮 משחק</Link>
         <Link href="/stats" class="mobile-link" @click="mobileOpen = false">📊 סטטיסטיקות</Link>
+        <Link href="/print/tree" class="mobile-link" @click="mobileOpen = false">🖨️ הדפסה</Link>
         <Link v-if="$page.props.auth.user.role === 'admin'" href="/admin" class="mobile-link" @click="mobileOpen = false">⚙️ ניהול</Link>
         <Link href="/people/create" class="mobile-link" @click="mobileOpen = false">הוסף דמות</Link>
         <Link href="/profile" class="mobile-link" @click="mobileOpen = false">פרופיל</Link>
