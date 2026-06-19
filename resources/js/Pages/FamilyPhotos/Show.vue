@@ -470,6 +470,12 @@ h3 { font-size: 1rem; color: #1a3a6b; margin: 0 0 0.8rem; }
   align-items: flex-start;
   justify-content: flex-start;
   cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+/* מציגים את ריבועי התיוג רק כשמרחפים מעל התמונה */
+.photo-container:hover .saved-rect {
+  opacity: 1;
 }
 .saved-rect:hover {
   border-color: #1a4fba;
