@@ -73,7 +73,7 @@
       </div>
 
       <!-- Radial view -->
-      <div v-show="localNodes.length > 0 && radialMode" class="radial-wrap">
+      <div v-show="localNodes.length > 0 && radialMode" class="radial-wrap" :class="{ 'panel-open': selectedPerson }">
         <!-- breadcrumb: who is at center -->
         <div class="radial-center-label" v-if="radialCenterId && radialCenterId !== String(props.defaultMainPersonId || props.rootPersonId || props.nodes[0]?.id)">
           <button class="radial-back-btn" @click="resetRadialToRoot()">← חזור לשורש</button>
@@ -112,7 +112,36 @@
             :class="{ 'radial-spouse': node.relType === 'spouse' }"
             @pointerdown.stop
             @click.stop="onRadialNodeClick(node.id)"
+            @mouseenter="node.spouse && (hoveredNodeId = node.id)"
+            @mouseleave="hoveredNodeId === node.id && (hoveredNodeId = null)"
           >
+            <!-- Married-in spouse: peeking hint circle behind (hints another person) -->
+            <circle
+              v-if="node.spouse"
+              :cx="node.nodeR * 0.5" :cy="node.nodeR * 0.5" :r="node.nodeR"
+              :fill="radialNodeColor(node.spouse.gender)"
+              :stroke="radialNodeStroke(node.spouse.gender)" stroke-width="1.5"
+              opacity="0.55"
+            />
+            <!-- Spouse reveal on hover — fades/expands in -->
+            <g
+              v-if="node.spouse"
+              class="radial-mate" :class="{ revealed: hoveredNodeId === node.id }"
+              :transform="`translate(${node.nodeR * 1.5},${node.nodeR * 1.5})`"
+            >
+              <clipPath :id="`mclip-${node.id}`"><circle :r="node.nodeR" cx="0" cy="0"/></clipPath>
+              <circle :r="node.nodeR" :fill="radialNodeColor(node.spouse.gender)"
+                      :stroke="radialNodeStroke(node.spouse.gender)" stroke-width="1.5"/>
+              <image v-if="node.spouse.avatar" :href="node.spouse.avatar"
+                     :x="-node.nodeR" :y="-node.nodeR" :width="node.nodeR * 2" :height="node.nodeR * 2"
+                     :clip-path="`url(#mclip-${node.id})`" preserveAspectRatio="xMidYMid slice"/>
+              <text v-else text-anchor="middle" dominant-baseline="central" font-size="9"
+                    fill="#1a3a6b" font-family="Rubik, sans-serif">{{ node.spouse.firstName.slice(0, 4) }}</text>
+              <text :y="node.nodeR + 9" text-anchor="middle" dominant-baseline="hanging"
+                    font-family="Rubik, sans-serif" font-size="8" fill="#1a3a6b"
+                    stroke="rgba(240,246,255,0.85)" stroke-width="3" paint-order="stroke"
+              >{{ node.spouse.firstName }}</text>
+            </g>
             <!-- Relationship ring indicators -->
             <circle
               v-if="node.relType === 'spouse' && !node.isRoot"
@@ -269,7 +298,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { createChart } from 'family-chart'
@@ -448,6 +477,7 @@ function refreshChart(freshNodes) {
 }
 
 onMounted(() => {
+  if (radialMode.value) fitRadialView()   // radial is the default view — fit on entry
   if (!chartContainer.value || props.nodes.length === 0) return
   initChart()
 })
@@ -653,6 +683,7 @@ function toggleCompactMode() {
 const radialMode     = ref(true)   // default: radial on entry
 const radialCenterId = ref(null)   // null = use defaultMainPersonId
 const radialVB       = ref({ x: -550, y: -550, w: 1100, h: 1100 })
+const hoveredNodeId  = ref(null)   // node whose married-in spouse is revealed on hover
 
 // Pointer tracking — supports both single-finger drag and two-finger pinch zoom
 const radialActivePtrs = new Map()   // pointerId → {x, y}
@@ -687,9 +718,8 @@ const radialData = computed(() => {
   const links = []
   const visited = new Set()
   const NODE_D  = 44        // effective node diameter + gap
-  let   relSector = 0       // angular width of the parents/spouse wedge (filled at level 0)
+  let   relSector = 0       // angular width of the parents wedge (filled at level 0)
   const REL_R_PAR = 145     // parents radius
-  const REL_R_SP  = 95      // spouse radius
 
   function layout(id, level, a0, a1, relType = 'child') {
     if (visited.has(id)) return
@@ -704,32 +734,36 @@ const radialData = computed(() => {
       const spouses  = (nodeMap[id]?.rels?.spouses  || []).map(s => String(s)).filter(s => !visited.has(s))
       const children = sortedChildren(id)
 
-      // ── Reserved top wedge for parents + spouse (angle 0 = straight up) ──
-      const angPar = parents.length ? (NODE_D + 14) / REL_R_PAR : 0
-      const angSp  = spouses.length ? (NODE_D + 14) / REL_R_SP  : 0
-      if (parents.length || spouses.length) {
-        relSector = Math.max(parents.length * angPar, spouses.length * angSp, 0.55)
-        relSector = Math.min(relSector, Math.PI * 0.85)
+      // ── Reserved top wedge for PARENTS only (angle 0 = straight up) ──
+      if (parents.length) {
+        relSector = Math.min(Math.max(parents.length * (NODE_D + 14) / REL_R_PAR, 0.55), Math.PI * 0.85)
       }
-
-      // Place a row of relatives spread evenly across the wedge, centered on top (angle 0)
-      const placeRow = (ids, radius, type) => {
-        const n = ids.length
-        if (!n) return
+      {
+        const n = parents.length
         const step  = n > 1 ? relSector / n : 0
         const start = -((n - 1) / 2) * step
-        ids.forEach((rid, i) => {
+        parents.forEach((pid, i) => {
           const a = start + i * step
-          visited.add(rid)
-          positions[rid] = {
-            x: radius * Math.cos(a - Math.PI / 2), y: radius * Math.sin(a - Math.PI / 2),
-            level: 1, relType: type, angle: a, arcSpan: step || relSector,
+          visited.add(pid)
+          positions[pid] = {
+            x: REL_R_PAR * Math.cos(a - Math.PI / 2), y: REL_R_PAR * Math.sin(a - Math.PI / 2),
+            level: 1, relType: 'parent', angle: a, arcSpan: step || relSector,
           }
-          links.push({ key: `${id}-${rid}`, from: id, to: rid, type })
+          links.push({ key: `${id}-${pid}`, from: id, to: pid, type: 'parent' })
         })
       }
-      placeRow(parents, REL_R_PAR, 'parent')
-      placeRow(spouses, REL_R_SP,  'spouse')
+
+      // ── Center spouse(s): right beside the center, slight overlap (children come from both) ──
+      spouses.forEach((sid, i) => {
+        visited.add(sid)
+        const dir = i % 2 === 0 ? 1 : -1
+        const k   = Math.floor(i / 2) + 1
+        positions[sid] = {
+          x: dir * 46 * k, y: 0, level: 0, relType: 'spouse',
+          angle: dir > 0 ? Math.PI / 2 : -Math.PI / 2, arcSpan: 0, centerSpouse: true,
+        }
+        links.push({ key: `${id}-${sid}`, from: id, to: sid, type: 'spouse' })
+      })
 
       // ── Children fan out across the rest of the circle (outside the wedge) ──
       const childStart = relSector / 2
@@ -835,16 +869,35 @@ const radialData = computed(() => {
     })
   })
 
+  const fullNameOf = (nd) => `${nd?.data?.['first name'] || ''} ${nd?.data?.['last name'] || ''}`.trim()
+
   const nodes = Object.keys(positions).map(id => {
     const n   = nodeMap[id]
     const pos = positions[id]
     const isRoot = id === centerId
-    const nodeR  = isRoot ? 28 : 20
+    const nodeR  = isRoot ? 28 : pos.centerSpouse ? 24 : 20
     const angle  = pos.angle || 0
+    // Root and center-spouse label below; others radially outward
+    const labelBelow = isRoot || pos.centerSpouse
     const lDist  = nodeR + 11
-    const lx = isRoot ? 0 : Math.cos(angle - Math.PI / 2) * lDist
-    const ly = isRoot ? nodeR + 9 : Math.sin(angle - Math.PI / 2) * lDist
+    const lx = labelBelow ? 0 : Math.cos(angle - Math.PI / 2) * lDist
+    const ly = labelBelow ? nodeR + 9 : Math.sin(angle - Math.PI / 2) * lDist
     const labelBaseline = ly > 3 ? 'hanging' : ly < -3 ? 'auto' : 'central'
+
+    // Married-in spouse: a spouse not placed elsewhere in the layout (peripheral hint + hover reveal)
+    let spouse = null
+    if (!isRoot && !pos.centerSpouse) {
+      const sid = (n?.rels?.spouses || []).map(String).find(s => !positions[s] && nodeMap[s])
+      if (sid) {
+        const sp = nodeMap[sid]
+        spouse = {
+          id: sid, gender: sp?.data?.gender,
+          avatar: sp?.data?.avatar || null,
+          firstName: sp?.data?.['first name'] || '',
+          fullName: fullNameOf(sp),
+        }
+      }
+    }
 
     return {
       id,
@@ -854,8 +907,8 @@ const radialData = computed(() => {
       avatar:    n?.data?.avatar || null,
       firstName: n?.data?.['first name'] || '',
       lastName:  n?.data?.['last name']  || '',
-      fullName:  `${n?.data?.['first name'] || ''} ${n?.data?.['last name'] || ''}`.trim(),
-      isRoot,
+      fullName:  fullNameOf(n),
+      isRoot, centerSpouse: !!pos.centerSpouse, spouse,
     }
   })
 
@@ -877,7 +930,14 @@ const radialData = computed(() => {
     sectorPath = `M 0 0 L ${p1x.toFixed(1)} ${p1y.toFixed(1)} A ${R} ${R} 0 0 1 ${p2x.toFixed(1)} ${p2y.toFixed(1)} Z`
   }
 
-  return { nodes, links: linkLines, sectorPath }
+  // Furthest node distance from center (+ node radius) — used to auto-fit the initial zoom
+  let maxR = 0
+  nodes.forEach(nd => {
+    const d = Math.hypot(nd.x, nd.y) + nd.nodeR
+    if (d > maxR) maxR = d
+  })
+
+  return { nodes, links: linkLines, sectorPath, maxR }
 })
 
 function radialNodeColor(gender) {
@@ -933,21 +993,31 @@ function onRadialPointerUp(e) {
   if (radialActivePtrs.size === 0) radialDrag = null
 }
 
+// Auto-fit the viewBox to the current layout: small families fill the view (appear big),
+// large families start zoomed-in (capped) and the user zooms out from there.
+function fitRadialView() {
+  nextTick(() => {
+    const maxR = radialData.value.maxR || 300
+    const size = Math.min(Math.max(maxR * 2.2, 380), 820)
+    radialVB.value = { x: -size / 2, y: -size / 2, w: size, h: size }
+  })
+}
+
 function onRadialNodeClick(id) {
   // Ignore if this ended a drag
   if (radialDrag?.moved) return
   // Single click: make this person the center + open side panel
   radialCenterId.value = String(id)
-  radialVB.value = { x: -550, y: -550, w: 1100, h: 1100 }
   const node = localNodes.value.find(n => String(n.id) === String(id))
   if (!node) return
   selectedPerson.value = { id: node.id, ...node.data }
   addRelType.value = null
+  fitRadialView()
 }
 
 function resetRadialToRoot() {
   radialCenterId.value = null
-  radialVB.value = { x: -550, y: -550, w: 1100, h: 1100 }
+  fitRadialView()
 }
 
 function toggleRadialMode() {
@@ -967,9 +1037,11 @@ function toggleRadialMode() {
     }
     // Chart was kept alive via v-show — just re-trigger layout
     if (chartInstance) chartInstance.updateTree({ initial: true })
+  } else {
+    fitRadialView()
   }
   radialCenterId.value = null
-  radialVB.value = { x: -550, y: -550, w: 1100, h: 1100 }
+  fitRadialView()
 }
 
 // ─── Edit-details helpers ─────────────────────────────────────
@@ -1416,6 +1488,9 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 .radial-node circle { transition: r 0.15s, stroke-width 0.15s; }
 .radial-node:hover circle { stroke-width: 3 !important; filter: brightness(1.08); }
 .radial-node:hover text { font-weight: 600; }
+/* Married-in spouse reveal — fades in on hover, folds away otherwise */
+.radial-mate { opacity: 0; transition: opacity 0.18s ease; pointer-events: none; }
+.radial-mate.revealed { opacity: 1; }
 .radial-hint {
   position: absolute;
   bottom: 0.75rem;
@@ -1450,13 +1525,16 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   .search-input:focus { width: 150px; }
   .side-panel {
     width: 100% !important;
-    height: 60vh !important;
+    height: 58vh !important;
     top: auto !important;
     bottom: 0 !important;
     right: 0 !important;
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 24px rgba(0,50,150,.15);
   }
+  /* When the bottom sheet is open, pin the radial view to the visible area above it
+     so the selected family stays in view instead of being hidden behind the panel. */
+  .radial-wrap.panel-open { flex: none; height: 42vh; }
   .radial-hint { font-size: 0.72rem; }
 }
 </style>
