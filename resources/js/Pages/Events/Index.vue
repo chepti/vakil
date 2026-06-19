@@ -107,13 +107,15 @@ const eventsByDate = computed(() => {
   return map
 })
 
-// ימי הולדת לפי MM-DD (חוזר כל שנה)
-const birthdaysByMonthDay = computed(() => {
+// ימי הולדת לפי התאריך העברי (יום+חודש עברי) — חוזר כל שנה עברית
+const birthdaysByHebKey = computed(() => {
   const map = {}
   for (const b of props.birthdays) {
     if (!b.birth_date) continue
-    const md = b.birth_date.slice(5) // MM-DD
-    ;(map[md] ||= []).push(b)
+    const p = gregorianToHebrewParts(b.birth_date)
+    if (!p) continue
+    const key = `${p.day}-${p.monthEn}` // יום עברי + חודש עברי
+    ;(map[key] ||= []).push(b)
   }
   return map
 })
@@ -129,6 +131,7 @@ const grid = computed(() => {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
     const dateStr = iso(d)
     const parts = gregorianToHebrewParts(dateStr)
+    const hebKey = parts ? `${parts.day}-${parts.monthEn}` : null
     cells.push({
       date: dateStr,
       day: d.getDate(),
@@ -136,7 +139,7 @@ const grid = computed(() => {
       isToday: dateStr === todayStr,
       hebDay: parts ? parts.dayHe : '',
       events: eventsByDate.value[dateStr] || [],
-      birthdays: birthdaysByMonthDay.value[dateStr.slice(5)] || [],
+      birthdays: (hebKey && birthdaysByHebKey.value[hebKey]) || [],
     })
   }
   return cells
