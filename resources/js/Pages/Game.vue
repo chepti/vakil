@@ -10,7 +10,6 @@
         </div>
       </div>
 
-      <!-- אין דמות מרכזית -->
       <div v-if="!mainPerson" class="notice">
         כדי לשחק צריך להגדיר דמות מרכזית (סבתא ואקיל) בעץ המשפחה.
       </div>
@@ -25,7 +24,7 @@
       <template v-else>
         <p class="game-intro">
           מי הדמות בתמונה? 🤔 בנו את שרשרת המשפחה כלפי מעלה — מי ההורה? מי הסבא/סבתא? — עד שתגיעו אל
-          <strong>סבתא ואקיל</strong>. לא יודעים? בקשו רמז (זה עולה בנקודות).
+          <strong>סבתא ואקיל</strong>. לא יודעים מי בתמונה? בקשו רמז זהות (זה עולה בנקודות).
         </p>
 
         <div class="game-board">
@@ -33,7 +32,6 @@
           <!-- ── הסולם ── -->
           <div class="ladder">
 
-            <!-- היעד: סבתא ואקיל -->
             <div class="rung goal" :class="{ reached: finished }">
               <div class="avatar grandma">
                 <img v-if="mainPerson.photo_url" :src="mainPerson.photo_url" :alt="mainPerson.full_name" />
@@ -47,7 +45,6 @@
 
             <div class="connector" :class="{ active: finished }"></div>
 
-            <!-- שלבים מהאב הקדמון העליון כלפי מטה -->
             <template v-for="step in reversedSteps" :key="'step-' + step.idx">
               <div
                 class="rung slot"
@@ -96,7 +93,7 @@
               <div class="connector" :class="{ active: placed[step.idx] !== null }"></div>
             </template>
 
-            <!-- דמות המוצא — פנים בלבד, ללא שם -->
+            <!-- דמות המוצא — פנים בלבד -->
             <div class="rung target">
               <div class="avatar mystery" :class="genderClass(round.target_id)">
                 <img v-if="photo(round.target_id)" :src="photo(round.target_id)" alt="?" />
@@ -104,13 +101,25 @@
               </div>
               <div class="rung-info">
                 <span class="rung-label">נקודת ההתחלה</span>
-                <span class="rung-name mystery-name">מי זה? 🤔</span>
+                <span class="rung-name mystery-name">{{ targetDisplayName }}</span>
               </div>
             </div>
           </div>
 
           <!-- ── לוח שליטה ── -->
           <div class="controls" v-if="!finished">
+
+            <!-- זהות הדמות המסתורית -->
+            <div class="identity-box">
+              <div class="identity-head">מי הדמות בתמונה? 🤔</div>
+              <div v-if="targetHintLines.length" class="hint-box">
+                <p v-for="(line, i) in targetHintLines" :key="i" class="hint-line">💡 {{ line }}</p>
+              </div>
+              <button class="btn-hint" @click="useTargetHint" :disabled="targetHintMaxed">
+                {{ targetHintLabel }}
+              </button>
+            </div>
+
             <div class="current-question">
               מי <strong>{{ currentStep?.label }}</strong> של {{ childLabel(currentIndex) }}?
             </div>
@@ -143,17 +152,16 @@
               <div v-if="query && !searchResults.length" class="no-results">לא נמצאו תוצאות</div>
             </div>
 
-            <!-- רמזים מתגלים -->
-            <div v-if="hintLines.length || hintLevel[currentIndex] >= 4" class="hint-box">
-              <p v-for="(line, i) in hintLines" :key="i" class="hint-line">💡 {{ line }}</p>
-            </div>
-
-            <button class="btn-hint" @click="useHint" :disabled="hintLevel[currentIndex] >= 4">
-              {{ hintButtonLabel }}
+            <!-- רמז לשלב הנוכחי: אפשרויות -->
+            <button
+              v-if="!showOptions[currentIndex]"
+              class="btn-hint btn-hint-options"
+              @click="revealOptions"
+            >
+              💡 תקועים? הציגו אפשרויות לשלב זה (−60)
             </button>
 
-            <!-- אפשרויות (רמז אחרון) -->
-            <div v-if="hintLevel[currentIndex] >= 4" class="hint-options">
+            <div v-else class="hint-options">
               <p class="hint-title">אחת מאלה היא התשובה:</p>
               <div class="results">
                 <div
@@ -178,7 +186,6 @@
             <p v-if="feedback" class="feedback" :class="feedback.type">{{ feedback.text }}</p>
           </div>
 
-          <!-- ── ניצחון ── -->
           <div class="controls win" v-else>
             <div class="win-emoji">🎉</div>
             <h2>הגעתם אל סבתא ואקיל!</h2>
@@ -203,9 +210,9 @@ const props = defineProps({
   allPeople:  { type: Array,  default: () => [] },
 })
 
-// כמה כל רמז עולה (מצטבר לפי דרגה)
-const HINT_PENALTY = { 0: 0, 1: 40, 2: 80, 3: 110, 4: 125 }
 const BASE_POINTS = 150
+const OPTIONS_COST = 60                 // עלות "הצג אפשרויות" לשלב
+const TARGET_HINT_COST = { 1: 40, 2: 30, 3: 20 }   // עלות רמזי זהות
 
 const peopleById = computed(() => {
   const m = {}
@@ -218,9 +225,10 @@ const loadError = ref(null)
 const round     = ref(null)
 const quizSteps = ref([])
 const placed    = ref([])
-const marriedIn = ref([])       // הורה שנכנס בנישואין שזוהה (לכל שלב)
+const marriedIn = ref([])
 const currentIndex = ref(0)
-const hintLevel = ref([])       // דרגת רמז לכל שלב (0..4)
+const targetHintLevel = ref(0)          // 0..3 — רמזי זהות לדמות ההתחלה
+const showOptions = ref([])             // האם הוצגו אפשרויות לכל שלב
 const wrongAttempts = ref([])
 const score     = ref(0)
 const lastRoundScore = ref(0)
@@ -234,7 +242,6 @@ const dragOverSlot = ref(false)
 const confettiCanvas = ref(null)
 
 const currentStep = computed(() => quizSteps.value[currentIndex.value] ?? null)
-
 const reversedSteps = computed(() =>
   quizSteps.value.map((s, idx) => ({ ...s, idx })).slice().reverse()
 )
@@ -249,26 +256,38 @@ const searchResults = computed(() => {
     .slice(0, 8)
 })
 
-// רמזים שהתגלו לשלב הנוכחי
-const hintLines = computed(() => {
-  const step = currentStep.value
-  const lvl = hintLevel.value[currentIndex.value] || 0
-  if (!step) return []
+// ── רמזי זהות לדמות ההתחלה ──
+const targetHintLines = computed(() => {
+  const r = round.value
+  const lvl = targetHintLevel.value
+  if (!r) return []
   const lines = []
-  if (lvl >= 1) lines.push('שם פרטי: ' + (step.first_name || '—'))
-  if (lvl >= 2) lines.push('שם משפחה: ' + (step.last_name || '—'))
-  if (lvl >= 3 && step.relation_hint) lines.push(step.relation_hint)
+  if (lvl >= 1) lines.push('שם פרטי: ' + (r.target_first_name || '—'))
+  if (lvl >= 2) lines.push('שם משפחה: ' + (r.target_last_name || '—'))
+  if (lvl >= 3 && r.target_hint) lines.push(r.target_hint)
   return lines
 })
 
-const hintButtonLabel = computed(() => {
-  const lvl = hintLevel.value[currentIndex.value] || 0
-  const hasRel = !!currentStep.value?.relation_hint
-  if (lvl === 0) return '💡 רמז: שם פרטי'
-  if (lvl === 1) return '💡 רמז: שם משפחה'
-  if (lvl === 2) return hasRel ? '💡 רמז: קשר משפחתי' : '💡 רמז: הצג אפשרויות'
-  if (lvl === 3) return '💡 רמז: הצג אפשרויות'
-  return 'אין עוד רמזים'
+const targetHintMaxed = computed(() => {
+  const lvl = targetHintLevel.value
+  if (lvl >= 3) return true
+  if (lvl >= 2 && !round.value?.target_hint) return true
+  return false
+})
+
+const targetHintLabel = computed(() => {
+  const lvl = targetHintLevel.value
+  if (lvl === 0) return '💡 רמז: שם פרטי (−40)'
+  if (lvl === 1) return '💡 רמז: שם משפחה (−30)'
+  if (lvl === 2 && round.value?.target_hint) return '💡 רמז: קשר משפחתי (−20)'
+  return 'אין עוד רמזי זהות'
+})
+
+// שם הדמות שבתמונה — נחשף רק אם ביקשו רמז זהות
+const targetDisplayName = computed(() => {
+  if (targetHintLevel.value >= 2) return name(round.value?.target_id)
+  if (targetHintLevel.value >= 1) return round.value?.target_first_name || 'מי זה? 🤔'
+  return 'מי זה? 🤔'
 })
 
 function name(id)   { return peopleById.value[id]?.full_name ?? '—' }
@@ -276,9 +295,8 @@ function photo(id)  { return peopleById.value[id]?.photo_url ?? null }
 function genderClass(id) { return peopleById.value[id]?.gender === 'female' ? 'female' : 'male' }
 function initials(n) { return (n || '').split(' ').map(w => w[0]).join('').slice(0, 2) }
 
-// מי ה"ילד" של השלב — נקודת ההתחלה (סודית) או אב קדמון שכבר זוהה
 function childLabel(idx) {
-  if (idx === 0) return 'הדמות בתמונה'
+  if (idx === 0) return targetHintLevel.value >= 1 ? targetDisplayName.value : 'הדמות בתמונה'
   return name(placed.value[idx - 1])
 }
 
@@ -288,7 +306,11 @@ async function newRound() {
   finished.value = false
   feedback.value = null
   try {
-    const res = await fetch('/api/game/round', { headers: { 'Accept': 'application/json' } })
+    // מונע מטמון דפדפן — אחרת חוזר אותו סבב שוב ושוב
+    const res = await fetch('/api/game/round?_=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Accept': 'application/json' },
+    })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw new Error(body.error === 'no_eligible_people'
@@ -301,9 +323,11 @@ async function newRound() {
     placed.value = quizSteps.value.map(() => null)
     marriedIn.value = quizSteps.value.map(() => null)
     wrongAttempts.value = quizSteps.value.map(() => 0)
-    hintLevel.value = quizSteps.value.map(() => 0)
+    showOptions.value = quizSteps.value.map(() => false)
+    targetHintLevel.value = 0
     currentIndex.value = 0
     query.value = ''
+    lastRoundScore.value = 0
 
     if (quizSteps.value.length === 0) {
       finished.value = true
@@ -329,11 +353,11 @@ function attemptPlace(personId) {
 
   if (personId === step.correct_id) {
     placed.value[idx] = personId
-    const lvl = hintLevel.value[idx] || 0
-    const award = Math.max(20, BASE_POINTS - HINT_PENALTY[lvl] - 15 * wrongAttempts.value[idx])
+    const penalty = (showOptions.value[idx] ? OPTIONS_COST : 0) + 15 * wrongAttempts.value[idx]
+    const award = Math.max(20, BASE_POINTS - penalty)
     score.value += award
     lastRoundScore.value += award
-    feedback.value = { type: 'ok', text: lvl === 0 ? `מצוין! ניחשתם לבד +${award} 🎯` : `נכון! +${award}` }
+    feedback.value = { type: 'ok', text: `נכון! +${award}` }
     query.value = ''
     burstFromActiveSlot()
 
@@ -344,7 +368,6 @@ function attemptPlace(personId) {
       currentIndex.value++
     }
   } else if ((step.parent_ids || []).includes(personId)) {
-    // הורה אמיתי — אבל זה שנכנס בנישואין. לא שגיאה!
     marriedIn.value[idx] = personId
     feedback.value = {
       type: 'info',
@@ -366,12 +389,20 @@ function onDropSlot(idx) {
   dragPerson.value = null
 }
 
-function useHint() {
-  const idx = currentIndex.value
-  let lvl = (hintLevel.value[idx] || 0) + 1
-  // דלג על דרגת "קשר משפחתי" אם אין רמז כזה
-  if (lvl === 3 && !currentStep.value?.relation_hint) lvl = 4
-  hintLevel.value[idx] = Math.min(lvl, 4)
+function applyPenalty(n) {
+  score.value = Math.max(0, score.value - n)
+  lastRoundScore.value = Math.max(0, lastRoundScore.value - n)
+}
+
+function useTargetHint() {
+  const lvl = targetHintLevel.value
+  if (lvl === 0) { targetHintLevel.value = 1; applyPenalty(TARGET_HINT_COST[1]) }
+  else if (lvl === 1) { targetHintLevel.value = 2; applyPenalty(TARGET_HINT_COST[2]) }
+  else if (lvl === 2 && round.value?.target_hint) { targetHintLevel.value = 3; applyPenalty(TARGET_HINT_COST[3]) }
+}
+
+function revealOptions() {
+  showOptions.value[currentIndex.value] = true
 }
 
 // ── קונפטי ──
@@ -446,7 +477,6 @@ onMounted(() => { if (props.mainPerson) newRound() })
 
 .game-board { display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap; }
 
-/* ── סולם ── */
 .ladder { flex: 1 1 340px; display: flex; flex-direction: column; align-items: center; min-width: 300px; }
 
 .rung {
@@ -493,12 +523,18 @@ onMounted(() => { if (props.mainPerson) newRound() })
 .connector { width: 3px; height: 22px; background: #d1dce8; }
 .connector.active { background: #22c55e; }
 
-/* ── שליטה ── */
 .controls {
   flex: 1 1 280px; min-width: 260px; background: white; border-radius: 16px;
   padding: 1.25rem; box-shadow: 0 2px 12px rgba(0,50,150,.08);
   position: sticky; top: 75px;
 }
+
+.identity-box {
+  background: #fffaf0; border: 1px solid #fde68a; border-radius: 12px;
+  padding: 0.75rem; margin-bottom: 1rem;
+}
+.identity-head { font-size: 0.9rem; color: #92400e; font-weight: 600; margin-bottom: 0.5rem; }
+
 .current-question { font-size: 0.95rem; color: #2d4a7a; margin-bottom: 0.75rem; }
 .search-input {
   width: 100%; padding: 0.6rem 0.8rem; border: 1.5px solid #d1dce8; border-radius: 9px;
@@ -525,15 +561,16 @@ onMounted(() => { if (props.mainPerson) newRound() })
 .chip-name { font-size: 0.9rem; color: #2d4a7a; font-weight: 500; }
 .no-results { font-size: 0.85rem; color: #aab; text-align: center; padding: 0.5rem; }
 
-.hint-box { margin-top: 0.85rem; background: #fffaf0; border: 1px solid #fde68a; border-radius: 9px; padding: 0.5rem 0.75rem; }
+.hint-box { background: #fff; border: 1px solid #fde68a; border-radius: 9px; padding: 0.4rem 0.6rem; margin-bottom: 0.5rem; }
 .hint-line { font-size: 0.85rem; color: #92400e; margin: 0.15rem 0; }
 
 .btn-hint {
-  margin-top: 0.85rem; width: 100%; padding: 0.55rem; border: 1.5px solid #f59e0b;
+  margin-top: 0.5rem; width: 100%; padding: 0.5rem; border: 1.5px solid #f59e0b;
   background: #fffaf0; color: #b45309; border-radius: 9px; cursor: pointer;
-  font-family: 'Rubik', sans-serif; font-size: 0.88rem; font-weight: 600;
+  font-family: 'Rubik', sans-serif; font-size: 0.85rem; font-weight: 600;
 }
 .btn-hint:disabled { opacity: 0.5; cursor: default; }
+.btn-hint-options { margin-top: 0.85rem; border-style: dashed; }
 
 .hint-options { margin-top: 0.85rem; }
 .hint-title { font-size: 0.82rem; color: #b45309; margin: 0 0 0.4rem; }
@@ -543,7 +580,6 @@ onMounted(() => { if (props.mainPerson) newRound() })
 .feedback.err  { background: #fef2f2; color: #991b1b; }
 .feedback.info { background: #eff6ff; color: #1e40af; }
 
-/* ── ניצחון ── */
 .controls.win { text-align: center; }
 .win-emoji { font-size: 3rem; }
 .controls.win h2 { color: #1a3a6b; font-size: 1.3rem; margin: 0.5rem 0; }

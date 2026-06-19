@@ -135,7 +135,8 @@ class GameController extends Controller
 
         // Build per-step data. The "child" of step i is the target (i=0) or the
         // previous blood-line ancestor; we expose BOTH of the child's parents so a
-        // married-in parent guess is accepted (not an error), plus progressive hints.
+        // married-in parent guess is accepted (not an error). Hints (below) describe
+        // the mystery TARGET, not the answer.
         $steps = [];
         foreach ($path as $i => $correctId) {
             $childId = $i === 0 ? $target : $path[$i - 1];
@@ -153,41 +154,48 @@ class GameController extends Controller
             $options[] = $correctId;
             shuffle($options);
 
-            $answer = $people[$correctId] ?? null;
-
             $steps[] = [
-                'correct_id'      => $correctId,
-                'parent_ids'      => array_values(array_unique($parentsOf[$childId] ?? [])),
-                'options'         => array_values($options),
-                'label'           => $this->relationLabel($i),
-                'first_name'      => $answer?->first_name,
-                'last_name'       => $answer?->last_name,
-                'relation_hint'   => $this->relationalHint($correctId, $childId, $onPath, $childrenOf, $spouseOf, $people),
+                'correct_id' => $correctId,
+                'parent_ids' => array_values(array_unique($parentsOf[$childId] ?? [])),
+                'options'    => array_values($options),
+                'label'      => $this->relationLabel($i),
             ];
         }
 
+        // Hints reveal the identity of the mystery starting figure (the target).
+        $targetPerson = $people[$target] ?? null;
+
         return response()->json([
-            'target_id' => $target,
-            'main_id'   => $main->id,
-            'steps'     => $steps,
-        ]);
+            'target_id'         => $target,
+            'main_id'           => $main->id,
+            'steps'             => $steps,
+            'target_first_name' => $targetPerson?->first_name,
+            'target_last_name'  => $targetPerson?->last_name,
+            'target_hint'       => $this->targetHint($target, $parentsOf, $childrenOf, $spouseOf, $onPath, $people),
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate');
     }
 
     /**
-     * A textual relational clue for the answer person — e.g. "also the parent
-     * of {sibling}" or "married to {spouse}". Returns null when none is useful.
+     * A relational clue that helps identify the mystery TARGET — e.g.
+     * "sibling of {X}", "parent of {Y}", or "married to {Z}".
      */
-    private function relationalHint(int $answerId, int $childId, array $onPath, array $childrenOf, array $spouseOf, $people): ?string
+    private function targetHint(int $targetId, array $parentsOf, array $childrenOf, array $spouseOf, array $onPath, $people): ?string
     {
-        // Prefer a sibling of the current child (another child of the answer)
-        // that isn't already part of the chain — strong, recognizable clue.
-        foreach ($childrenOf[$answerId] ?? [] as $otherChild) {
-            if ($otherChild == $childId || isset($onPath[$otherChild])) continue;
-            $p = $people[$otherChild] ?? null;
-            if ($p) return 'הוא/היא גם ההורה של ' . $p->first_name . ' ' . $p->last_name;
+        // A sibling (shares a parent) — strong, recognizable clue.
+        foreach ($parentsOf[$targetId] ?? [] as $parentId) {
+            foreach ($childrenOf[$parentId] ?? [] as $sib) {
+                if ($sib == $targetId) continue;
+                $p = $people[$sib] ?? null;
+                if ($p) return 'אח/אחות של ' . $p->first_name . ' ' . $p->last_name;
+            }
         }
-        // Otherwise reveal the spouse.
-        foreach ($spouseOf[$answerId] ?? [] as $spouseId) {
+        // A child of the target.
+        foreach ($childrenOf[$targetId] ?? [] as $childId) {
+            $p = $people[$childId] ?? null;
+            if ($p) return 'הורה של ' . $p->first_name . ' ' . $p->last_name;
+        }
+        // A spouse.
+        foreach ($spouseOf[$targetId] ?? [] as $spouseId) {
             $p = $people[$spouseId] ?? null;
             if ($p) return 'נשוי/אה ל' . $p->first_name . ' ' . $p->last_name;
         }
