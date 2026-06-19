@@ -12,6 +12,8 @@ class StatsController extends Controller
 {
     /**
      * דף סטטיסטיקות משפחתי — פתוח לכל המשתמשים.
+     * סינון ימי הולדת/נישואין לפי החודש העברי מתבצע בצד הלקוח (hebcal),
+     * כי התאריך העברי הוא השפה המרכזית במשפחה.
      */
     public function index()
     {
@@ -19,17 +21,17 @@ class StatsController extends Controller
 
         return Inertia::render('Stats/Index', [
             'stats' => [
-                'total'      => $people->count(),
-                'living'     => $people->where('is_deceased', false)->count(),
-                'deceased'   => $people->where('is_deceased', true)->count(),
-                'males'      => $people->where('gender', 'male')->count(),
-                'females'    => $people->where('gender', 'female')->count(),
-                'photos'     => $people->whereNotNull('profile_photo')->count() + FamilyPhoto::count(),
+                'total'    => $people->count(),
+                'living'   => $people->where('is_deceased', false)->count(),
+                'deceased' => $people->where('is_deceased', true)->count(),
+                'males'    => $people->where('gender', 'male')->count(),
+                'females'  => $people->where('gender', 'female')->count(),
+                'photos'   => $people->whereNotNull('profile_photo')->count() + FamilyPhoto::count(),
             ],
-            'cities'        => $this->cities($people),
-            'babies'        => $this->recentBabies($people),
-            'birthdays'     => $this->upcomingBirthdays($people),
-            'anniversaries' => $this->upcomingAnniversaries(),
+            'cities'                => $this->cities($people),
+            'babies'                => $this->recentBabies($people),
+            'birthdayCandidates'    => $this->birthdayCandidates($people),
+            'anniversaryCandidates' => $this->anniversaryCandidates(),
         ]);
     }
 
@@ -54,13 +56,13 @@ class StatsController extends Controller
             ->filter(fn($p) => $p->birth_date_gregorian && $p->birth_date_gregorian->gte($cutoff))
             ->sortByDesc(fn($p) => $p->birth_date_gregorian->timestamp)
             ->map(fn($p) => [
-                'id'         => $p->id,
-                'name'       => $p->first_name,
-                'full_name'  => $p->full_name,
-                'gender'     => $p->gender,
-                'birth_date' => $p->birth_date_gregorian->format('d/m/Y'),
-                'chain'      => $this->maternalChain($p),
-                'photo_url'  => $p->profile_photo_url,
+                'id'        => $p->id,
+                'name'      => $p->first_name,
+                'gender'    => $p->gender,
+                'iso'       => $p->birth_date_gregorian->format('Y-m-d'),
+                'greg'      => $p->birth_date_gregorian->format('d/m/Y'),
+                'chain'     => $this->maternalChain($p),
+                'photo_url' => $p->profile_photo_url,
             ])
             ->values()
             ->all();
@@ -79,7 +81,6 @@ class StatsController extends Controller
             $parents = $current->parents()->get();
             if ($parents->isEmpty()) break;
 
-            // עדיף קו אימהי; אם אין אם — קח את ההורה הראשון
             $parent = $parents->firstWhere('gender', 'female') ?? $parents->first();
             $chain[] = $parent->first_name;
             $current = $parent;
@@ -88,72 +89,40 @@ class StatsController extends Controller
         return $chain;
     }
 
-    /** ימי הולדת ב-30 הימים הקרובים (לחיים בלבד). */
-    private function upcomingBirthdays($people): array
+    /** מועמדים לימי הולדת — כל החיים עם תאריך לידה. הסינון לחודש העברי בלקוח. */
+    private function birthdayCandidates($people): array
     {
-        $today = Carbon::today();
-        $limit = $today->copy()->addDays(30);
-
         return $people
             ->filter(fn($p) => ! $p->is_deceased && $p->birth_date_gregorian)
-            ->map(function ($p) use ($today) {
-                $next = $this->nextOccurrence($p->birth_date_gregorian, $today);
-                return [
-                    'id'         => $p->id,
-                    'full_name'  => $p->full_name,
-                    'gender'     => $p->gender,
-                    'date'       => $next->format('d/m'),
-                    'days_until' => $today->diffInDays($next),
-                    'turning'    => $next->year - $p->birth_date_gregorian->year,
-                    'photo_url'  => $p->profile_photo_url,
-                ];
-            })
-            ->filter(fn($b) => $this->withinWindow($b['days_until']))
-            ->sortBy('days_until')
+            ->map(fn($p) => [
+                'id'        => $p->id,
+                'full_name' => $p->full_name,
+                'gender'    => $p->gender,
+                'iso'       => $p->birth_date_gregorian->format('Y-m-d'),
+                'greg'      => $p->birth_date_gregorian->format('d/m'),
+                'photo_url' => $p->profile_photo_url,
+            ])
             ->values()
             ->all();
     }
 
-    /** ימי נישואין ב-30 הימים הקרובים. */
-    private function upcomingAnniversaries(): array
+    /** מועמדים לימי נישואין — כל זוג עם תאריך חתונה. הסינון לחודש העברי בלקוח. */
+    private function anniversaryCandidates(): array
     {
-        $today = Carbon::today();
-
         return Relationship::where('type', 'spouse')
             ->whereNotNull('marriage_date_gregorian')
-            ->with(['person1', 'person2'])
+            ->with(['person1:id,first_name', 'person2:id,first_name'])
             ->get()
-            ->map(function ($r) use ($today) {
-                $date = Carbon::parse($r->marriage_date_gregorian);
-                $next = $this->nextOccurrence($date, $today);
-                $p1 = $r->person1;
-                $p2 = $r->person2;
-                if (! $p1 || ! $p2) return null;
+            ->map(function ($r) {
+                if (! $r->person1 || ! $r->person2) return null;
                 return [
-                    'couple'     => $p1->first_name . ' ו' . $p2->first_name,
-                    'date'       => $next->format('d/m'),
-                    'days_until' => $today->diffInDays($next),
-                    'years'      => $next->year - $date->year,
+                    'couple' => $r->person1->first_name . ' ו' . $r->person2->first_name,
+                    'iso'    => Carbon::parse($r->marriage_date_gregorian)->format('Y-m-d'),
+                    'greg'   => Carbon::parse($r->marriage_date_gregorian)->format('d/m'),
                 ];
             })
-            ->filter(fn($a) => $a && $this->withinWindow($a['days_until']))
-            ->sortBy('days_until')
+            ->filter()
             ->values()
             ->all();
-    }
-
-    /** המופע הבא של תאריך (חודש+יום) מהיום קדימה. */
-    private function nextOccurrence(Carbon $date, Carbon $from): Carbon
-    {
-        $next = Carbon::create($from->year, $date->month, $date->day);
-        if ($next->lt($from)) {
-            $next->addYear();
-        }
-        return $next;
-    }
-
-    private function withinWindow(int $days): bool
-    {
-        return $days >= 0 && $days <= 30;
     }
 }

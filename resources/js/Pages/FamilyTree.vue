@@ -519,9 +519,15 @@ async function apiDelete(url) {
 // Backend serves children oldest-first (canonical). family-chart is LTR, so reverse
 // each child list to keep the oldest on the right (natural RTL reading).
 function chartFeed(nodes) {
+  // Fresh copies of every rels array — family-chart mutates these in place,
+  // so sharing references would corrupt localNodes/props.nodes across updates.
   return nodes.map(n => ({
     ...n,
-    rels: { ...n.rels, children: [...(n.rels?.children || [])].reverse() },
+    rels: {
+      parents:  [...(n.rels?.parents  || [])],
+      spouses:  [...(n.rels?.spouses  || [])],
+      children: [...(n.rels?.children || [])].reverse(),
+    },
   }))
 }
 
@@ -595,6 +601,11 @@ function initChart() {
     .setShowSiblingsOfMain(showSiblings.value)
     .setAncestryDepth(depth.value)
     .setProgenyDepth(depth.value)
+    // Disable empty placeholder spouse for single-parent children. That feature
+    // (createRelsToAdd) mutates the data in place — pushing generated spouse ids
+    // into each child's rels.parents — which corrupts our source nodes and then
+    // throws "child has more than 1 parent" on a later updateTree (e.g. radial→tree).
+    .setSingleParentEmptyCard(false)
     .updateTree({ initial: true })
 }
 

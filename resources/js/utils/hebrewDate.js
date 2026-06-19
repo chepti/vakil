@@ -67,6 +67,44 @@ export function gregorianToHebrew(dateStr) {
   } catch { return '' }
 }
 
+// ─── פירוק לרכיבים עבריים (יום/חודש/שנה) ──────────────────────
+// מחזיר { day, dayHe, monthEn, monthHe, year, yearHe } או null
+export function gregorianToHebrewParts(dateStr) {
+  if (!dateStr) return null
+  try {
+    const d = new Date(dateStr + 'T12:00:00')
+    if (isNaN(d)) return null
+    const hd = new HDate(d)
+    const monthEn = hd.getMonthName()
+    return {
+      day:     hd.getDate(),
+      dayHe:   toGematria(hd.getDate()),
+      monthEn,
+      monthHe: HEB_MONTH_FROM_EN[monthEn] || monthEn,
+      year:    hd.getFullYear(),
+      yearHe:  toGematria(hd.getFullYear()),
+    }
+  } catch { return null }
+}
+
+// תווית יום+חודש עברי בלבד (בלי שנה), למשל "כ"ז בתשרי" — לימי הולדת
+export function hebrewDayMonth(dateStr) {
+  const p = gregorianToHebrewParts(dateStr)
+  return p ? `${p.dayHe} ב${p.monthHe}` : ''
+}
+
+// החודש העברי הנוכחי — { monthEn, monthHe, year }
+export function currentHebrewMonth(today = new Date()) {
+  const hd = new HDate(today)
+  const monthEn = hd.getMonthName()
+  return {
+    monthEn,
+    monthHe: HEB_MONTH_FROM_EN[monthEn] || monthEn,
+    year: hd.getFullYear(),
+    day: hd.getDate(),
+  }
+}
+
 // ─── המרה עברי → לועזי (מחזיר "YYYY-MM-DD" או '') ──────────────
 export function hebrewToGregorian(hebrewStr) {
   if (!hebrewStr) return ''
