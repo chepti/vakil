@@ -89,6 +89,37 @@ class InvitationController extends Controller
     }
 
     /**
+     * Extend a pending invitation (admin) — reset the expiry window.
+     */
+    public function extend(Invitation $invitation)
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        if ($invitation->used_at) {
+            return back()->withErrors(['invitation' => 'ההזמנה כבר נוצלה']);
+        }
+
+        $invitation->update([
+            'expires_at' => now()->addDays(config('app.invitation_expiry_days', 30)),
+        ]);
+
+        return back()->with('success', "תוקף ההזמנה ל-{$invitation->email} הוארך");
+    }
+
+    /**
+     * Delete an invitation (admin).
+     */
+    public function destroy(Invitation $invitation)
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $email = $invitation->email;
+        $invitation->delete();
+
+        return back()->with('success', "ההזמנה ל-{$email} נמחקה");
+    }
+
+    /**
      * Show the registration form for an invited user
      */
     public function show(string $token)

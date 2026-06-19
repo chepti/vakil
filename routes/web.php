@@ -3,6 +3,8 @@
 use App\Http\Controllers\FamilyPhotoController;
 use App\Http\Controllers\FamilyTreeController;
 use App\Http\Controllers\GameController;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\StatsController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\ProfileController;
@@ -56,6 +58,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/family-photos/{familyPhoto}/tags/{photoTag}', [FamilyPhotoController::class, 'removeTag'])->name('family-photos.tag.remove');
 
     Route::get('/family-tree', [FamilyTreeController::class, 'index'])->name('family-tree');
+
+    // סטטיסטיקות — פתוח לכל המשתמשים
+    Route::get('/stats', [StatsController::class, 'index'])->name('stats');
+
+    // הדפסה ל-PDF — תצוגת ענף ידידותית להדפסה
+    Route::get('/print/tree', [FamilyTreeController::class, 'printable'])->name('print.tree');
+
+    // פאנל ניהול (אדמין בלבד — נאכף בקונטרולר)
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::get('/', [AdminController::class, 'index'])->name('index');
+        Route::post('/users/{user}/toggle-role', [AdminController::class, 'toggleRole'])->name('users.toggle-role');
+        Route::delete('/users/{user}', [AdminController::class, 'deleteUser'])->name('users.delete');
+        Route::post('/documents', [AdminController::class, 'uploadDocument'])->name('documents.upload');
+        Route::delete('/documents/{document}', [AdminController::class, 'deleteDocument'])->name('documents.delete');
+        Route::get('/export/family', [AdminController::class, 'exportFamily'])->name('export.family');
+        Route::get('/export/users', [AdminController::class, 'exportUsers'])->name('export.users');
+        Route::get('/export/birthdays', [AdminController::class, 'exportBirthdays'])->name('export.birthdays');
+
+        // ניהול הזמנות
+        Route::post('/invitations/{invitation}/extend', [InvitationController::class, 'extend'])->name('invitations.extend');
+        Route::delete('/invitations/{invitation}', [InvitationController::class, 'destroy'])->name('invitations.delete');
+    });
 
     // משחק — "הדרך אל סבתא ואקיל"
     Route::get('/game', [GameController::class, 'index'])->name('game');

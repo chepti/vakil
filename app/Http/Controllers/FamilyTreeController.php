@@ -27,6 +27,28 @@ class FamilyTreeController extends Controller
         ]);
     }
 
+    /**
+     * תצוגת ענף ידידותית להדפסה — המשתמש בוחר אדם-שורש ומספר דורות,
+     * והסינון מתבצע בצד הלקוח מתוך כלל הצמתים. הדפסה דרך הדפדפן (Ctrl+P → PDF).
+     */
+    public function printable()
+    {
+        $nodes = $this->buildTreeData();
+
+        $people = Person::orderBy('first_name')->get(['id', 'first_name', 'last_name'])
+            ->map(fn($p) => ['id' => (string) $p->id, 'label' => $p->full_name])
+            ->values();
+
+        $mainId = Person::where('is_main_person', true)->value('id');
+        $defaultRootId = $mainId ? (string) $mainId : $this->findRootPersonId($nodes);
+
+        return Inertia::render('Print/Tree', [
+            'nodes'         => $nodes,
+            'people'        => $people,
+            'defaultRootId' => $defaultRootId,
+        ]);
+    }
+
     public function apiSetMain(int $id): JsonResponse
     {
         if (Auth::user()->role !== 'admin') {
