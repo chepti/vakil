@@ -121,7 +121,7 @@
             </div>
 
             <div class="current-question">
-              מי <strong>{{ currentStep?.label }}</strong> של {{ childLabel(currentIndex) }}?
+              מי <strong>{{ currentStep?.label }}</strong> של {{ subjectName }}?
             </div>
 
             <input
@@ -295,10 +295,10 @@ function photo(id)  { return peopleById.value[id]?.photo_url ?? null }
 function genderClass(id) { return peopleById.value[id]?.gender === 'female' ? 'female' : 'male' }
 function initials(n) { return (n || '').split(' ').map(w => w[0]).join('').slice(0, 2) }
 
-function childLabel(idx) {
-  if (idx === 0) return targetHintLevel.value >= 1 ? targetDisplayName.value : 'הדמות בתמונה'
-  return name(placed.value[idx - 1])
-}
+// כל השאלות מתייחסות לדמות ההתחלה (היעד), שכל הדרגות נמדדות ממנה.
+const subjectName = computed(() =>
+  targetHintLevel.value >= 1 ? targetDisplayName.value : 'הדמות בתמונה'
+)
 
 async function newRound() {
   loading.value = true

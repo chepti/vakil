@@ -214,7 +214,10 @@ class FamilyTreeController extends Controller
             'current_occupation', 'city', 'email', 'phone', 'bio', 'profile_photo'
         )->get();
 
-        $relationships = Relationship::orderByRaw('COALESCE(sort_order, 999) ASC')->get();
+        // סדר משני יציב (person2_id) כדי שילדים ללא sort_order לא יחליפו מקומות בין רענונים
+        $relationships = Relationship::orderByRaw('COALESCE(sort_order, 999) ASC')
+            ->orderBy('person2_id')
+            ->get();
 
         // מפה מהירה: birth_date לפי person id
         $birthDates = $people->pluck('birth_date_gregorian', 'id');
@@ -291,10 +294,12 @@ class FamilyTreeController extends Controller
                 // שניהם ללא sort_order — נופלים לתאריך לידה (עולה: מבוגר ראשון)
                 $a = $birthDates[(int) $aId] ?? null;
                 $b = $birthDates[(int) $bId] ?? null;
-                if ($a === $b) return 0;
-                if ($a === null) return 1; // ללא תאריך — אחרון
-                if ($b === null) return -1;
-                return $a <=> $b;
+                if ($a !== $b) {
+                    if ($a === null) return 1; // ללא תאריך — אחרון
+                    if ($b === null) return -1;
+                    return $a <=> $b;
+                }
+                return (int) $aId <=> (int) $bId; // תיקו — סדר יציב לפי id
             });
         }
         unset($childIds);
