@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
@@ -33,6 +34,12 @@ Route::middleware('guest')->group(function () {
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
+
+    // התחברות עם Google (פעיל רק כשהוגדרו credentials ב-.env)
+    Route::get('auth/google', [GoogleController::class, 'redirect'])
+        ->name('google.redirect');
+    Route::get('auth/google/callback', [GoogleController::class, 'callback'])
+        ->name('google.callback');
 });
 
 Route::middleware('auth')->group(function () {

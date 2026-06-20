@@ -38,6 +38,8 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn() => $request->session()->get('success'),
                 'error'   => fn() => $request->session()->get('error'),
             ],
+            // הכפתור "התחבר עם Google" יופיע רק כשהוגדרו credentials ב-.env
+            'googleEnabled' => filled(config('services.google.client_id')),
         ];
     }
 }

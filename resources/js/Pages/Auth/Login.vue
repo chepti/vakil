@@ -1,100 +1,64 @@
 <script setup>
-import Checkbox from '@/Components/Checkbox.vue';
-import GuestLayout from '@/Layouts/GuestLayout.vue';
-import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import GuestLayout from '@/Layouts/GuestLayout.vue'
+import { Head, Link, useForm } from '@inertiajs/vue3'
 
 defineProps({
-    canResetPassword: {
-        type: Boolean,
-    },
-    status: {
-        type: String,
-    },
-});
+  canResetPassword: { type: Boolean },
+  status: { type: String },
+})
 
 const form = useForm({
-    email: '',
-    password: '',
-    remember: false,
-});
+  email: '',
+  password: '',
+  remember: false,
+})
 
 const submit = () => {
-    form.post(route('login'), {
-        onFinish: () => form.reset('password'),
-    });
-};
+  form.post(route('login'), {
+    onFinish: () => form.reset('password'),
+  })
+}
 </script>
 
 <template>
-    <GuestLayout>
-        <Head title="Log in" />
+  <GuestLayout title="ברוכים הבאים" subtitle="התחברו כדי להיכנס למעגל המשפחה">
+    <Head title="התחברות" />
 
-        <div v-if="status" class="mb-4 text-sm font-medium text-green-600">
-            {{ status }}
-        </div>
+    <div v-if="status" class="auth-status">{{ status }}</div>
 
-        <form @submit.prevent="submit">
-            <div>
-                <InputLabel for="email" value="Email" />
+    <form @submit.prevent="submit">
+      <div class="auth-field">
+        <label class="auth-label" for="email">אימייל</label>
+        <input id="email" type="email" class="auth-input" v-model="form.email"
+          required autofocus autocomplete="username" dir="ltr" placeholder="name@example.com" />
+        <div v-if="form.errors.email" class="auth-error">{{ form.errors.email }}</div>
+      </div>
 
-                <TextInput
-                    id="email"
-                    type="email"
-                    class="mt-1 block w-full"
-                    v-model="form.email"
-                    required
-                    autofocus
-                    autocomplete="username"
-                />
+      <div class="auth-field">
+        <label class="auth-label" for="password">סיסמה</label>
+        <input id="password" type="password" class="auth-input" v-model="form.password"
+          required autocomplete="current-password" dir="ltr" placeholder="••••••••" />
+        <div v-if="form.errors.password" class="auth-error">{{ form.errors.password }}</div>
+      </div>
 
-                <InputError class="mt-2" :message="form.errors.email" />
-            </div>
+      <div class="auth-row">
+        <label class="auth-checkbox">
+          <input type="checkbox" v-model="form.remember" />
+          <span>זכור אותי</span>
+        </label>
+        <Link v-if="canResetPassword" :href="route('password.request')" class="auth-link">
+          שכחת סיסמה?
+        </Link>
+      </div>
 
-            <div class="mt-4">
-                <InputLabel for="password" value="Password" />
+      <button type="submit" class="auth-btn" :disabled="form.processing">
+        {{ form.processing ? 'מתחבר...' : 'התחברות' }}
+      </button>
+    </form>
 
-                <TextInput
-                    id="password"
-                    type="password"
-                    class="mt-1 block w-full"
-                    v-model="form.password"
-                    required
-                    autocomplete="current-password"
-                />
-
-                <InputError class="mt-2" :message="form.errors.password" />
-            </div>
-
-            <div class="mt-4 block">
-                <label class="flex items-center">
-                    <Checkbox name="remember" v-model:checked="form.remember" />
-                    <span class="ms-2 text-sm text-gray-600"
-                        >Remember me</span
-                    >
-                </label>
-            </div>
-
-            <div class="mt-4 flex items-center justify-end">
-                <Link
-                    v-if="canResetPassword"
-                    :href="route('password.request')"
-                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                    Forgot your password?
-                </Link>
-
-                <PrimaryButton
-                    class="ms-4"
-                    :class="{ 'opacity-25': form.processing }"
-                    :disabled="form.processing"
-                >
-                    Log in
-                </PrimaryButton>
-            </div>
-        </form>
-    </GuestLayout>
+    <div class="auth-foot">
+      אין לך חשבון?
+      <Link :href="route('register')" class="auth-link">הרשמה</Link>
+    </div>
+  </GuestLayout>
 </template>
