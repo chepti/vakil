@@ -12,9 +12,17 @@
       </div>
 
       <div class="control-group">
-        <label>דורות:</label>
+        <label>דורות צאצאים:</label>
         <select v-model.number="generations">
           <option v-for="g in 6" :key="g" :value="g">{{ g }}</option>
+        </select>
+      </div>
+
+      <div class="control-group" v-if="mode !== 'radial'">
+        <label>דורות הורים מעלה:</label>
+        <select v-model.number="ancestorsUp">
+          <option :value="0">0</option>
+          <option v-for="g in 4" :key="g" :value="g">{{ g }}</option>
         </select>
       </div>
 
@@ -33,6 +41,15 @@
       <p class="print-sub">{{ generations }} דורות · {{ countShown }} בני משפחה</p>
 
       <div class="tree-scroll">
+        <!-- אבות קדמונים מעל השורש (קו ישיר, בלי אחים) -->
+        <div v-if="mode !== 'radial' && rootParents.length" class="ancestors-section">
+          <ul class="aparents-root">
+            <AncestorNode v-for="p in rootParents" :key="p.id" :node="p" />
+          </ul>
+          <div class="ancestors-stub"></div>
+          <div class="ancestors-label">↑ אבות קדמונים · {{ rootName }} למטה ↓</div>
+        </div>
+
         <!-- עץ מלמעלה למטה -->
         <ul v-if="mode === 'tree' && tree" class="tree-root vertical">
           <TreeNodeVertical :node="tree" />
@@ -56,6 +73,7 @@ import { Link } from '@inertiajs/vue3'
 import TreeNode from './TreeNode.vue'
 import TreeNodeVertical from './TreeNodeVertical.vue'
 import RadialTree from './RadialTree.vue'
+import AncestorNode from './AncestorNode.vue'
 
 const props = defineProps({
   nodes:         { type: Array, default: () => [] },
@@ -65,6 +83,7 @@ const props = defineProps({
 
 const rootId = ref(props.defaultRootId)
 const generations = ref(4)
+const ancestorsUp = ref(0)
 const mode = ref('tree')
 
 const byId = computed(() => {
@@ -114,6 +133,31 @@ const countShown = computed(() => { void tree.value; return shownCount })
 const rootName = computed(() => {
   const p = props.people.find(p => p.id === rootId.value)
   return p ? p.label : ''
+})
+
+// ── אבות קדמונים: קו ישיר כלפי מעלה, בלי אחים/בני דודים ──
+function buildAncestors(id, levelsLeft, visited) {
+  if (levelsLeft <= 0) return []
+  const node = byId.value.get(String(id))
+  if (!node) return []
+  return (node.rels.parents || [])
+    .map(pid => {
+      const key = String(pid)
+      const pnode = byId.value.get(key)
+      if (!pnode || visited.has(key)) return null
+      visited.add(key)
+      return {
+        id: pnode.id,
+        person: pnode.data,
+        parents: buildAncestors(pid, levelsLeft - 1, visited),
+      }
+    })
+    .filter(Boolean)
+}
+
+const rootParents = computed(() => {
+  if (ancestorsUp.value <= 0 || !rootId.value) return []
+  return buildAncestors(rootId.value, ancestorsUp.value, new Set([String(rootId.value)]))
 })
 
 function print() {
@@ -176,6 +220,28 @@ function print() {
 .tree-scroll { overflow-x: auto; }
 .tree-root { list-style: none; margin: 0; padding: 0; }
 .tree-root.vertical { display: flex; justify-content: center; min-width: max-content; }
+
+/* מקטע אבות קדמונים מעל השורש */
+.ancestors-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: max-content;
+  margin-bottom: 0.25rem;
+}
+.aparents-root {
+  display: flex;
+  justify-content: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ancestors-stub { width: 2px; height: 1rem; background: #cdddf5; }
+.ancestors-label {
+  font-size: 0.72rem; color: #b48ec0; background: #faf3ff;
+  border: 1px dashed #e0c8ec; border-radius: 20px; padding: 0.15rem 0.7rem;
+  margin: 0.25rem 0 0.5rem;
+}
 
 /* הדפסה */
 @media print {

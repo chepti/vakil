@@ -1,4 +1,19 @@
 {
+  "_AncestorNode-BRwpB8WE.js": {
+    "file": "assets/AncestorNode-BRwpB8WE.js",
+    "name": "AncestorNode",
+    "imports": [
+      "__plugin-vue_export-helper-BDNMzG2s.js",
+      "_runtime-core.esm-bundler-CNqyEwW_.js"
+    ],
+    "css": [
+      "assets/AncestorNode-DWrWEUWK.css"
+    ]
+  },
+  "_AncestorNode-DWrWEUWK.css": {
+    "file": "assets/AncestorNode-DWrWEUWK.css",
+    "src": "_AncestorNode-DWrWEUWK.css"
+  },
   "_AppLayout-BYod7R04.css": {
     "file": "assets/AppLayout-BYod7R04.css",
     "src": "_AppLayout-BYod7R04.css"
@@ -85,20 +100,20 @@
       "assets/TreeNode-Bd_THGz6.css"
     ]
   },
-  "_TreeNodeVertical-5ua-aPge.js": {
-    "file": "assets/TreeNodeVertical-5ua-aPge.js",
+  "_TreeNodeVertical-BbKzLrS2.js": {
+    "file": "assets/TreeNodeVertical-BbKzLrS2.js",
     "name": "TreeNodeVertical",
     "imports": [
       "__plugin-vue_export-helper-BDNMzG2s.js",
       "_runtime-core.esm-bundler-CNqyEwW_.js"
     ],
     "css": [
-      "assets/TreeNodeVertical-BzQV6SmC.css"
+      "assets/TreeNodeVertical-Cwud6xWo.css"
     ]
   },
-  "_TreeNodeVertical-BzQV6SmC.css": {
-    "file": "assets/TreeNodeVertical-BzQV6SmC.css",
-    "src": "_TreeNodeVertical-BzQV6SmC.css"
+  "_TreeNodeVertical-Cwud6xWo.css": {
+    "file": "assets/TreeNodeVertical-Cwud6xWo.css",
+    "src": "_TreeNodeVertical-Cwud6xWo.css"
   },
   "_UpdatePasswordForm-BkPOlSLm.js": {
     "file": "assets/UpdatePasswordForm-BkPOlSLm.js",
@@ -510,6 +525,15 @@
       "assets/Show-CS2drUHh.css"
     ]
   },
+  "resources/js/Pages/Print/AncestorNode.vue": {
+    "file": "assets/AncestorNode-CnQqCEoB.js",
+    "name": "AncestorNode",
+    "src": "resources/js/Pages/Print/AncestorNode.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_AncestorNode-BRwpB8WE.js"
+    ]
+  },
   "resources/js/Pages/Print/RadialTree.vue": {
     "file": "assets/RadialTree-DJHLkr6n.js",
     "name": "RadialTree",
@@ -520,7 +544,7 @@
     ]
   },
   "resources/js/Pages/Print/Tree.vue": {
-    "file": "assets/Tree-C7us8CAg.js",
+    "file": "assets/Tree-Bf_4TB1U.js",
     "name": "Tree",
     "src": "resources/js/Pages/Print/Tree.vue",
     "isDynamicEntry": true,
@@ -528,12 +552,13 @@
       "__plugin-vue_export-helper-BDNMzG2s.js",
       "_index.esm-DvVMFmNV.js",
       "_runtime-core.esm-bundler-CNqyEwW_.js",
+      "_AncestorNode-BRwpB8WE.js",
       "_RadialTree-Bs67KVaa.js",
       "_TreeNode-DQSIF4-d.js",
-      "_TreeNodeVertical-5ua-aPge.js"
+      "_TreeNodeVertical-BbKzLrS2.js"
     ],
     "css": [
-      "assets/Tree-DWf2tTDB.css"
+      "assets/Tree-l5Jf6loc.css"
     ]
   },
   "resources/js/Pages/Print/TreeNode.vue": {
@@ -546,12 +571,12 @@
     ]
   },
   "resources/js/Pages/Print/TreeNodeVertical.vue": {
-    "file": "assets/TreeNodeVertical-BZ5iiDd7.js",
+    "file": "assets/TreeNodeVertical-B6yw4Tfv.js",
     "name": "TreeNodeVertical",
     "src": "resources/js/Pages/Print/TreeNodeVertical.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_TreeNodeVertical-5ua-aPge.js"
+      "_TreeNodeVertical-BbKzLrS2.js"
     ]
   },
   "resources/js/Pages/Profile/Edit.vue": {
@@ -599,7 +624,7 @@
     ]
   },
   "resources/js/Pages/Stats/Index.vue": {
-    "file": "assets/Index-KsnTriq-.js",
+    "file": "assets/Index-C3rYuWEZ.js",
     "name": "Index",
     "src": "resources/js/Pages/Stats/Index.vue",
     "isDynamicEntry": true,
@@ -616,7 +641,7 @@
       "node_modules/leaflet/dist/leaflet-src.js"
     ],
     "css": [
-      "assets/Index-bHy3YDUq.css"
+      "assets/Index-Cm96NuTl.css"
     ],
     "assets": [
       "assets/layers-BWBAp2CZ.png",
@@ -635,7 +660,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-B5ZG16_8.js",
+    "file": "assets/app-Dp_RSsDG.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -669,10 +694,11 @@
       "resources/js/Pages/People/Edit.vue",
       "resources/js/Pages/People/Index.vue",
       "resources/js/Pages/People/Show.vue",
+      "_AncestorNode-BRwpB8WE.js",
       "_RadialTree-Bs67KVaa.js",
       "resources/js/Pages/Print/Tree.vue",
       "_TreeNode-DQSIF4-d.js",
-      "_TreeNodeVertical-5ua-aPge.js",
+      "_TreeNodeVertical-BbKzLrS2.js",
       "resources/js/Pages/Profile/Edit.vue",
       "_DeleteUserForm-DTML3yXp.js",
       "_UpdatePasswordForm-BkPOlSLm.js",

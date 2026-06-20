@@ -157,8 +157,9 @@ const placed = computed(() => {
   for (const c of props.cities) {
     const g = geocodeCity(c.city)
     if (!g) continue
-    if (!byPlace[g.name]) byPlace[g.name] = { name: g.name, lat: g.lat, lng: g.lng, count: 0 }
+    if (!byPlace[g.name]) byPlace[g.name] = { name: g.name, lat: g.lat, lng: g.lng, count: 0, people: [] }
     byPlace[g.name].count += c.count
+    byPlace[g.name].people.push(...(c.people || []))
   }
   return Object.values(byPlace)
 })
@@ -182,6 +183,8 @@ onMounted(async () => {
   const bounds = []
   for (const p of placed.value) {
     const radius = 8 + Math.round((p.count / maxCount) * 18)
+    const names = p.people.join('، ')
+    const html = `<div dir="rtl" style="font-family:Rubik,sans-serif"><b>${p.name}</b> · ${p.count}<br>${names}</div>`
     L.circleMarker([p.lat, p.lng], {
       radius,
       color: '#2d6be4',
@@ -189,7 +192,8 @@ onMounted(async () => {
       fillOpacity: 0.55,
       weight: 2,
     })
-      .bindTooltip(`${p.name} · ${p.count}`, { direction: 'top' })
+      .bindTooltip(html, { direction: 'top', opacity: 0.97 })
+      .bindPopup(html)
       .addTo(map)
     bounds.push([p.lat, p.lng])
   }

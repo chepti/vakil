@@ -74,11 +74,9 @@ const years = computed(() => {
 .vnode:only-child::before,
 .vnode:only-child::after { display: none; }
 
-/* קצוות — לחתוך את החצי החיצוני של הקו האופקי */
-.vnode:first-child::before,
-.vnode:last-child::after { border: 0 none; }
-.vnode:last-child::before { border-right: 2px solid #cdddf5; border-radius: 0 6px 0 0; }
-.vnode:first-child::after { border-left: 2px solid #cdddf5; border-radius: 6px 0 0 0; }
+/* קצוות (RTL: הילד הראשון מימין, האחרון משמאל) — לחתוך את החצי החיצוני */
+.vnode:first-child::after { border: 0 none; }
+.vnode:last-child::before { border: 0 none; }
 
 /* השורש (ישיר תחת .tree-root.vertical) — בלי חיבורים מעליו */
 :deep(.tree-root.vertical) > .vnode { padding-top: 0; }

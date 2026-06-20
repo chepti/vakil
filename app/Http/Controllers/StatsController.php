@@ -35,13 +35,17 @@ class StatsController extends Controller
         ]);
     }
 
-    /** ערים שונות שבהן גרים בני המשפחה, עם מספר אנשים לכל עיר. */
+    /** ערים שונות שבהן גרים בני המשפחה, עם מספר ושמות לכל עיר. */
     private function cities($people): array
     {
         return $people
             ->filter(fn($p) => filled($p->city))
             ->groupBy('city')
-            ->map(fn($group, $city) => ['city' => $city, 'count' => $group->count()])
+            ->map(fn($group, $city) => [
+                'city'   => $city,
+                'count'  => $group->count(),
+                'people' => $group->map(fn($p) => $p->full_name)->values()->all(),
+            ])
             ->sortByDesc('count')
             ->values()
             ->all();
