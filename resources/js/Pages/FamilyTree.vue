@@ -720,11 +720,13 @@ const radialData = computed(() => {
   const nodeMap = {}
   localNodes.value.forEach(n => { nodeMap[String(n.id)] = n })
 
-  function subtreeSize(id, seen = new Set()) {
+  // Number of leaf (childless) descendants — drives how much angular room a subtree needs
+  function leafCount(id, seen) {
     if (seen.has(id)) return 0
     seen.add(id)
-    const children = (nodeMap[id]?.rels?.children || []).map(c => String(c))
-    return 1 + children.reduce((s, c) => s + subtreeSize(c, seen), 0)
+    const kids = (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !seen.has(c))
+    if (!kids.length) return 1
+    return kids.reduce((s, c) => s + leafCount(c, seen), 0)
   }
 
   // Children arrive from the server already in canonical sibling order
@@ -738,6 +740,29 @@ const radialData = computed(() => {
   const NODE_D  = 44        // effective node diameter + gap
   let   relSector = 0       // angular width of the parents wedge (filled at level 0)
   const REL_R_PAR = 145     // parents radius
+  const R_LVL     = 130     // nominal radius per generation
+  const LEAF_ARC  = NODE_D / 620   // angular budget per descendant leaf
+
+  // Minimum angular spacing for a node at the given generation (so siblings never touch)
+  const minStepAt = (lvl) => NODE_D / Math.max(R_LVL, lvl * R_LVL)
+
+  // Lay out a parent's children: equal fair minimum per child + extra for big subtrees,
+  // centered on `arcMid`, using only as much of `arcAvail` as needed (compact when sparse).
+  function fanChildren(parentId, level, arcMid, arcAvail) {
+    const kids = sortedChildren(parentId)
+    if (!kids.length) return
+    const needs = kids.map(c => Math.max(minStepAt(level + 1), leafCount(c, new Set(visited)) * LEAF_ARC))
+    const total = needs.reduce((a, b) => a + b, 0)
+    const used  = Math.min(total, arcAvail)
+    const scale = total > 0 ? used / total : 1
+    let cur = arcMid - used / 2
+    kids.forEach((c, i) => {
+      const arc = needs[i] * scale
+      links.push({ key: `${parentId}-${c}`, from: parentId, to: c, type: 'child' })
+      layout(c, level + 1, cur, cur + arc, 'child')
+      cur += arc
+    })
+  }
 
   function layout(id, level, a0, a1, relType = 'child') {
     if (visited.has(id)) return
@@ -750,7 +775,6 @@ const radialData = computed(() => {
     if (level === 0) {
       const parents  = (nodeMap[id]?.rels?.parents  || []).map(p => String(p)).filter(p => !visited.has(p))
       const spouses  = (nodeMap[id]?.rels?.spouses  || []).map(s => String(s)).filter(s => !visited.has(s))
-      const children = sortedChildren(id)
 
       // ── Reserved top wedge for PARENTS only (angle 0 = straight up) ──
       if (parents.length) {
@@ -783,30 +807,12 @@ const radialData = computed(() => {
         links.push({ key: `${id}-${sid}`, from: id, to: sid, type: 'spouse' })
       })
 
-      // ── Children fan out across the rest of the circle (outside the wedge) ──
-      const childStart = relSector / 2
-      const childEnd   = 2 * Math.PI - relSector / 2
-      const sizes  = children.map(c => subtreeSize(c, new Set(visited)))
-      const totalC = sizes.reduce((a, b) => a + b, 0) || 1
-      let cur = childStart
-      children.forEach((cid, i) => {
-        const arc = (childEnd - childStart) * sizes[i] / totalC
-        links.push({ key: `${id}-${cid}`, from: id, to: cid, type: 'child' })
-        layout(cid, 1, cur, cur + arc, 'child')
-        cur += arc
-      })
+      // ── Children: fan out centered on the BOTTOM (away from the parents wedge) ──
+      // Uses only the arc it needs, so small families stay compact instead of wrapping around.
+      fanChildren(id, 0, Math.PI, 2 * Math.PI - relSector)
     } else if (relType !== 'spouse' && relType !== 'parent') {
-      const children = sortedChildren(id)
-      if (!children.length) return
-      const sizes = children.map(c => subtreeSize(c, new Set(visited)))
-      const total  = sizes.reduce((a, b) => a + b, 0) || 1
-      let cur = a0
-      children.forEach((childId, i) => {
-        const arc = (a1 - a0) * sizes[i] / total
-        links.push({ key: `${id}-${childId}`, from: id, to: childId, type: 'child' })
-        layout(childId, level + 1, cur, cur + arc, 'child')
-        cur += arc
-      })
+      // Grandchildren and deeper: centered on this node's own direction, within its allotted arc.
+      fanChildren(id, level, angle, a1 - a0)
     }
   }
 
@@ -863,16 +869,17 @@ const radialData = computed(() => {
     // Sort siblings by angle so row alternation groups them spatially
     ids.sort((a, b) => positions[a].angle - positions[b].angle)
 
-    // Arc span of this sibling cluster
+    // Arc span of this sibling cluster (linear length along the band)
     const angles = ids.map(id => positions[id].angle)
     const span   = ids.length > 1
       ? Math.max(...angles) - Math.min(...angles) + NODE_D / base
       : NODE_D / base
+    const arcLen = base * span          // available linear length
+    const need   = ids.length * NODE_D  // linear length needed for one row
 
-    // Capacity in 1 row at base radius over that arc
-    const cap1 = Math.max(1, Math.floor(base * span / NODE_D))
-    const numRows = ids.length <= cap1 ? 1
-      : ids.length <= cap1 * 2 ? 2
+    // Use extra rows only when one row genuinely can't hold the group (5% tolerance)
+    const numRows = need <= arcLen * 1.05 ? 1
+      : need <= arcLen * 2 * 1.05 ? 2
       : 3
 
     const rowRadii = numRows === 1 ? [base]
