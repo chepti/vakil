@@ -1,22 +1,52 @@
 <template>
-  <AppLayout :title="photo.title || 'תמונה משפחתית'">
+  <AppLayout :title="localTitle || 'תמונה משפחתית'">
     <div class="photo-show-page" dir="rtl">
 
       <div class="page-header">
         <Link href="/family-photos" class="btn-back">← כל התמונות</Link>
-        <h1>{{ photo.title || 'תמונה משפחתית' }}</h1>
-        <button v-if="canDelete" class="btn-delete" @click="deletePhoto">🗑 מחק תמונה</button>
+
+        <template v-if="!editingTitle">
+          <h1>{{ localTitle || 'תמונה משפחתית' }}</h1>
+          <button v-if="canEdit" class="btn-edit-title" @click="startEditTitle" title="ערוך שם">✏️</button>
+        </template>
+        <div v-else class="title-edit">
+          <input
+            v-model="titleDraft"
+            type="text"
+            class="title-input"
+            placeholder="שם התמונה…"
+            ref="titleInput"
+            @keydown.enter.prevent="saveTitle"
+            @keydown.esc="editingTitle = false"
+          />
+          <button class="btn-title-save" @click="saveTitle" :disabled="savingTitle">
+            {{ savingTitle ? '…' : 'שמור' }}
+          </button>
+          <button class="btn-title-cancel" @click="editingTitle = false">ביטול</button>
+        </div>
+
+        <button v-if="canEdit && !editingTitle" class="btn-delete" @click="deletePhoto">🗑 מחק תמונה</button>
       </div>
 
       <div class="photo-layout">
 
         <!-- Photo column (full available width) -->
         <div class="photo-col">
-          <p class="photo-hint">גרור/י על פנים לסימון וחיתוך אוטומטי לפרופיל</p>
+          <div class="photo-toolbar">
+            <p class="photo-hint">גרור/י על פנים לסימון וחיתוך אוטומטי לפרופיל</p>
+            <div class="zoom-controls">
+              <button class="zoom-btn" @click="zoomOut" :disabled="zoom <= 1" title="הקטן">−</button>
+              <span class="zoom-label">{{ Math.round(zoom * 100) }}%</span>
+              <button class="zoom-btn" @click="zoomIn" :disabled="zoom >= 3" title="הגדל">+</button>
+              <button v-if="zoom !== 1" class="zoom-reset" @click="zoom = 1">איפוס</button>
+            </div>
+          </div>
 
+          <div class="photo-viewport">
           <div
             class="photo-container"
             ref="photoContainer"
+            :style="{ width: (zoom * 100) + '%' }"
             @mousedown.prevent="onMouseDown"
             @mousemove.prevent="onMouseMove"
             @mouseup="onMouseUp"
@@ -55,6 +85,7 @@
                 <button class="tag-remove-btn" @click.stop="removeTag(tag.id)" title="הסר תיוג">×</button>
               </div>
             </div>
+          </div>
           </div>
         </div>
 
@@ -121,17 +152,56 @@ const props = defineProps({
 })
 
 const authUser = usePage().props.auth.user
-const canDelete = authUser?.role === 'admin' || props.photo.uploaded_by === authUser?.id
+const canEdit = authUser?.role === 'admin' || props.photo.uploaded_by === authUser?.id
 
 function deletePhoto() {
   if (!confirm('למחוק את התמונה לצמיתות?')) return
   router.delete(`/family-photos/${props.photo.id}`)
 }
 
+// ── עריכת שם התמונה ──
+const localTitle   = ref(props.photo.title || '')
+const editingTitle = ref(false)
+const titleDraft   = ref('')
+const savingTitle  = ref(false)
+const titleInput   = ref(null)
+
+function startEditTitle() {
+  titleDraft.value = localTitle.value
+  editingTitle.value = true
+  nextTick(() => titleInput.value?.focus())
+}
+
+async function saveTitle() {
+  if (savingTitle.value) return
+  savingTitle.value = true
+  try {
+    const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
+    const res = await fetch(`/family-photos/${props.photo.id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
+      body:    JSON.stringify({ title: titleDraft.value }),
+    })
+    if (!res.ok) throw new Error()
+    const data = await res.json()
+    localTitle.value = data.title || ''
+    editingTitle.value = false
+  } catch {
+    alert('שגיאה בשמירת השם')
+  } finally {
+    savingTitle.value = false
+  }
+}
+
 const photoImg       = ref(null)
 const photoContainer = ref(null)
 const searchInput    = ref(null)
 const imgLoaded      = ref(false)
+
+// ── זום בשלב התיוג ──
+const zoom = ref(1)
+function zoomIn()  { zoom.value = Math.min(3, +(zoom.value + 0.25).toFixed(2)) }
+function zoomOut() { zoom.value = Math.max(1, +(zoom.value - 0.25).toFixed(2)) }
 
 // Drag state
 const isDragging  = ref(false)
@@ -392,6 +462,28 @@ h3 { font-size: 1rem; color: #1a3a6b; margin: 0 0 0.8rem; }
 }
 .btn-delete:hover { background: #b91c1c; }
 
+.btn-edit-title {
+  background: #eef4ff; border: 1.5px solid #c7dbf7; color: #2d6be4;
+  border-radius: 8px; padding: 0.35rem 0.6rem; font-size: 0.85rem; cursor: pointer;
+  flex-shrink: 0;
+}
+.btn-edit-title:hover { background: #dbeafe; }
+.title-edit { display: flex; align-items: center; gap: 0.5rem; flex: 1; flex-wrap: wrap; }
+.title-input {
+  flex: 1; min-width: 160px; padding: 0.45rem 0.7rem; border: 1.5px solid #2d6be4;
+  border-radius: 8px; font-size: 1rem; font-family: 'Rubik', sans-serif; direction: rtl;
+}
+.title-input:focus { outline: none; }
+.btn-title-save {
+  background: #2d6be4; color: white; border: none; padding: 0.45rem 1rem;
+  border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: 'Rubik', sans-serif;
+}
+.btn-title-save:disabled { opacity: 0.6; cursor: default; }
+.btn-title-cancel {
+  background: white; border: 1.5px solid #d1dce8; color: #4a5568; padding: 0.45rem 0.9rem;
+  border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: 'Rubik', sans-serif;
+}
+
 .photo-layout {
   display: flex;
   gap: 1.5rem;
@@ -403,10 +495,45 @@ h3 { font-size: 1rem; color: #1a3a6b; margin: 0 0 0.8rem; }
   flex: 1 1 0;
   min-width: 0;
 }
+.photo-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
 .photo-hint {
   font-size: 0.82rem;
   color: #8a9ab5;
-  margin: 0 0 0.5rem;
+  margin: 0;
+}
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+.zoom-btn {
+  width: 30px; height: 30px;
+  border: 1.5px solid #d1dce8; background: white; color: #2d4a7a;
+  border-radius: 7px; font-size: 1.1rem; line-height: 1; cursor: pointer;
+  font-family: 'Rubik', sans-serif;
+}
+.zoom-btn:hover:not(:disabled) { border-color: #2d6be4; background: #edf3ff; }
+.zoom-btn:disabled { opacity: 0.4; cursor: default; }
+.zoom-label { font-size: 0.82rem; color: #4a5568; min-width: 42px; text-align: center; }
+.zoom-reset {
+  border: 1.5px solid #d1dce8; background: white; color: #4a5568;
+  border-radius: 7px; padding: 0.25rem 0.6rem; font-size: 0.8rem; cursor: pointer;
+  font-family: 'Rubik', sans-serif;
+}
+.zoom-reset:hover { border-color: #2d6be4; background: #edf3ff; }
+
+.photo-viewport {
+  overflow: auto;
+  max-height: 80vh;
+  border-radius: 12px;
 }
 
 .photo-container {

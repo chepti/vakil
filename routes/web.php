@@ -54,6 +54,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/family-photos', [FamilyPhotoController::class, 'index'])->name('family-photos.index');
     Route::post('/family-photos', [FamilyPhotoController::class, 'store'])->name('family-photos.store');
     Route::get('/family-photos/{familyPhoto}', [FamilyPhotoController::class, 'show'])->name('family-photos.show');
+    Route::patch('/family-photos/{familyPhoto}', [FamilyPhotoController::class, 'update'])->name('family-photos.update');
     Route::delete('/family-photos/{familyPhoto}', [FamilyPhotoController::class, 'destroy'])->name('family-photos.destroy');
     Route::post('/family-photos/{familyPhoto}/tags', [FamilyPhotoController::class, 'addTag'])->name('family-photos.tag');
     Route::delete('/family-photos/{familyPhoto}/tags/{photoTag}', [FamilyPhotoController::class, 'removeTag'])->name('family-photos.tag.remove');

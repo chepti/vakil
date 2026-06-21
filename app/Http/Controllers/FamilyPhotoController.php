@@ -116,6 +116,19 @@ class FamilyPhotoController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function update(Request $request, FamilyPhoto $familyPhoto): JsonResponse
+    {
+        $user = Auth::user();
+        if (!$user->isAdmin() && $familyPhoto->uploaded_by !== $user->id) {
+            abort(403);
+        }
+
+        $data = $request->validate(['title' => 'nullable|string|max:255']);
+        $familyPhoto->update(['title' => $data['title'] ?? null]);
+
+        return response()->json(['title' => $familyPhoto->title]);
+    }
+
     public function destroy(FamilyPhoto $familyPhoto)
     {
         $user = Auth::user();
