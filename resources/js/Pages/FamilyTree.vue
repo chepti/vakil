@@ -515,24 +515,35 @@ async function apiDelete(url) {
   return res.json()
 }
 
-// Backend serves children oldest-first (canonical). family-chart is LTR, so reverse
-// each child list to keep the oldest on the right (natural RTL reading).
+// Fresh copies of every rels array — family-chart mutates these in place,
+// so sharing references would corrupt localNodes/props.nodes across updates.
+// Ordering is handled by setSortChildrenFunction inside initChart().
 function chartFeed(nodes) {
-  // Fresh copies of every rels array — family-chart mutates these in place,
-  // so sharing references would corrupt localNodes/props.nodes across updates.
   return nodes.map(n => ({
     ...n,
     rels: {
       parents:  [...(n.rels?.parents  || [])],
       spouses:  [...(n.rels?.spouses  || [])],
-      children: [...(n.rels?.children || [])].reverse(),
+      children: [...(n.rels?.children || [])],
     },
   }))
+}
+
+// Sort children by birthday descending → youngest leftmost, oldest rightmost.
+// In RTL display, rightmost = "first read" = oldest. Nulls go to the left (last).
+function sortByBirthday(a, b) {
+  const aDate = a.data?.birthday || ''
+  const bDate = b.data?.birthday || ''
+  if (!aDate && !bDate) return 0
+  if (!aDate) return 1
+  if (!bDate) return -1
+  return aDate > bDate ? -1 : aDate < bDate ? 1 : 0
 }
 
 function initChart() {
   const cont = chartContainer.value
   chartInstance = createChart(cont, chartFeed(props.nodes))
+  chartInstance.setSortChildrenFunction(sortByBirthday)
 
   // setCardHtml() returns a CardHtml instance (not chartInstance) — store it for reuse
   cardHtml = chartInstance
