@@ -740,10 +740,19 @@ const radialData = computed(() => {
     return kids.reduce((s, c) => s + leafCount(c, seen), 0)
   }
 
-  // Children arrive from the server already in canonical sibling order
-  // (admin-defined sort_order, oldest first). Just filter out already-placed nodes.
-  const sortedChildren = (id) =>
-    (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
+  // Sort children: oldest first → placed on the RIGHT in the radial fan (RTL-friendly).
+  // Nodes without a birthday go to the end (leftmost).
+  const sortedChildren = (id) => {
+    const kids = (nodeMap[id]?.rels?.children || []).map(c => String(c)).filter(c => !visited.has(c))
+    return kids.sort((aId, bId) => {
+      const a = nodeMap[aId]?.data?.birthday || ''
+      const b = nodeMap[bId]?.data?.birthday || ''
+      if (!a && !b) return 0
+      if (!a) return 1
+      if (!b) return -1
+      return a < b ? -1 : a > b ? 1 : 0   // ascending: oldest (smaller date) → index 0 → rightmost
+    })
+  }
 
   const positions = {}
   const links = []
