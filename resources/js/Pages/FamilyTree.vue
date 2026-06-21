@@ -819,10 +819,6 @@ const radialData = computed(() => {
   layout(centerId, 0, 0, 2 * Math.PI)
 
   // ── Second pass: multi-row band layout per generation ──────────────────
-  // Build child→parent map from the links collected in the first pass
-  const parentOf = {}
-  links.forEach(l => { if (l.type === 'child') parentOf[l.to] = l.from })
-
   // Group child nodes by level
   const childByLevel = {}
   Object.keys(positions).forEach(id => {
@@ -830,16 +826,6 @@ const radialData = computed(() => {
     if (pos.level === 0 || pos.relType === 'spouse' || pos.relType === 'parent') return
     if (!childByLevel[pos.level]) childByLevel[pos.level] = []
     childByLevel[pos.level].push(id)
-  })
-
-  // Group by (level, parent) for per-family row decisions
-  const siblingGroups = {}
-  Object.keys(positions).forEach(id => {
-    const pos = positions[id]
-    if (pos.level === 0 || pos.relType === 'spouse' || pos.relType === 'parent') return
-    const key = `${pos.level}:${parentOf[id] || '_'}`
-    if (!siblingGroups[key]) siblingGroups[key] = []
-    siblingGroups[key].push(id)
   })
 
   // Canonical base radius per level — using 2-row capacity estimate (halves needed radius)
@@ -851,46 +837,31 @@ const radialData = computed(() => {
     levelR[l] = Math.max(l * 130, needed, 120)
   })
 
-  // Enforce monotonic increase — 140px min gap between level base radii
-  // (accommodates ±30px band on each side + nodeR + clearance)
+  // Enforce monotonic increase — gap between level base radii leaves room for stacked rows
   const sortedLevels = Object.keys(levelR).map(Number).sort((a, b) => a - b)
   for (let i = 1; i < sortedLevels.length; i++) {
     const l = sortedLevels[i], lPrev = sortedLevels[i - 1]
-    levelR[l] = Math.max(levelR[l], levelR[lPrev] + 140)
+    levelR[l] = Math.max(levelR[l], levelR[lPrev] + 170)
   }
 
-  // Assign final positions: multi-row within each sibling group
-  const ROW_OFFSET = 30  // inner row at base-30, outer at base+30
-  Object.keys(siblingGroups).forEach(key => {
-    const l    = parseInt(key.split(':')[0])
-    const base = levelR[l]
-    const ids  = siblingGroups[key]
-
-    // Sort siblings by angle so row alternation groups them spatially
-    ids.sort((a, b) => positions[a].angle - positions[b].angle)
-
-    // Arc span of this sibling cluster (linear length along the band)
-    const angles = ids.map(id => positions[id].angle)
-    const span   = ids.length > 1
-      ? Math.max(...angles) - Math.min(...angles) + NODE_D / base
-      : NODE_D / base
-    const arcLen = base * span          // available linear length
-    const need   = ids.length * NODE_D  // linear length needed for one row
-
-    // Use extra rows only when one row genuinely can't hold the group (5% tolerance)
-    const numRows = need <= arcLen * 1.05 ? 1
-      : need <= arcLen * 2 * 1.05 ? 2
-      : 3
-
-    const rowRadii = numRows === 1 ? [base]
-      : numRows === 2 ? [base - ROW_OFFSET, base + ROW_OFFSET]
-      : [base - ROW_OFFSET, base, base + ROW_OFFSET]
-
-    ids.forEach((id, i) => {
-      const pos = positions[id]
-      const r   = rowRadii[i % numRows]
-      pos.x = r * Math.cos(pos.angle - Math.PI / 2)
-      pos.y = r * Math.sin(pos.angle - Math.PI / 2)
+  // Assign final positions with a GLOBAL greedy multi-row per generation: walking all
+  // nodes of a level in angular order, each node takes the innermost row whose previous
+  // node is far enough away. This guarantees no overlap even across sibling-family borders.
+  const ROW_OFFSET = 42  // radial gap between rows (>= node diameter so stacked rows clear)
+  Object.keys(childByLevel).forEach(lvl => {
+    const l       = parseInt(lvl)
+    const base    = levelR[l]
+    const minAng  = NODE_D / base   // min angular gap to avoid overlap within one row
+    const ids     = childByLevel[lvl].slice().sort((a, b) => positions[a].angle - positions[b].angle)
+    const rowLast = []              // last angle placed in each row
+    ids.forEach(id => {
+      const a = positions[id].angle
+      let row = rowLast.findIndex(last => a - last >= minAng)
+      if (row === -1) { row = rowLast.length; rowLast.push(a) }
+      else rowLast[row] = a
+      const r = base + row * ROW_OFFSET
+      positions[id].x = r * Math.cos(a - Math.PI / 2)
+      positions[id].y = r * Math.sin(a - Math.PI / 2)
     })
   })
 
