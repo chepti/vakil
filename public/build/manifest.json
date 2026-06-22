@@ -115,8 +115,12 @@
     "file": "assets/TreeNodeVertical-Cwud6xWo.css",
     "src": "_TreeNodeVertical-Cwud6xWo.css"
   },
-  "_UpdateNotificationsForm-C0drlcmm.js": {
-    "file": "assets/UpdateNotificationsForm-C0drlcmm.js",
+  "_UpdateNotificationsForm-ChNyJ4p8.css": {
+    "file": "assets/UpdateNotificationsForm-ChNyJ4p8.css",
+    "src": "_UpdateNotificationsForm-ChNyJ4p8.css"
+  },
+  "_UpdateNotificationsForm-CuJeIrfq.js": {
+    "file": "assets/UpdateNotificationsForm-CuJeIrfq.js",
     "name": "UpdateNotificationsForm",
     "imports": [
       "__plugin-vue_export-helper-BDNMzG2s.js",
@@ -124,12 +128,8 @@
       "_runtime-core.esm-bundler-CNqyEwW_.js"
     ],
     "css": [
-      "assets/UpdateNotificationsForm-Cm_1KFjP.css"
+      "assets/UpdateNotificationsForm-ChNyJ4p8.css"
     ]
-  },
-  "_UpdateNotificationsForm-Cm_1KFjP.css": {
-    "file": "assets/UpdateNotificationsForm-Cm_1KFjP.css",
-    "src": "_UpdateNotificationsForm-Cm_1KFjP.css"
   },
   "_UpdatePasswordForm-BkPOlSLm.js": {
     "file": "assets/UpdatePasswordForm-BkPOlSLm.js",
@@ -596,7 +596,7 @@
     ]
   },
   "resources/js/Pages/Profile/Edit.vue": {
-    "file": "assets/Edit-DnT2QvxQ.js",
+    "file": "assets/Edit-Db0Q5kGW.js",
     "name": "Edit",
     "src": "resources/js/Pages/Profile/Edit.vue",
     "isDynamicEntry": true,
@@ -605,7 +605,7 @@
       "_runtime-core.esm-bundler-CNqyEwW_.js",
       "_AppLayout-TCTrLwtH.js",
       "_DeleteUserForm-DTML3yXp.js",
-      "_UpdateNotificationsForm-C0drlcmm.js",
+      "_UpdateNotificationsForm-CuJeIrfq.js",
       "_UpdatePasswordForm-BkPOlSLm.js",
       "_UpdateProfileInformationForm-BUsnFB5y.js"
     ],
@@ -623,12 +623,12 @@
     ]
   },
   "resources/js/Pages/Profile/Partials/UpdateNotificationsForm.vue": {
-    "file": "assets/UpdateNotificationsForm-B4h9EijT.js",
+    "file": "assets/UpdateNotificationsForm-Dz1-QrLp.js",
     "name": "UpdateNotificationsForm",
     "src": "resources/js/Pages/Profile/Partials/UpdateNotificationsForm.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_UpdateNotificationsForm-C0drlcmm.js"
+      "_UpdateNotificationsForm-CuJeIrfq.js"
     ]
   },
   "resources/js/Pages/Profile/Partials/UpdatePasswordForm.vue": {
@@ -686,7 +686,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-lmnrO-RS.js",
+    "file": "assets/app-NccbXfJj.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -727,7 +727,7 @@
       "_TreeNodeVertical-BbKzLrS2.js",
       "resources/js/Pages/Profile/Edit.vue",
       "_DeleteUserForm-DTML3yXp.js",
-      "_UpdateNotificationsForm-C0drlcmm.js",
+      "_UpdateNotificationsForm-CuJeIrfq.js",
       "_UpdatePasswordForm-BkPOlSLm.js",
       "_UpdateProfileInformationForm-BUsnFB5y.js",
       "resources/js/Pages/Stats/Index.vue",

@@ -1,0 +1,1 @@
+import{t as e}from"./UpdateNotificationsForm-CuJeIrfq.js";export{e as default};
