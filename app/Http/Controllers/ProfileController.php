@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\Person;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,9 +19,15 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $people = Person::orderBy('first_name')->orderBy('last_name')
+            ->get(['id', 'first_name', 'last_name'])
+            ->map(fn ($p) => ['id' => $p->id, 'name' => "{$p->first_name} {$p->last_name}"])
+            ->all();
+
         return Inertia::render('Profile/Edit', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
-            'status' => session('status'),
+            'status'          => session('status'),
+            'people'          => $people,
         ]);
     }
 
@@ -46,8 +53,10 @@ class ProfileController extends Controller
     public function updateNotifications(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'notify_monthly_digest' => ['required', 'boolean'],
-            'notify_new_person'     => ['required', 'boolean'],
+            'notify_monthly_digest'   => ['required', 'boolean'],
+            'notify_new_person'       => ['required', 'boolean'],
+            'notify_new_event'        => ['required', 'boolean'],
+            'digest_branch_person_id' => ['nullable', 'integer', 'exists:people,id'],
         ]);
 
         $request->user()->fill($data)->save();

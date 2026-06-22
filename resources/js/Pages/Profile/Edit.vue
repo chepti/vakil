@@ -9,6 +9,7 @@ import { Head } from '@inertiajs/vue3'
 defineProps({
   mustVerifyEmail: { type: Boolean },
   status: { type: String },
+  people: { type: Array, default: () => [] },
 })
 </script>
 
@@ -30,7 +31,7 @@ defineProps({
       </div>
 
       <div class="pf-card">
-        <UpdateNotificationsForm />
+        <UpdateNotificationsForm :people="people" />
       </div>
 
       <div class="pf-card">
