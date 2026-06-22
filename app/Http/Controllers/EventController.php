@@ -27,12 +27,31 @@ class EventController extends Controller
             ->map(fn($p) => [
                 'id'         => $p->id,
                 'name'       => $p->full_name,
+                'photo'      => $p->profile_photo_url,
+                'gender'     => $p->gender,
                 'birth_date' => optional($p->birth_date_gregorian)->format('Y-m-d'),
             ]);
 
+        // ימי נישואין — זוגות נשואים עם תאריך נישואין
+        $anniversaries = \App\Models\Relationship::where('type', 'spouse')
+            ->where('is_former', false)
+            ->whereNotNull('marriage_date_gregorian')
+            ->with(['person1:id,first_name,last_name', 'person2:id,first_name,last_name'])
+            ->get()
+            ->filter(fn($r) => $r->person1 && $r->person2)
+            ->map(fn($r) => [
+                'id'            => $r->id,
+                'names'         => $r->person1->full_name . ' ו' . $r->person2->first_name,
+                'person1'       => ['id' => $r->person1->id, 'name' => $r->person1->full_name],
+                'person2'       => ['id' => $r->person2->id, 'name' => $r->person2->full_name],
+                'marriage_date' => optional($r->marriage_date_gregorian)->format('Y-m-d'),
+            ])
+            ->values();
+
         return Inertia::render('Events/Index', [
-            'events'    => $events,
-            'birthdays' => $birthdays,
+            'events'        => $events,
+            'birthdays'     => $birthdays,
+            'anniversaries' => $anniversaries,
         ]);
     }
 

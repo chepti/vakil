@@ -114,19 +114,11 @@
             @mouseenter="node.spouse && (hoveredNodeId = node.id)"
             @mouseleave="hoveredNodeId === node.id && (hoveredNodeId = null)"
           >
-            <!-- Married-in spouse: peeking hint circle behind (hints another person) -->
-            <circle
-              v-if="node.spouse"
-              :cx="node.nodeR * 0.5" :cy="node.nodeR * 0.5" :r="node.nodeR"
-              :fill="radialNodeColor(node.spouse.gender)"
-              :stroke="radialNodeStroke(node.spouse.gender)" stroke-width="1.5"
-              opacity="0.55"
-            />
-            <!-- Spouse reveal on hover — fades/expands in -->
+            <!-- Married-in spouse: drawn BEHIND the person as a semi-transparent photo;
+                 on hover it slides out beside them at full opacity with a name -->
             <g
               v-if="node.spouse"
               class="radial-mate" :class="{ revealed: hoveredNodeId === node.id }"
-              :transform="`translate(${node.nodeR * 1.5},${node.nodeR * 1.5})`"
             >
               <clipPath :id="`mclip-${node.id}`"><circle :r="node.nodeR" cx="0" cy="0"/></clipPath>
               <circle :r="node.nodeR" :fill="radialNodeColor(node.spouse.gender)"
@@ -136,14 +128,14 @@
                      :clip-path="`url(#mclip-${node.id})`" preserveAspectRatio="xMidYMid slice"/>
               <text v-else text-anchor="middle" dominant-baseline="central" font-size="9"
                     fill="#1a3a6b" font-family="Rubik, sans-serif">{{ node.spouse.firstName.slice(0, 4) }}</text>
-              <text :y="node.nodeR + 9" text-anchor="middle" dominant-baseline="hanging"
+              <text class="mate-name" :y="node.nodeR + 9" text-anchor="middle" dominant-baseline="hanging"
                     font-family="Rubik, sans-serif" font-size="8" fill="#1a3a6b"
                     stroke="rgba(240,246,255,0.85)" stroke-width="3" paint-order="stroke"
               >{{ node.spouse.firstName }}</text>
             </g>
-            <!-- Relationship ring indicators -->
+            <!-- Relationship ring indicators (not for the center spouse — it sits flush with the center) -->
             <circle
-              v-if="node.relType === 'spouse' && !node.isRoot"
+              v-if="node.relType === 'spouse' && !node.isRoot && !node.centerSpouse"
               :r="node.nodeR + 4" fill="none" stroke="#e879f9" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.7"
             />
             <circle
@@ -158,7 +150,7 @@
               :r="node.nodeR"
               :fill="radialNodeColor(node.gender)"
               :stroke="radialNodeStroke(node.gender)"
-              :stroke-width="node.isRoot ? 3 : 1.5"
+              :stroke-width="node.isRoot || node.centerSpouse ? 3 : 1.5"
             />
             <image
               v-if="node.avatar"
@@ -171,7 +163,7 @@
             <text
               v-else
               text-anchor="middle" dominant-baseline="central"
-              :font-size="node.isRoot ? 11 : 9"
+              :font-size="node.isRoot || node.centerSpouse ? 11 : 9"
               fill="#1a3a6b" font-family="Rubik, sans-serif" font-weight="500"
             >{{ node.firstName.slice(0, 4) }}</text>
             <!-- Name label placed radially outward — white stroke for readability -->
@@ -180,8 +172,8 @@
               text-anchor="middle"
               :dominant-baseline="node.labelBaseline"
               font-family="Rubik, sans-serif"
-              :font-size="node.isRoot ? 12 : 8.5"
-              :font-weight="node.isRoot ? '700' : '500'"
+              :font-size="node.isRoot || node.centerSpouse ? 12 : 8.5"
+              :font-weight="node.isRoot || node.centerSpouse ? '700' : '500'"
               fill="#1a3a6b"
               stroke="rgba(240,246,255,0.85)" stroke-width="3" paint-order="stroke"
             >{{ node.isRoot ? node.fullName : node.firstName }}</text>
@@ -891,7 +883,8 @@ const radialData = computed(() => {
     const n   = nodeMap[id]
     const pos = positions[id]
     const isRoot = id === centerId
-    const nodeR  = isRoot ? 28 : pos.centerSpouse ? 24 : 20
+    // Center spouse shares the center's size — they read as one couple
+    const nodeR  = isRoot || pos.centerSpouse ? 28 : 20
     const angle  = pos.angle || 0
     // Root and center-spouse label below; others radially outward
     const labelBelow = isRoot || pos.centerSpouse
@@ -1515,9 +1508,17 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 .radial-node circle { transition: r 0.15s, stroke-width 0.15s; }
 .radial-node:hover circle { stroke-width: 3 !important; filter: brightness(1.08); }
 .radial-node:hover text { font-weight: 600; }
-/* Married-in spouse reveal — fades in on hover, folds away otherwise */
-.radial-mate { opacity: 0; transition: opacity 0.18s ease; pointer-events: none; }
-.radial-mate.revealed { opacity: 1; }
+/* Married-in spouse: semi-transparent photo peeking behind at rest; slides out + fades to
+   full on hover. Drawn before the main node so the person stays on top. */
+.radial-mate {
+  opacity: 0.4;
+  transform: translate(11px, 11px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+.radial-mate.revealed { opacity: 1; transform: translate(30px, 30px); }
+.radial-mate .mate-name { opacity: 0; transition: opacity 0.2s ease; }
+.radial-mate.revealed .mate-name { opacity: 1; }
 .radial-hint {
   position: absolute;
   bottom: 0.75rem;

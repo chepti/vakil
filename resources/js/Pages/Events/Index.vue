@@ -43,12 +43,22 @@
                 class="cell-event"
                 :title="ev.title"
               >{{ ev.title }}</Link>
-              <div
+              <button
                 v-for="b in cell.birthdays"
                 :key="'b' + b.id"
+                type="button"
                 class="cell-birthday"
                 :title="'יום הולדת: ' + b.name"
-              >🎂 {{ b.name }}</div>
+                @click="openBirthday(b, cell.date)"
+              >🎂 {{ b.name }}</button>
+              <button
+                v-for="a in cell.anniversaries"
+                :key="'a' + a.id"
+                type="button"
+                class="cell-anniversary"
+                :title="'יום נישואין: ' + a.names"
+                @click="openAnniversary(a, cell.date)"
+              >💍 {{ a.names }}</button>
             </div>
           </div>
         </div>
@@ -70,6 +80,45 @@
           </div>
         </Link>
       </div>
+
+      <!-- תפריט צד — דמות / זוג -->
+      <Transition name="panel-slide">
+        <div v-if="panel" class="side-panel" dir="rtl">
+          <button class="panel-close" @click="panel = null">×</button>
+
+          <!-- יום הולדת -->
+          <template v-if="panel.kind === 'birthday'">
+            <div class="panel-avatar">
+              <img v-if="panel.person.photo" :src="panel.person.photo" :alt="panel.person.name" />
+              <div v-else class="panel-initials">{{ initials(panel.person.name) }}</div>
+            </div>
+            <h2 class="panel-name">{{ panel.person.name }}</h2>
+            <div class="panel-occasion">🎂 יום הולדת</div>
+            <div class="panel-date">
+              <strong>{{ panel.hebrew }}</strong>
+              <span class="panel-greg">{{ panel.greg }}</span>
+            </div>
+            <div v-if="panel.age" class="panel-age">{{ panel.age }}</div>
+            <Link :href="`/people/${panel.person.id}`" class="panel-btn">כרטיס מלא ›</Link>
+          </template>
+
+          <!-- יום נישואין -->
+          <template v-else>
+            <div class="panel-occasion big">💍 יום נישואין</div>
+            <h2 class="panel-name">{{ panel.couple.names }}</h2>
+            <div class="panel-date">
+              <strong>{{ panel.hebrew }}</strong>
+              <span class="panel-greg">{{ panel.greg }}</span>
+            </div>
+            <div v-if="panel.years" class="panel-age">{{ panel.years }}</div>
+            <div class="panel-links">
+              <Link :href="`/people/${panel.couple.person1.id}`" class="panel-btn">{{ panel.couple.person1.name }} ›</Link>
+              <Link :href="`/people/${panel.couple.person2.id}`" class="panel-btn">{{ panel.couple.person2.name }} ›</Link>
+            </div>
+          </template>
+        </div>
+      </Transition>
+      <div v-if="panel" class="panel-overlay" @click="panel = null"></div>
     </div>
   </AppLayout>
 </template>
@@ -78,12 +127,15 @@
 import { ref, computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { gregorianToHebrewParts } from '@/utils/hebrewDate'
+import { gregorianToHebrewParts, gregorianToHebrew } from '@/utils/hebrewDate'
 
 const props = defineProps({
   events: { type: Array, default: () => [] },
   birthdays: { type: Array, default: () => [] },
+  anniversaries: { type: Array, default: () => [] },
 })
+
+const panel = ref(null)
 
 const weekdays = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש']
 const GREG_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
@@ -120,6 +172,19 @@ const birthdaysByHebKey = computed(() => {
   return map
 })
 
+// ימי נישואין לפי התאריך העברי (יום+חודש עברי)
+const anniversariesByHebKey = computed(() => {
+  const map = {}
+  for (const a of props.anniversaries) {
+    if (!a.marriage_date) continue
+    const p = gregorianToHebrewParts(a.marriage_date)
+    if (!p) continue
+    const key = `${p.day}-${p.monthEn}`
+    ;(map[key] ||= []).push(a)
+  }
+  return map
+})
+
 const grid = computed(() => {
   const { year, month } = view.value
   const first = new Date(year, month, 1)
@@ -140,6 +205,7 @@ const grid = computed(() => {
       hebDay: parts ? parts.dayHe : '',
       events: eventsByDate.value[dateStr] || [],
       birthdays: (hebKey && birthdaysByHebKey.value[hebKey]) || [],
+      anniversaries: (hebKey && anniversariesByHebKey.value[hebKey]) || [],
     })
   }
   return cells
@@ -166,6 +232,40 @@ function nextMonth() {
 }
 function goToday() {
   view.value = { year: today.getFullYear(), month: today.getMonth() }
+}
+
+// ─── תפריט צד ──────────────────────────────────────────────────
+function initials(name) {
+  return (name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('')
+}
+function isFemale(g) {
+  return ['female', 'f', 'F', 'נקבה'].includes(g)
+}
+
+function openBirthday(b, dateStr) {
+  const bp = gregorianToHebrewParts(b.birth_date)
+  const cp = gregorianToHebrewParts(dateStr)
+  const age = (bp && cp) ? cp.year - bp.year : null
+  panel.value = {
+    kind: 'birthday',
+    person: b,
+    hebrew: gregorianToHebrew(dateStr),
+    greg: formatGreg(dateStr),
+    age: age && age > 0 ? `${isFemale(b.gender) ? 'חוגגת' : 'חוגג'} ${age}` : null,
+  }
+}
+
+function openAnniversary(a, dateStr) {
+  const mp = gregorianToHebrewParts(a.marriage_date)
+  const cp = gregorianToHebrewParts(dateStr)
+  const years = (mp && cp) ? cp.year - mp.year : null
+  panel.value = {
+    kind: 'anniversary',
+    couple: a,
+    hebrew: gregorianToHebrew(dateStr),
+    greg: formatGreg(dateStr),
+    years: years && years > 0 ? `${years} שנות נישואין` : null,
+  }
 }
 
 const upcoming = computed(() =>
@@ -247,11 +347,59 @@ const upcoming = computed(() =>
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cell-event:hover { background: #1a55c8; }
-.cell-birthday {
-  background: #ffe7ef; color: #b03a68;
+.cell-birthday, .cell-anniversary {
+  display: block; width: 100%; text-align: right;
+  border: none; cursor: pointer; font-family: 'Rubik', sans-serif;
   font-size: 0.7rem; padding: 0.12rem 0.35rem; border-radius: 6px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.cell-birthday { background: #ffe7ef; color: #b03a68; }
+.cell-birthday:hover { background: #ffd3e3; }
+.cell-anniversary { background: #fff2cc; color: #9a6a16; }
+.cell-anniversary:hover { background: #ffe9a8; }
+
+/* תפריט צד */
+.panel-overlay {
+  position: fixed; inset: 0; background: rgba(20,40,80,0.25); z-index: 200;
+}
+.side-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 320px; max-width: 88vw;
+  background: white; z-index: 201;
+  box-shadow: -4px 0 24px rgba(0,40,120,0.15);
+  padding: 2rem 1.5rem; display: flex; flex-direction: column; align-items: center;
+  font-family: 'Rubik', sans-serif; text-align: center;
+}
+.panel-close {
+  position: absolute; top: 0.75rem; left: 0.9rem;
+  background: none; border: none; font-size: 1.6rem; color: #9aa7bd;
+  cursor: pointer; line-height: 1;
+}
+.panel-close:hover { color: #2d4a7a; }
+.panel-avatar {
+  width: 96px; height: 96px; border-radius: 50%; overflow: hidden;
+  background: #eaf2ff; display: flex; align-items: center; justify-content: center;
+  margin-bottom: 1rem;
+}
+.panel-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.panel-initials { font-size: 2rem; font-weight: 700; color: #2d6be4; }
+.panel-name { font-size: 1.3rem; color: #1a3a6b; margin: 0 0 0.5rem; }
+.panel-occasion { font-size: 0.95rem; color: #b03a68; font-weight: 600; margin-bottom: 0.75rem; }
+.panel-occasion.big { font-size: 1.1rem; color: #9a6a16; margin-bottom: 1rem; }
+.panel-date { margin-bottom: 0.5rem; }
+.panel-date strong { display: block; color: #6b4f2a; font-size: 1.05rem; }
+.panel-greg { display: block; color: #a99873; font-size: 0.85rem; margin-top: 0.2rem; }
+.panel-age { color: #2d6be4; font-weight: 600; margin: 0.5rem 0 1.25rem; }
+.panel-btn {
+  display: inline-block; background: #2d6be4; color: white; text-decoration: none;
+  padding: 0.5rem 1.3rem; border-radius: 10px; font-weight: 600; font-size: 0.92rem;
+  margin-top: 0.5rem;
+}
+.panel-btn:hover { background: #1a55c8; }
+.panel-links { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; margin-top: 0.75rem; }
+.panel-links .panel-btn { width: 100%; }
+
+.panel-slide-enter-active, .panel-slide-leave-active { transition: transform 0.25s ease; }
+.panel-slide-enter-from, .panel-slide-leave-to { transform: translateX(100%); }
 
 /* אירועים קרובים */
 .upcoming h2 { font-size: 1.2rem; color: #1a3a6b; margin: 0 0 1rem; }
