@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\CustomAnnouncementMail;
 use App\Mail\MonthlyDigestMail;
 use App\Models\Document;
 use App\Models\Invitation;
@@ -82,7 +83,13 @@ class AdminController extends Controller
                 'uploaded' => $d->created_at?->format('d/m/Y'),
             ]);
 
+        $people = Person::orderBy('first_name')->orderBy('last_name')
+            ->get(['id', 'first_name', 'last_name'])
+            ->map(fn ($p) => ['id' => $p->id, 'name' => "{$p->first_name} {$p->last_name}"])
+            ->all();
+
         return Inertia::render('Admin/Index', [
+            'people'  => $people,
             'summary' => [
                 'users_total'    => $users->count(),
                 'users_pending'  => $users->where('status', 'pending')->count(),
@@ -281,6 +288,47 @@ class AdminController extends Controller
                     $branch = $branchCache[$bid];
                 }
                 Mail::to($user->email)->send(new MonthlyDigestMail($data, $user->name, $branch));
+                $sent++;
+            } catch (\Throwable $e) {
+                $failed++;
+                report($e);
+            }
+        }
+
+        $msg = "נשלחו {$sent} מיילים" . ($failed ? " ({$failed} נכשלו)" : '') . '.';
+        return back()->with('digest_success', $msg);
+    }
+
+    /** שליחת הודעה מותאמת (נושא + גוף חופשי) לקבוצת יעד. */
+    public function sendCustom(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $data = $request->validate([
+            'subject'          => ['required', 'string', 'max:200'],
+            'body'             => ['required', 'string', 'max:6000'],
+            'branch_person_id' => ['nullable', 'integer', 'exists:people,id'],
+        ]);
+
+        $query = User::where('status', 'active')->whereNotNull('email');
+
+        if ($data['branch_person_id']) {
+            $root         = Person::findOrFail($data['branch_person_id']);
+            $ids          = $root->descendantIds();
+            $ids[]        = $root->id;
+            $query->whereIn('person_id', $ids);
+        }
+
+        $recipients = $query->get();
+        $sent = $failed = 0;
+
+        foreach ($recipients as $user) {
+            try {
+                Mail::to($user->email)->send(new CustomAnnouncementMail(
+                    $data['subject'],
+                    $data['body'],
+                    $user->name,
+                ));
                 $sent++;
             } catch (\Throwable $e) {
                 $failed++;

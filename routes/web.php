@@ -87,6 +87,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // דיגסט מייל — שליחה ידנית
         Route::post('/digest/preview',  [AdminController::class, 'digestPreview'])->name('digest.preview');
         Route::post('/digest/send-all', [AdminController::class, 'digestSendAll'])->name('digest.send-all');
+        Route::post('/digest/custom',   [AdminController::class, 'sendCustom'])->name('digest.custom');
 
         // ניהול הזמנות
         Route::post('/invitations/{invitation}/extend', [InvitationController::class, 'extend'])->name('invitations.extend');

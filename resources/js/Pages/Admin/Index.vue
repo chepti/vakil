@@ -42,6 +42,54 @@
         </div>
       </section>
 
+      <!-- שליחת הודעה מותאמת -->
+      <section class="panel">
+        <div class="custom-header" @click="customOpen = !customOpen">
+          <h2 style="margin:0;">✉️ שליחת הודעה מותאמת</h2>
+          <span class="custom-toggle">{{ customOpen ? '▲ סגור' : '▼ פתח' }}</span>
+        </div>
+
+        <Transition name="slide">
+          <div v-if="customOpen" class="custom-form">
+            <div v-if="digestMessage" class="digest-msg">✓ {{ digestMessage }}</div>
+
+            <div class="custom-field">
+              <label class="custom-label">נושא המייל</label>
+              <input v-model="customForm.subject" type="text" class="custom-input"
+                placeholder="לדוג׳: אירוע משפחתי חשוב 🌟" maxlength="200" />
+            </div>
+
+            <div class="custom-field">
+              <label class="custom-label">תוכן ההודעה</label>
+              <textarea v-model="customForm.body" class="custom-textarea" rows="6"
+                placeholder="כתבו כאן את תוכן ההודעה החופשית...&#10;&#10;ניתן לכתוב בפסקאות — ירדפות שורה ישמרו."></textarea>
+              <div class="custom-count">{{ customForm.body.length }} / 6000</div>
+            </div>
+
+            <div class="custom-field">
+              <label class="custom-label">שלח אל</label>
+              <select v-model="customForm.branch_person_id" class="custom-input">
+                <option :value="null">👥 כל המשתמשים הפעילים</option>
+                <optgroup label="לפי ענף — צאצאי:">
+                  <option v-for="p in people" :key="p.id" :value="p.id">🌿 ענף {{ p.name }}</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div class="custom-actions">
+              <button class="pf-btn"
+                :disabled="customSending || !customForm.subject.trim() || !customForm.body.trim()"
+                @click="sendCustom">
+                {{ customSending ? '...שולח' : '📤 שלח עכשיו' }}
+              </button>
+              <span class="custom-hint">
+                {{ customForm.branch_person_id ? 'לצאצאי הדמות הנבחרת בלבד' : 'לכל המשתמשים הפעילים' }}
+              </span>
+            </div>
+          </div>
+        </Transition>
+      </section>
+
       <!-- מסמכים -->
       <section class="panel">
         <h2>📄 מסמכים משותפים</h2>
@@ -140,6 +188,7 @@ defineProps({
   missingBirthday: { type: Array, default: () => [] },
   missingPhoto:    { type: Array, default: () => [] },
   documents:       { type: Array, default: () => [] },
+  people:          { type: Array, default: () => [] },
 })
 
 const fileInput = ref(null)
@@ -148,6 +197,30 @@ const docForm = useForm({ title: '', file: null })
 // דיגסט מייל
 const digestSending = ref(false)
 const digestMessage = ref(usePage().props.flash?.digest_success ?? null)
+
+// הודעה מותאמת
+const customOpen    = ref(false)
+const customSending = ref(false)
+const customForm    = ref({ subject: '', body: '', branch_person_id: null })
+
+function sendCustom() {
+  if (! customForm.value.subject.trim() || ! customForm.value.body.trim()) return
+  const target = customForm.value.branch_person_id
+    ? 'לצאצאי הדמות הנבחרת'
+    : 'לכל המשתמשים הפעילים'
+  if (! confirm(`לשלוח את ההודעה "${customForm.value.subject}" ${target}?`)) return
+  customSending.value = true
+  router.post('/admin/digest/custom', customForm.value, {
+    preserveScroll: true,
+    onSuccess: () => {
+      digestMessage.value = usePage().props.flash?.digest_success ?? 'נשלח!'
+      customSending.value = false
+      customOpen.value    = false
+      customForm.value    = { subject: '', body: '', branch_person_id: null }
+    },
+    onError: () => { customSending.value = false },
+  })
+}
 
 function sendDigestPreview() {
   if (!confirm('לשלוח תצוגה מקדימה לכתובת המייל שלך?')) return
@@ -262,6 +335,23 @@ function deleteUser(u) {
 .dl-btn-send { background: #e8f5e9; color: #166534; }
 .dl-btn-send:hover:not(:disabled) { background: #d1f0d8; }
 .digest-msg { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 8px; padding: 0.5rem 0.85rem; margin-bottom: 0.75rem; font-size: 0.88rem; }
+
+/* הודעה מותאמת */
+.custom-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+.custom-toggle { font-size: 0.8rem; color: #6b7a99; }
+.custom-form { margin-top: 1rem; border-top: 1px solid #e6eefb; padding-top: 1rem; }
+.custom-field { margin-bottom: 0.85rem; }
+.custom-label { display: block; font-size: 0.83rem; color: #4a5568; font-weight: 600; margin-bottom: 0.3rem; }
+.custom-input { width: 100%; padding: 0.55rem 0.75rem; border: 1.5px solid #d1dce8; border-radius: 9px; font-size: 0.92rem; font-family: 'Rubik', sans-serif; color: #1a3a6b; background: #fff; direction: rtl; box-sizing: border-box; }
+.custom-input:focus { outline: none; border-color: #2d6be4; box-shadow: 0 0 0 3px rgba(45,107,228,0.1); }
+.custom-textarea { width: 100%; padding: 0.6rem 0.75rem; border: 1.5px solid #d1dce8; border-radius: 9px; font-size: 0.92rem; font-family: 'Rubik', sans-serif; color: #1a3a6b; background: #fff; direction: rtl; resize: vertical; box-sizing: border-box; line-height: 1.6; }
+.custom-textarea:focus { outline: none; border-color: #2d6be4; box-shadow: 0 0 0 3px rgba(45,107,228,0.1); }
+.custom-count { font-size: 0.75rem; color: #9ca3af; text-align: left; margin-top: 0.2rem; }
+.custom-actions { display: flex; align-items: center; gap: 0.9rem; margin-top: 0.5rem; }
+.custom-hint { font-size: 0.8rem; color: #6b7a99; }
+.slide-enter-active, .slide-leave-active { transition: all 0.2s ease; overflow: hidden; }
+.slide-enter-from, .slide-leave-to { opacity: 0; max-height: 0; }
+.slide-enter-to, .slide-leave-from { opacity: 1; max-height: 600px; }
 
 /* מסמכים */
 .doc-form { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1rem; }
