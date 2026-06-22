@@ -167,30 +167,53 @@ class Person extends Model
     // ─── Helpers ──────────────────────────────────────────────────
 
     /**
-     * מחזיר "של X של Y" — שרשרת הורים עולה עד לפני הדמות עם is_main_person=true.
-     * לשימוש בתצוגה: "יגל הלפרן של שלום של דליה"
+     * מחזיר "של X של Y" — הנתיב הקצר ביותר מהדמות עד (לא כולל) is_main_person.
+     * מעדיף את ה"ענף המשפחתי" — הצד שמוביל לשורש, לא צד של חתנים/כלות שאינם בעץ.
      */
     public function ancestralContext(int $maxLevels = 5): string
     {
-        $parts   = [];
-        $current = $this;
-        $visited = [$this->id => true];
-
-        for ($i = 0; $i < $maxLevels; $i++) {
-            $parents = $current->parents()->get();
-            if ($parents->isEmpty()) break;
-
-            // מעדיפים הורה שאינו השורש (is_main_person) ואינו כבר בשרשרת
-            $parent = $parents->first(fn ($p) => ! $p->is_main_person && ! isset($visited[$p->id]));
-            if (! $parent) break;
-
-            $visited[$parent->id] = true;
-            $parts[]  = $parent->first_name;
-            $current  = $parent;
+        static $mainPersonId;
+        if (! isset($mainPersonId)) {
+            $mainPersonId = static::where('is_main_person', true)->value('id');
         }
 
-        if (empty($parts)) return '';
-        return 'של ' . implode(' של ', $parts);
+        if (! $mainPersonId) return '';
+
+        $path = $this->pathToRoot($this->id, (int) $mainPersonId, $maxLevels, []);
+
+        if ($path === null || count($path) === 0) return '';
+        return 'של ' . implode(' של ', $path);
+    }
+
+    /**
+     * DFS — מחזיר מערך של שמות-פרטיים מה"הורה הישיר" עד לפני is_main_person.
+     * מחזיר [] כשמצא ישירות את השורש, null כשאין נתיב.
+     */
+    private function pathToRoot(int $fromId, int $rootId, int $depth, array $visited): ?array
+    {
+        if ($depth <= 0) return null;
+
+        $parentIds = Relationship::where('type', 'parent_child')
+            ->where('person2_id', $fromId)
+            ->pluck('person1_id');
+
+        foreach ($parentIds as $parentId) {
+            if (isset($visited[$parentId])) continue;
+
+            // הגענו לשורש — לא כוללים את שמו
+            if ($parentId == $rootId) return [];
+
+            $parent = static::find($parentId);
+            if (! $parent) continue;
+            if ($parent->is_main_person) return [];
+
+            $sub = $this->pathToRoot($parentId, $rootId, $depth - 1, $visited + [$parentId => true]);
+            if ($sub !== null) {
+                return array_merge([$parent->first_name], $sub);
+            }
+        }
+
+        return null;
     }
 
     /** כל מזהי הצאצאים (רקורסיבי) — לקהל יעד מסוג "ענף: צאצאי X" */

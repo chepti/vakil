@@ -25,7 +25,12 @@
         .item-avatar-sq { width: 54px; height: 54px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
         .item-avatar-sq-placeholder { width: 54px; height: 54px; border-radius: 8px; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
         .item-text { flex: 1; min-width: 0; }
-        .badge { display: inline-block; background: #eff6ff; color: #1e40af; border-radius: 20px; padding: 2px 10px; font-size: 12px; font-weight: 600; margin-right: 6px; }
+        .badge { display: inline-block; border-radius: 20px; padding: 3px 11px; font-size: 12px; font-weight: 700; margin-right: 6px; background: #eff6ff; color: #1e40af; }
+        .badge-bar  { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .badge-bat  { background: #fdf2f8; color: #86198f; border: 1px solid #f0abfc; }
+        .badge-wed  { background: #fce7f3; color: #9d174d; border: 1px solid #fbcfe8; }
+        .badge-birth { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .badge-death { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
         .empty { font-size: 14px; color: #9ca3af; }
         .footer { background: #f8fafc; padding: 18px 36px; text-align: center; font-size: 12px; color: #9ca3af; direction: rtl; }
         .footer a { color: #6b7a99; }
@@ -35,7 +40,7 @@
     <div class="wrapper">
         <div class="header">
             <div class="header-emoji">🌳</div>
-            <h1>חודש טוב!</h1>
+            <h1>חודש טוב&rlm;!</h1>
             <p>{{ $d['monthName'] }} {{ $d['yearGematria'] }} · משפחת ואקיל</p>
         </div>
 
@@ -81,7 +86,17 @@
                         <div class="item-avatar-sq-placeholder">📅</div>
                         @endif
                         <div class="item-text">
-                            <div><span class="badge">{{ $ev['typeLabel'] }}</span> <a href="{{ $ev['url'] }}">{{ $ev['title'] }}</a></div>
+                            @php
+                            $badgeCss = match($ev['type'] ?? '') {
+                                'bar_mitzvah' => 'badge badge-bar',
+                                'bat_mitzvah' => 'badge badge-bat',
+                                'wedding'     => 'badge badge-wed',
+                                'birth'       => 'badge badge-birth',
+                                'death'       => 'badge badge-death',
+                                default       => 'badge',
+                            };
+                        @endphp
+                        <div><span class="{{ $badgeCss }}">{{ $ev['typeLabel'] }}</span> <a href="{{ $ev['url'] }}">{{ $ev['title'] }}</a></div>
                             @if ($ev['personName'])<div class="meta">{{ $ev['personName'] }}</div>@endif
                             <div class="meta">{{ $ev['hebrewDate'] }} ({{ $ev['date'] }})@if ($ev['location']) · {{ $ev['location'] }}@endif</div>
                         </div>

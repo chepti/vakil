@@ -168,6 +168,7 @@ class DigestBuilder
             ->get()
             ->map(fn (Event $e) => [
                 'title'            => $e->title ?: $this->eventTypeLabel($e->type),
+                'type'             => $e->type,
                 'typeLabel'        => $this->eventTypeLabel($e->type),
                 'date'             => Carbon::parse($e->event_date)->format('d/m/Y'),
                 'hebrewDate'       => $e->hebrew_date ?: HebrewDate::format(Carbon::parse($e->event_date)),
