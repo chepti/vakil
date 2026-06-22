@@ -785,8 +785,11 @@ const radialData = computed(() => {
     positions[id] = { x: r * Math.cos(angle - Math.PI / 2), y: r * Math.sin(angle - Math.PI / 2), level, relType, angle, arcSpan: a1 - a0 }
 
     if (level === 0) {
+      const marriages = nodeMap[id]?.data?.marriages || {}
       const parents  = (nodeMap[id]?.rels?.parents  || []).map(p => String(p)).filter(p => !visited.has(p))
-      const spouses  = (nodeMap[id]?.rels?.spouses  || []).map(s => String(s)).filter(s => !visited.has(s))
+      // Former spouses are not shown beside the center — only current partners read as "together"
+      const spouses  = (nodeMap[id]?.rels?.spouses  || []).map(s => String(s))
+        .filter(s => !visited.has(s) && !marriages[s]?.is_former)
 
       // ── Reserved top wedge for PARENTS only (angle 0 = straight up) ──
       if (parents.length) {
@@ -893,10 +896,11 @@ const radialData = computed(() => {
     const ly = labelBelow ? nodeR + 9 : Math.sin(angle - Math.PI / 2) * lDist
     const labelBaseline = ly > 3 ? 'hanging' : ly < -3 ? 'auto' : 'central'
 
-    // Married-in spouse: a spouse not placed elsewhere in the layout (peripheral hint + hover reveal)
+    // Married-in spouse: a current spouse not placed elsewhere (peripheral hint + hover reveal)
     let spouse = null
     if (!isRoot && !pos.centerSpouse) {
-      const sid = (n?.rels?.spouses || []).map(String).find(s => !positions[s] && nodeMap[s])
+      const mar = n?.data?.marriages || {}
+      const sid = (n?.rels?.spouses || []).map(String).find(s => !positions[s] && nodeMap[s] && !mar[s]?.is_former)
       if (sid) {
         const sp = nodeMap[sid]
         spouse = {

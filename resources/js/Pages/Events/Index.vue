@@ -99,6 +99,17 @@
               <span class="panel-greg">{{ panel.greg }}</span>
             </div>
             <div v-if="panel.age" class="panel-age">{{ panel.age }}</div>
+
+            <div class="panel-info">
+              <div v-if="panel.person.maiden_name" class="info-row"><span class="info-ic">👰</span>{{ panel.person.maiden_name }}</div>
+              <div v-if="panel.person.spouse" class="info-row"><span class="info-ic">💍</span>{{ panel.person.spouse }}</div>
+              <div v-if="panel.person.occupation" class="info-row"><span class="info-ic">💼</span>{{ panel.person.occupation }}</div>
+              <div v-if="panel.person.city" class="info-row"><span class="info-ic">📍</span>{{ panel.person.city }}</div>
+              <div v-if="panel.person.bio" class="info-row info-bio"><span class="info-ic">📝</span>{{ panel.person.bio }}</div>
+              <a v-if="panel.person.email" :href="`mailto:${panel.person.email}`" class="info-row info-link" dir="ltr"><span class="info-ic">✉️</span>{{ panel.person.email }}</a>
+              <a v-if="panel.person.phone" :href="`tel:${panel.person.phone}`" class="info-row info-link" dir="ltr"><span class="info-ic">📞</span>{{ panel.person.phone }}</a>
+            </div>
+
             <Link :href="`/people/${panel.person.id}`" class="panel-btn">כרטיס מלא ›</Link>
           </template>
 

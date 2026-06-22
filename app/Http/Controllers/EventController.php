@@ -20,24 +20,42 @@ class EventController extends Controller
             ->get()
             ->map(fn($e) => $this->cardPayload($e));
 
-        // אנשים עם תאריך לידה — לסימון ימי הולדת על הלוח
+        // מפת בני/בנות זוג (נוכחיים) — שם פרטי לכל אדם
+        $spouseRels = \App\Models\Relationship::where('type', 'spouse')
+            ->where('is_former', false)
+            ->with(['person1:id,first_name,last_name', 'person2:id,first_name,last_name'])
+            ->get();
+        $spouseMap = [];
+        foreach ($spouseRels as $r) {
+            if ($r->person1 && $r->person2) {
+                $spouseMap[$r->person1_id][] = $r->person2->first_name;
+                $spouseMap[$r->person2_id][] = $r->person1->first_name;
+            }
+        }
+
+        // אנשים עם תאריך לידה — לסימון ימי הולדת על הלוח (כולל פרטים לפאנל)
         $birthdays = Person::whereNotNull('birth_date_gregorian')
             ->where('is_deceased', false)
             ->get()
             ->map(fn($p) => [
-                'id'         => $p->id,
-                'name'       => $p->full_name,
-                'photo'      => $p->profile_photo_url,
-                'gender'     => $p->gender,
-                'birth_date' => optional($p->birth_date_gregorian)->format('Y-m-d'),
+                'id'          => $p->id,
+                'name'        => $p->full_name,
+                'photo'       => $p->profile_photo_url,
+                'gender'      => $p->gender,
+                'birth_date'  => optional($p->birth_date_gregorian)->format('Y-m-d'),
+                'hebrew_date' => $p->birth_date_hebrew,
+                'maiden_name' => $p->maiden_name,
+                'occupation'  => $p->current_occupation,
+                'city'        => $p->city,
+                'bio'         => $p->bio,
+                'email'       => $p->email,
+                'phone'       => $p->phone,
+                'spouse'      => isset($spouseMap[$p->id]) ? implode(', ', $spouseMap[$p->id]) : null,
             ]);
 
         // ימי נישואין — זוגות נשואים עם תאריך נישואין
-        $anniversaries = \App\Models\Relationship::where('type', 'spouse')
-            ->where('is_former', false)
+        $anniversaries = $spouseRels
             ->whereNotNull('marriage_date_gregorian')
-            ->with(['person1:id,first_name,last_name', 'person2:id,first_name,last_name'])
-            ->get()
             ->filter(fn($r) => $r->person1 && $r->person2)
             ->map(fn($r) => [
                 'id'            => $r->id,
