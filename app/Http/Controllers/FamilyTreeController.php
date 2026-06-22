@@ -254,6 +254,7 @@ class FamilyTreeController extends Controller
         $spouses   = [];   // person_id → [spouse_id, ...]
         $marriages = [];   // person_id → {spouse_id → {date, date_he}}
         $childSort = [];   // child_id  → sort_order (סדר אחים שהאדמין קבע, אם קיים)
+        $explicitKids = []; // child_id → true (הורות ששויכה ידנית — גוברת על המיזוג האוטומטי)
 
         foreach ($relationships as $rel) {
             if ($rel->type === 'parent_child') {
@@ -261,6 +262,9 @@ class FamilyTreeController extends Controller
                 $parents[$rel->person2_id][]  = (string) $rel->person1_id;
                 if ($rel->sort_order !== null) {
                     $childSort[(string) $rel->person2_id] = $rel->sort_order;
+                }
+                if ($rel->is_explicit) {
+                    $explicitKids[(string) $rel->person2_id] = true;
                 }
             } elseif ($rel->type === 'spouse') {
                 $spouses[$rel->person1_id][] = (string) $rel->person2_id;
@@ -284,22 +288,26 @@ class FamilyTreeController extends Controller
             }
         }
 
-        // הנחה: בני זוג תמיד הורים משותפים של כל ילדיהם.
-        // pass שני — מאחד ילדים של שני בני הזוג ומוודא שכל ילד מקושר לשניהם.
+        // ברירת מחדל: בני זוג הם הורים משותפים של ילדיהם — ממזגים ילדים בין שני בני-הזוג.
+        // חריג: ילד ששויך ידנית להורים מסוימים (is_explicit) לא ממוזג — נשאר רק אצל הוריו האמיתיים.
         foreach ($spouses as $pid => $mySpouseIds) {
             foreach ($mySpouseIds as $spouseId) {
                 $sid = (int) $spouseId;
                 if ($pid >= $sid) continue; // מעבד כל זוג פעם אחת בלבד
 
-                $allChildren = array_values(array_unique(array_merge(
-                    $children[$pid] ?? [],
-                    $children[$sid] ?? []
-                )));
+                // ילדים שאינם משויכים-ידנית — אלה שמשתתפים במיזוג
+                $pidShared = array_filter($children[$pid] ?? [], fn($c) => !isset($explicitKids[$c]));
+                $sidShared = array_filter($children[$sid] ?? [], fn($c) => !isset($explicitKids[$c]));
+                $shared    = array_values(array_unique(array_merge($pidShared, $sidShared)));
 
-                $children[$pid] = $allChildren;
-                $children[$sid] = $allChildren;
+                // ילדים משויכים-ידנית נשארים בדיוק היכן שהם
+                $pidExplicit = array_filter($children[$pid] ?? [], fn($c) => isset($explicitKids[$c]));
+                $sidExplicit = array_filter($children[$sid] ?? [], fn($c) => isset($explicitKids[$c]));
 
-                foreach ($allChildren as $childId) {
+                $children[$pid] = array_values(array_unique(array_merge($shared, $pidExplicit)));
+                $children[$sid] = array_values(array_unique(array_merge($shared, $sidExplicit)));
+
+                foreach ($shared as $childId) {
                     $cid = (int) $childId;
                     $parents[$cid] = array_values(array_unique(array_merge(
                         $parents[$cid] ?? [],

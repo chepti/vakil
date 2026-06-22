@@ -166,6 +166,33 @@ class Person extends Model
 
     // ─── Helpers ──────────────────────────────────────────────────
 
+    /**
+     * מחזיר "של X של Y" — שרשרת הורים עולה עד לפני הדמות עם is_main_person=true.
+     * לשימוש בתצוגה: "יגל הלפרן של שלום של דליה"
+     */
+    public function ancestralContext(int $maxLevels = 5): string
+    {
+        $parts   = [];
+        $current = $this;
+        $visited = [$this->id => true];
+
+        for ($i = 0; $i < $maxLevels; $i++) {
+            $parents = $current->parents()->get();
+            if ($parents->isEmpty()) break;
+
+            // מעדיפים הורה שאינו השורש (is_main_person) ואינו כבר בשרשרת
+            $parent = $parents->first(fn ($p) => ! $p->is_main_person && ! isset($visited[$p->id]));
+            if (! $parent) break;
+
+            $visited[$parent->id] = true;
+            $parts[]  = $parent->first_name;
+            $current  = $parent;
+        }
+
+        if (empty($parts)) return '';
+        return 'של ' . implode(' של ', $parts);
+    }
+
     /** כל מזהי הצאצאים (רקורסיבי) — לקהל יעד מסוג "ענף: צאצאי X" */
     public function descendantIds(): array
     {

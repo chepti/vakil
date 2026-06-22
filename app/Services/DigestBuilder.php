@@ -50,6 +50,92 @@ class DigestBuilder
         ];
     }
 
+    /**
+     * סעיף "ענף ברזולוציה גבוהה" למשתמש שבחר דמות:
+     * כל ימי ההולדת והנישואין (בכל גיל, לא רק עשורים) של הצאצאים מתחת לדמות,
+     * שחלים בחודש העברי הקרוב.
+     *
+     * @return array{rootName:string, birthdays:array, anniversaries:array}
+     */
+    public function branchSection(Person $root, Carbon $when): array
+    {
+        $parts = HebrewDate::parts($when);
+        $currentMonthNorm  = HebrewDate::normalizeAdar($parts['month']);
+        $currentHebrewYear = $parts['year'];
+
+        $ids = $root->descendantIds();
+
+        if (empty($ids)) {
+            return ['rootName' => $root->full_name, 'birthdays' => [], 'anniversaries' => []];
+        }
+
+        $birthdays = [];
+        Person::query()
+            ->whereIn('id', $ids)
+            ->where('is_deceased', false)
+            ->whereNotNull('birth_date_gregorian')
+            ->get()
+            ->each(function (Person $p) use (&$birthdays, $currentMonthNorm, $currentHebrewYear) {
+                $b = HebrewDate::parts(Carbon::parse($p->birth_date_gregorian));
+                if (HebrewDate::normalizeAdar($b['month']) !== $currentMonthNorm) {
+                    return;
+                }
+                $age = $currentHebrewYear - $b['year'];
+                if ($age < 1) {
+                    return;
+                }
+                $birthdays[] = [
+                    'name'     => $p->full_name,
+                    'age'      => $age,
+                    'dayMonth' => HebrewDate::dayMonth(Carbon::parse($p->birth_date_gregorian)),
+                    'day'      => $b['day'],
+                    'url'      => route('people.show', $p->id),
+                    'photoUrl' => $p->profile_photo_url,
+                    'context'  => $p->ancestralContext(),
+                ];
+            });
+
+        $anniversaries = [];
+        Relationship::query()
+            ->where('type', 'spouse')
+            ->where('is_former', false)
+            ->whereNotNull('marriage_date_gregorian')
+            ->where(fn ($q) => $q->whereIn('person1_id', $ids)->orWhereIn('person2_id', $ids))
+            ->get()
+            ->each(function (Relationship $r) use (&$anniversaries, $currentMonthNorm, $currentHebrewYear) {
+                $m = HebrewDate::parts(Carbon::parse($r->marriage_date_gregorian));
+                if (HebrewDate::normalizeAdar($m['month']) !== $currentMonthNorm) {
+                    return;
+                }
+                $years = $currentHebrewYear - $m['year'];
+                if ($years < 1) {
+                    return;
+                }
+                $p1 = Person::find($r->person1_id);
+                $p2 = Person::find($r->person2_id);
+                if (! $p1 || ! $p2 || $p1->is_deceased || $p2->is_deceased) {
+                    return;
+                }
+                $anniversaries[] = [
+                    'names'    => "{$p1->full_name} ו{$p2->full_name}",
+                    'years'    => $years,
+                    'dayMonth' => HebrewDate::dayMonth(Carbon::parse($r->marriage_date_gregorian)),
+                    'day'      => $m['day'],
+                    'url'      => route('people.show', $p1->id),
+                ];
+            });
+
+        // מיון לפי יום בחודש
+        usort($birthdays, fn ($a, $b) => $a['day'] <=> $b['day']);
+        usort($anniversaries, fn ($a, $b) => $a['day'] <=> $b['day']);
+
+        return [
+            'rootName'      => $root->full_name,
+            'birthdays'     => $birthdays,
+            'anniversaries' => $anniversaries,
+        ];
+    }
+
     /** תינוקות שנולדו בחודש העברי שחלף */
     private function newBabies(Carbon $from, Carbon $to): array
     {
@@ -64,6 +150,8 @@ class DigestBuilder
                 'url'         => route('people.show', $p->id),
                 'hebrewBirth' => HebrewDate::format(Carbon::parse($p->birth_date_gregorian)),
                 'photoUrl'    => $p->profile_photo_url,
+                'context'     => $p->ancestralContext(),
+                'gender'      => $p->gender,
             ])
             ->all();
     }
@@ -79,13 +167,15 @@ class DigestBuilder
             ->orderBy('event_time')
             ->get()
             ->map(fn (Event $e) => [
-                'title'      => $e->title ?: $this->eventTypeLabel($e->type),
-                'typeLabel'  => $this->eventTypeLabel($e->type),
-                'date'       => Carbon::parse($e->event_date)->format('d/m/Y'),
-                'hebrewDate' => $e->hebrew_date ?: HebrewDate::format(Carbon::parse($e->event_date)),
-                'location'   => $e->location,
-                'personName' => $e->person?->full_name,
-                'url'        => route('events.show', $e->id),
+                'title'            => $e->title ?: $this->eventTypeLabel($e->type),
+                'typeLabel'        => $this->eventTypeLabel($e->type),
+                'date'             => Carbon::parse($e->event_date)->format('d/m/Y'),
+                'hebrewDate'       => $e->hebrew_date ?: HebrewDate::format(Carbon::parse($e->event_date)),
+                'location'         => $e->location,
+                'personName'       => $e->person?->full_name,
+                'url'              => route('events.show', $e->id),
+                'invitationImgUrl' => $e->invitation_image_url,
+                'personPhotoUrl'   => $e->person?->profile_photo_url,
             ])
             ->all();
     }
@@ -110,10 +200,12 @@ class DigestBuilder
                     return;
                 }
                 $out[] = [
-                    'name'    => $p->full_name,
-                    'age'     => $age,
+                    'name'     => $p->full_name,
+                    'age'      => $age,
                     'dayMonth' => HebrewDate::dayMonth(Carbon::parse($p->birth_date_gregorian)),
-                    'url'     => route('people.show', $p->id),
+                    'url'      => route('people.show', $p->id),
+                    'photoUrl' => $p->profile_photo_url,
+                    'context'  => $p->ancestralContext(),
                 ];
             });
 

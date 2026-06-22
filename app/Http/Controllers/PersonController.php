@@ -54,6 +54,7 @@ class PersonController extends Controller
             'email'                 => 'nullable|email|max:255',
             'parent_ids'            => 'nullable|array|max:2',
             'parent_ids.*'          => 'integer|exists:people,id',
+            'explicit_parents'      => 'nullable|boolean',
             'spouse_id'              => 'nullable|integer|exists:people,id',
             'marriage_date_gregorian'=> 'nullable|date',
             'marriage_date_hebrew'   => 'nullable|string|max:50',
@@ -81,12 +82,14 @@ class PersonController extends Controller
             'created_by'           => Auth::id(),
         ]);
 
-        // קשרי הורים
+        // קשרי הורים — explicit_parents מסמן שיוך מפורש שגובר על המיזוג האוטומטי של בני-זוג
+        $explicit = (bool) ($data['explicit_parents'] ?? false);
         foreach ($data['parent_ids'] ?? [] as $parentId) {
             Relationship::create([
-                'person1_id' => $parentId,
-                'person2_id' => $person->id,
-                'type'       => 'parent_child',
+                'person1_id'  => $parentId,
+                'person2_id'  => $person->id,
+                'type'        => 'parent_child',
+                'is_explicit' => $explicit,
             ]);
         }
 
@@ -414,6 +417,46 @@ class PersonController extends Controller
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * שיוך ידני של ילד להוריו האמיתיים (גובר על המיזוג האוטומטי של בני-זוג).
+     * $person הוא הילד; parent_ids הם 1–2 ההורים הנכונים.
+     */
+    public function setParents(Request $request, Person $person)
+    {
+        if (Auth::user()->role !== 'admin') {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'parent_ids'   => 'present|array|max:2',
+            'parent_ids.*' => 'integer|exists:people,id',
+        ]);
+
+        $parentIds = array_values(array_unique(array_map('intval', $data['parent_ids'])));
+
+        // שמור sort_order קיים (סדר אחים) כדי לא לאבד אותו בעת מחיקה/יצירה מחדש
+        $oldSort = Relationship::where('person2_id', $person->id)
+            ->where('type', 'parent_child')
+            ->whereNotNull('sort_order')
+            ->value('sort_order');
+
+        // מחק את כל קשרי ההורות הקיימים של הילד וצור מחדש עם ההורים שנבחרו, מסומנים כמפורשים
+        Relationship::where('person2_id', $person->id)->where('type', 'parent_child')->delete();
+
+        foreach ($parentIds as $pid) {
+            if ($pid === $person->id) continue;
+            Relationship::create([
+                'person1_id'  => $pid,
+                'person2_id'  => $person->id,
+                'type'        => 'parent_child',
+                'sort_order'  => $oldSort,
+                'is_explicit' => true,
+            ]);
+        }
+
+        return response()->json(['ok' => true, 'parent_ids' => $parentIds]);
     }
 
     private function formatMini(Person $p): array

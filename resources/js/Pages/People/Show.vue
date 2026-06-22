@@ -538,11 +538,19 @@
             <input v-model="childForm.birth_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' @change="syncG(childForm,'birth_date_gregorian','birth_date_hebrew')" />
           </div>
         </div>
-        <div class="form-group" v-if="spouses.length">
+        <div class="form-group" v-if="spouses.length === 1">
           <label class="checkbox-label">
             <input type="checkbox" v-model="childForm.add_spouse_as_parent" />
             <span>הוסף גם את {{ spouses[0].full_name }} כהורה שני</span>
           </label>
+        </div>
+        <div class="form-group" v-else-if="spouses.length > 1">
+          <label>ההורה השני (האם/האב)</label>
+          <select v-model="childForm.co_parent_id" class="rel-select">
+            <option :value="null">— ללא —</option>
+            <option v-for="s in spouses" :key="s.id" :value="s.id">{{ s.full_name }}</option>
+          </select>
+          <p class="hint-small">בחירת הורה שני תשייך את הילד במפורש לזוג הזה — לא לבני-זוג אחרים.</p>
         </div>
 
         <div class="modal-actions">
@@ -801,19 +809,28 @@ function submitSibling() {
 const showAddChild = ref(false)
 const savingChild  = ref(false)
 const childForm    = reactive({
-  first_name: '', last_name: '', gender: '', birth_date_gregorian: '', birth_date_hebrew: '', add_spouse_as_parent: false,
+  first_name: '', last_name: '', gender: '', birth_date_gregorian: '', birth_date_hebrew: '',
+  add_spouse_as_parent: false, co_parent_id: null,
 })
 
 function openAddChild() {
   childForm.first_name = ''; childForm.last_name = ''; childForm.gender = ''
-  childForm.birth_date_gregorian = ''; childForm.birth_date_hebrew = ''; childForm.add_spouse_as_parent = false
+  childForm.birth_date_gregorian = ''; childForm.birth_date_hebrew = ''
+  childForm.add_spouse_as_parent = false; childForm.co_parent_id = null
   showAddChild.value = true
 }
 
 function submitChild() {
   savingChild.value = true
   const parentIds = [props.person.id]
-  if (childForm.add_spouse_as_parent && props.spouses[0]) parentIds.push(props.spouses[0].id)
+  let explicit = false
+  if (props.spouses.length === 1 && childForm.add_spouse_as_parent) {
+    parentIds.push(props.spouses[0].id)
+  } else if (props.spouses.length > 1 && childForm.co_parent_id) {
+    // With several spouses the choice must be explicit, or the auto-merge would re-add the others
+    parentIds.push(childForm.co_parent_id)
+    explicit = true
+  }
   router.post('/people', {
     first_name:           childForm.first_name,
     last_name:            childForm.last_name || props.person.last_name,
@@ -821,10 +838,46 @@ function submitChild() {
     birth_date_gregorian: childForm.birth_date_gregorian || null,
     birth_date_hebrew:    childForm.birth_date_hebrew || null,
     parent_ids:           parentIds,
+    explicit_parents:     explicit,
   }, {
     onSuccess: () => { showAddChild.value = false },
     onFinish:  () => { savingChild.value = false },
   })
+}
+
+// ─── Set a child's other parent (overrides spouse auto-merge) ─────────
+const isAdmin           = computed(() => $page?.props?.auth?.user?.role === 'admin')
+const showChildParent   = ref(false)
+const childParentTarget = ref(null)   // the child being edited
+const childParentCoId   = ref(null)   // chosen co-parent (a spouse of this person), or null = sole parent
+const savingChildParent = ref(false)
+
+function openChildParent(child) {
+  childParentTarget.value = child
+  childParentCoId.value   = null
+  showChildParent.value   = true
+}
+
+async function saveChildParent() {
+  if (savingChildParent.value || !childParentTarget.value) return
+  savingChildParent.value = true
+  try {
+    const ids = [props.person.id]
+    if (childParentCoId.value) ids.push(childParentCoId.value)
+    const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
+    const res = await fetch(`/people/${childParentTarget.value.id}/set-parents`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+      body:    JSON.stringify({ parent_ids: ids }),
+    })
+    if (!res.ok) throw new Error()
+    showChildParent.value = false
+    router.reload({ only: ['children'] })
+  } catch {
+    alert('שגיאה בשמירת ההורה')
+  } finally {
+    savingChildParent.value = false
+  }
 }
 
 // ─── Delete ──────────────────────────────────────────────

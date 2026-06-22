@@ -15,7 +15,8 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'email', 'password', 'google_id',
         'role', 'status', 'person_id', 'invited_by',
-        'notify_monthly_digest', 'notify_new_person',
+        'notify_monthly_digest', 'notify_new_person', 'notify_new_event',
+        'digest_branch_person_id',
     ];
 
     protected $hidden = [
@@ -29,6 +30,7 @@ class User extends Authenticatable
             'password'              => 'hashed',
             'notify_monthly_digest' => 'boolean',
             'notify_new_person'     => 'boolean',
+            'notify_new_event'      => 'boolean',
         ];
     }
 
@@ -44,6 +46,11 @@ class User extends Authenticatable
     public function person(): BelongsTo
     {
         return $this->belongsTo(Person::class);
+    }
+
+    public function digestBranch(): BelongsTo
+    {
+        return $this->belongsTo(Person::class, 'digest_branch_person_id');
     }
 
     public function invitedBy(): BelongsTo

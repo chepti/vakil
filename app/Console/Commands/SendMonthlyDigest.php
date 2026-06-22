@@ -50,11 +50,24 @@ class SendMonthlyDigest extends Command
             ->whereNotNull('email')
             ->get();
 
+        // סעיף הענף מחושב פעם אחת לכל דמות-ענף נבחרת (משותף בין משתמשים שבחרו אותה דמות)
+        $branchCache = [];
+
         $sent = 0;
         $failed = 0;
         foreach ($recipients as $user) {
             try {
-                Mail::to($user->email)->send(new MonthlyDigestMail($data, $user->name));
+                $branch = null;
+                if ($user->digest_branch_person_id) {
+                    $bid = $user->digest_branch_person_id;
+                    if (! array_key_exists($bid, $branchCache)) {
+                        $root = \App\Models\Person::find($bid);
+                        $branchCache[$bid] = $root ? $builder->branchSection($root, $when) : null;
+                    }
+                    $branch = $branchCache[$bid];
+                }
+
+                Mail::to($user->email)->send(new MonthlyDigestMail($data, $user->name, $branch));
                 $sent++;
             } catch (\Throwable $e) {
                 $failed++;

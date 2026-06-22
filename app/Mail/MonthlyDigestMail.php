@@ -18,6 +18,7 @@ class MonthlyDigestMail extends Mailable
     public function __construct(
         public array $data,
         public ?string $recipientName = null,
+        public ?array $branch = null,
     ) {
     }
 
@@ -35,6 +36,7 @@ class MonthlyDigestMail extends Mailable
             with: [
                 'd'             => $this->data,
                 'recipientName' => $this->recipientName,
+                'branch'        => $this->branch,
                 'profileUrl'    => route('profile.edit'),
             ],
         );
