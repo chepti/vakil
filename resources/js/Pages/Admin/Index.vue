@@ -27,6 +27,21 @@
         </div>
       </section>
 
+      <!-- שליחת עדכון חודשי -->
+      <section class="panel">
+        <h2>📬 עדכון חודשי במייל</h2>
+        <p class="hint">שלחו את הדיגסט החודשי לכולם, או קבלו תצוגה מקדימה לעצמכם.</p>
+        <div v-if="digestMessage" class="digest-msg">✓ {{ digestMessage }}</div>
+        <div class="download-row">
+          <button class="dl-btn" :disabled="digestSending" @click="sendDigestPreview">
+            {{ digestSending ? '...שולח' : '👁️ שלח לי תצוגה מקדימה' }}
+          </button>
+          <button class="dl-btn dl-btn-send" :disabled="digestSending" @click="sendDigestAll">
+            {{ digestSending ? '...שולח' : '📤 שלח לכולם עכשיו' }}
+          </button>
+        </div>
+      </section>
+
       <!-- מסמכים -->
       <section class="panel">
         <h2>📄 מסמכים משותפים</h2>
@@ -115,7 +130,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { Link, router, useForm } from '@inertiajs/vue3'
+import { Link, router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineProps({
@@ -129,6 +144,37 @@ defineProps({
 
 const fileInput = ref(null)
 const docForm = useForm({ title: '', file: null })
+
+// דיגסט מייל
+const digestSending = ref(false)
+const digestMessage = ref(usePage().props.flash?.digest_success ?? null)
+
+function sendDigestPreview() {
+  if (!confirm('לשלוח תצוגה מקדימה לכתובת המייל שלך?')) return
+  digestSending.value = true
+  router.post('/admin/digest/preview', {}, {
+    preserveScroll: true,
+    onSuccess: () => {
+      digestMessage.value = usePage().props.flash?.digest_success ?? 'נשלח!'
+      digestSending.value = false
+    },
+    onError: () => { digestSending.value = false },
+  })
+}
+
+function sendDigestAll() {
+  const recipients = usePage().props.summary?.users_total ?? '?'
+  if (!confirm(`לשלוח עדכון חודשי לכל המנויים (עד ${recipients} משתמשים)?`)) return
+  digestSending.value = true
+  router.post('/admin/digest/send-all', {}, {
+    preserveScroll: true,
+    onSuccess: () => {
+      digestMessage.value = usePage().props.flash?.digest_success ?? 'נשלח לכולם!'
+      digestSending.value = false
+    },
+    onError: () => { digestSending.value = false },
+  })
+}
 
 function onFile(e) {
   docForm.file = e.target.files[0]
@@ -209,9 +255,13 @@ function deleteUser(u) {
   padding: 0.6rem 1rem; border-radius: 9px; font-size: 0.9rem; font-weight: 500;
   transition: background 0.2s;
 }
-.dl-btn:hover { background: #dde9ff; }
+.dl-btn:hover:not(:disabled) { background: #dde9ff; }
+.dl-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .dl-btn.print { background: #fff4e6; color: #e67e22; }
 .dl-btn.print:hover { background: #ffe9cc; }
+.dl-btn-send { background: #e8f5e9; color: #166534; }
+.dl-btn-send:hover:not(:disabled) { background: #d1f0d8; }
+.digest-msg { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 8px; padding: 0.5rem 0.85rem; margin-bottom: 0.75rem; font-size: 0.88rem; }
 
 /* מסמכים */
 .doc-form { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1rem; }

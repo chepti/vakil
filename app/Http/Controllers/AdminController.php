@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\MonthlyDigestMail;
 use App\Models\Document;
 use App\Models\Invitation;
 use App\Models\Person;
 use App\Models\User;
+use App\Services\DigestBuilder;
+use App\Support\HebrewDate;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Inertia\Inertia;
@@ -225,6 +229,67 @@ class AdminController extends Controller
             ['תאריך', 'שם', 'תאריך עברי', 'שנת לידה'],
             $rows
         );
+    }
+
+    // ─── דיגסט מייל ────────────────────────────────────────────────
+
+    /** שליחת תצוגה מקדימה של העדכון החודשי לאדמין עצמו בלבד. */
+    public function digestPreview(Request $request, DigestBuilder $builder)
+    {
+        $this->ensureAdmin();
+
+        $when   = Carbon::today();
+        $data   = $builder->build($when);
+        $branch = null;
+
+        if ($request->user()->digest_branch_person_id) {
+            $root   = Person::find($request->user()->digest_branch_person_id);
+            $branch = $root ? $builder->branchSection($root, $when) : null;
+        }
+
+        Mail::to($request->user()->email)
+            ->send(new MonthlyDigestMail($data, $request->user()->name, $branch));
+
+        return back()->with('digest_success', 'תצוגה מקדימה נשלחה לכתובת ' . $request->user()->email);
+    }
+
+    /** שליחת העדכון החודשי לכל המשתמשים הרשומים. */
+    public function digestSendAll(Request $request, DigestBuilder $builder)
+    {
+        $this->ensureAdmin();
+
+        $when   = Carbon::today();
+        $data   = $builder->build($when);
+
+        $recipients = User::where('notify_monthly_digest', true)
+            ->where('status', 'active')
+            ->whereNotNull('email')
+            ->get();
+
+        $branchCache = [];
+        $sent = $failed = 0;
+
+        foreach ($recipients as $user) {
+            try {
+                $branch = null;
+                if ($user->digest_branch_person_id) {
+                    $bid = $user->digest_branch_person_id;
+                    if (! array_key_exists($bid, $branchCache)) {
+                        $root = Person::find($bid);
+                        $branchCache[$bid] = $root ? $builder->branchSection($root, $when) : null;
+                    }
+                    $branch = $branchCache[$bid];
+                }
+                Mail::to($user->email)->send(new MonthlyDigestMail($data, $user->name, $branch));
+                $sent++;
+            } catch (\Throwable $e) {
+                $failed++;
+                report($e);
+            }
+        }
+
+        $msg = "נשלחו {$sent} מיילים" . ($failed ? " ({$failed} נכשלו)" : '') . '.';
+        return back()->with('digest_success', $msg);
     }
 
     /** בונה תגובת CSV עם BOM (לתמיכת עברית באקסל). */

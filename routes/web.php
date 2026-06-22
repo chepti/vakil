@@ -84,6 +84,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/export/users', [AdminController::class, 'exportUsers'])->name('export.users');
         Route::get('/export/birthdays', [AdminController::class, 'exportBirthdays'])->name('export.birthdays');
 
+        // דיגסט מייל — שליחה ידנית
+        Route::post('/digest/preview',  [AdminController::class, 'digestPreview'])->name('digest.preview');
+        Route::post('/digest/send-all', [AdminController::class, 'digestSendAll'])->name('digest.send-all');
+
         // ניהול הזמנות
         Route::post('/invitations/{invitation}/extend', [InvitationController::class, 'extend'])->name('invitations.extend');
         Route::delete('/invitations/{invitation}', [InvitationController::class, 'destroy'])->name('invitations.delete');

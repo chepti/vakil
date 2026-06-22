@@ -15,7 +15,8 @@ class SendMonthlyDigest extends Command
     protected $signature = 'digest:monthly
         {--force : שליחה גם אם היום אינו ראש חודש}
         {--date= : תאריך לועזי לבדיקה (YYYY-MM-DD) במקום היום}
-        {--dry : בנייה והצגה בלבד, ללא שליחת מיילים}';
+        {--dry : בנייה והצגה בלבד, ללא שליחת מיילים}
+        {--to= : שליחה לכתובת מייל ספציפית (לבדיקה) במקום לכל הרשומים}';
 
     protected $description = 'שולח את המייל החודשי (ראש חודש) לכל הרשומים שבחרו לקבלו';
 
@@ -41,6 +42,19 @@ class SendMonthlyDigest extends Command
         if ($this->option('dry')) {
             $this->warn('--dry: לא נשלחו מיילים.');
 
+            return self::SUCCESS;
+        }
+
+        // --to שולח רק לכתובת מבדיקה אחת (ללא סינון notify)
+        if ($toEmail = $this->option('to')) {
+            $user = User::where('email', $toEmail)->first();
+            $branch = null;
+            if ($user?->digest_branch_person_id) {
+                $root   = \App\Models\Person::find($user->digest_branch_person_id);
+                $branch = $root ? $builder->branchSection($root, $when) : null;
+            }
+            Mail::to($toEmail)->send(new MonthlyDigestMail($data, $user?->name, $branch));
+            $this->info("נשלח בדיקה אל {$toEmail}.");
             return self::SUCCESS;
         }
 
