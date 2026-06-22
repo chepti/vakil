@@ -41,6 +41,21 @@ class ProfileController extends Controller
     }
 
     /**
+     * Update the user's email notification preferences.
+     */
+    public function updateNotifications(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'notify_monthly_digest' => ['required', 'boolean'],
+            'notify_new_person'     => ['required', 'boolean'],
+        ]);
+
+        $request->user()->fill($data)->save();
+
+        return Redirect::route('profile.edit');
+    }
+
+    /**
      * Delete the user's account.
      */
     public function destroy(Request $request): RedirectResponse

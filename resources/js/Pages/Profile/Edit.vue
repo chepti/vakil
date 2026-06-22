@@ -1,6 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import DeleteUserForm from './Partials/DeleteUserForm.vue'
+import UpdateNotificationsForm from './Partials/UpdateNotificationsForm.vue'
 import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue'
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue'
 import { Head } from '@inertiajs/vue3'
@@ -26,6 +27,10 @@ defineProps({
           :must-verify-email="mustVerifyEmail"
           :status="status"
         />
+      </div>
+
+      <div class="pf-card">
+        <UpdateNotificationsForm />
       </div>
 
       <div class="pf-card">

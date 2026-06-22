@@ -36,6 +36,26 @@ class Person extends Model
             );
             Mail::to($newEmail)->send(new InvitationMail($invitation));
         });
+
+        // התראה מיידית למנויים כשנוספת דמות חדשה — רק על יצירה דרך הממשק (משתמש מחובר),
+        // כדי לא להציף מיילים בזמן seed/ייבוא.
+        static::created(function (Person $person) {
+            if (! Auth::check()) return;
+
+            try {
+                $recipients = \App\Models\User::where('notify_new_person', true)
+                    ->where('status', 'active')
+                    ->whereNotNull('email')
+                    ->where('id', '!=', Auth::id())
+                    ->get();
+
+                foreach ($recipients as $user) {
+                    Mail::to($user->email)->send(new \App\Mail\NewPersonMail($person, $user->name));
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
     }
 
     protected $fillable = [

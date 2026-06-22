@@ -115,6 +115,22 @@
     "file": "assets/TreeNodeVertical-Cwud6xWo.css",
     "src": "_TreeNodeVertical-Cwud6xWo.css"
   },
+  "_UpdateNotificationsForm-C0drlcmm.js": {
+    "file": "assets/UpdateNotificationsForm-C0drlcmm.js",
+    "name": "UpdateNotificationsForm",
+    "imports": [
+      "__plugin-vue_export-helper-BDNMzG2s.js",
+      "_index.esm-DvVMFmNV.js",
+      "_runtime-core.esm-bundler-CNqyEwW_.js"
+    ],
+    "css": [
+      "assets/UpdateNotificationsForm-Cm_1KFjP.css"
+    ]
+  },
+  "_UpdateNotificationsForm-Cm_1KFjP.css": {
+    "file": "assets/UpdateNotificationsForm-Cm_1KFjP.css",
+    "src": "_UpdateNotificationsForm-Cm_1KFjP.css"
+  },
   "_UpdatePasswordForm-BkPOlSLm.js": {
     "file": "assets/UpdatePasswordForm-BkPOlSLm.js",
     "name": "UpdatePasswordForm",
@@ -580,7 +596,7 @@
     ]
   },
   "resources/js/Pages/Profile/Edit.vue": {
-    "file": "assets/Edit-DKwJovKp.js",
+    "file": "assets/Edit-DnT2QvxQ.js",
     "name": "Edit",
     "src": "resources/js/Pages/Profile/Edit.vue",
     "isDynamicEntry": true,
@@ -589,6 +605,7 @@
       "_runtime-core.esm-bundler-CNqyEwW_.js",
       "_AppLayout-TCTrLwtH.js",
       "_DeleteUserForm-DTML3yXp.js",
+      "_UpdateNotificationsForm-C0drlcmm.js",
       "_UpdatePasswordForm-BkPOlSLm.js",
       "_UpdateProfileInformationForm-BUsnFB5y.js"
     ],
@@ -603,6 +620,15 @@
     "isDynamicEntry": true,
     "imports": [
       "_DeleteUserForm-DTML3yXp.js"
+    ]
+  },
+  "resources/js/Pages/Profile/Partials/UpdateNotificationsForm.vue": {
+    "file": "assets/UpdateNotificationsForm-B4h9EijT.js",
+    "name": "UpdateNotificationsForm",
+    "src": "resources/js/Pages/Profile/Partials/UpdateNotificationsForm.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_UpdateNotificationsForm-C0drlcmm.js"
     ]
   },
   "resources/js/Pages/Profile/Partials/UpdatePasswordForm.vue": {
@@ -660,7 +686,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-CV169jc7.js",
+    "file": "assets/app-uAXPFCZe.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -701,6 +727,7 @@
       "_TreeNodeVertical-BbKzLrS2.js",
       "resources/js/Pages/Profile/Edit.vue",
       "_DeleteUserForm-DTML3yXp.js",
+      "_UpdateNotificationsForm-C0drlcmm.js",
       "_UpdatePasswordForm-BkPOlSLm.js",
       "_UpdateProfileInformationForm-BUsnFB5y.js",
       "resources/js/Pages/Stats/Index.vue",
