@@ -399,7 +399,21 @@ const upcoming = computed(() =>
 .panel-date { margin-bottom: 0.5rem; }
 .panel-date strong { display: block; color: #6b4f2a; font-size: 1.05rem; }
 .panel-greg { display: block; color: #a99873; font-size: 0.85rem; margin-top: 0.2rem; }
-.panel-age { color: #2d6be4; font-weight: 600; margin: 0.5rem 0 1.25rem; }
+.panel-age { color: #2d6be4; font-weight: 600; margin: 0.5rem 0 1rem; }
+
+.panel-info {
+  width: 100%; text-align: right;
+  border-top: 1px solid #eef2f8; padding-top: 0.85rem; margin-bottom: 0.5rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.info-row {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  font-size: 0.9rem; color: #3a4a63; text-decoration: none;
+}
+.info-ic { flex-shrink: 0; }
+.info-bio { color: #5a6a85; line-height: 1.5; }
+.info-link { color: #2d6be4; }
+.info-link:hover { text-decoration: underline; }
 .panel-btn {
   display: inline-block; background: #2d6be4; color: white; text-decoration: none;
   padding: 0.5rem 1.3rem; border-radius: 10px; font-weight: 600; font-size: 0.92rem;

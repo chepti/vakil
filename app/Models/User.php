@@ -15,6 +15,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'email', 'password', 'google_id',
         'role', 'status', 'person_id', 'invited_by',
+        'notify_monthly_digest', 'notify_new_person',
     ];
 
     protected $hidden = [
@@ -24,8 +25,10 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
+            'email_verified_at'     => 'datetime',
+            'password'              => 'hashed',
+            'notify_monthly_digest' => 'boolean',
+            'notify_new_person'     => 'boolean',
         ];
     }
 
