@@ -144,13 +144,21 @@
               </div>
             </template>
             <template v-else>
-              <Link v-for="p in children" :key="p.id" :href="`/people/${p.id}`" class="mini-card" :class="p.gender">
-                <div class="mini-avatar">
-                  <img v-if="p.photo_url" :src="p.photo_url" :alt="p.full_name" />
-                  <div v-else class="mini-initials">{{ initials(p.full_name) }}</div>
-                </div>
-                <span>{{ p.full_name }}</span>
-              </Link>
+              <div v-for="p in children" :key="p.id" class="mini-card-wrap">
+                <Link :href="`/people/${p.id}`" class="mini-card" :class="p.gender">
+                  <div class="mini-avatar">
+                    <img v-if="p.photo_url" :src="p.photo_url" :alt="p.full_name" />
+                    <div v-else class="mini-initials">{{ initials(p.full_name) }}</div>
+                  </div>
+                  <span>{{ p.full_name }}</span>
+                </Link>
+                <button
+                  v-if="isAdmin && spouses.length"
+                  class="btn-coparent"
+                  @click.prevent.stop="openChildParent(p)"
+                  title="הגדר מי ההורה השני של הילד/ה"
+                >👪</button>
+              </div>
             </template>
             <div v-if="children.length === 0" class="empty-family">אין ילדים רשומים</div>
           </div>
@@ -563,6 +571,27 @@
       </div>
     </div>
 
+    <!-- ─── Modal: הורה שני של ילד/ה ─── -->
+    <div v-if="showChildParent" class="modal-overlay" @click.self="showChildParent = false">
+      <div class="modal" dir="rtl">
+        <h3>ההורה השני של {{ childParentTarget?.full_name }}</h3>
+        <p class="hint-small">בחר/י מי ההורה הנוסף (יחד עם {{ person.full_name }}). השיוך גובר על השיוך האוטומטי לכל בני-הזוג.</p>
+        <div class="form-group">
+          <label>הורה שני</label>
+          <select v-model="childParentCoId" class="rel-select">
+            <option :value="null">— ללא (רק {{ person.full_name }}) —</option>
+            <option v-for="s in spouses" :key="s.id" :value="s.id">{{ s.full_name }}</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="showChildParent = false">ביטול</button>
+          <button class="btn-primary-modal" @click="saveChildParent" :disabled="savingChildParent">
+            {{ savingChildParent ? 'שומר...' : 'שמור' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ─── Modal: אישור מחיקה ─── -->
     <div v-if="showDeleteConfirm" class="modal-overlay" @click.self="showDeleteConfirm = false">
       <div class="modal" dir="rtl">
@@ -583,7 +612,7 @@
 
 <script setup>
 import { ref, computed, reactive } from 'vue'
-import { Link, router, useForm } from '@inertiajs/vue3'
+import { Link, router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { gregorianToHebrew, hebrewToGregorian } from '@/utils/hebrewDate'
 
@@ -846,7 +875,8 @@ function submitChild() {
 }
 
 // ─── Set a child's other parent (overrides spouse auto-merge) ─────────
-const isAdmin           = computed(() => $page?.props?.auth?.user?.role === 'admin')
+const page              = usePage()
+const isAdmin           = computed(() => page.props?.auth?.user?.role === 'admin')
 const showChildParent   = ref(false)
 const childParentTarget = ref(null)   // the child being edited
 const childParentCoId   = ref(null)   // chosen co-parent (a spouse of this person), or null = sole parent
@@ -1095,6 +1125,24 @@ h2 { font-size: 1rem; color: #2d4a7a; margin: 0; font-weight: 600; }
 .mini-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .mini-initials { font-size: 1rem; font-weight: 700; color: #2d6be4; }
 .mini-marriage { font-size: 0.75rem; color: #7c5a8a; opacity: 0.85; }
+
+/* ─── Co-parent picker on child cards ─── */
+.mini-card-wrap { position: relative; display: inline-flex; }
+.mini-card-wrap .mini-card { width: 100%; }
+.btn-coparent {
+  position: absolute; top: 4px; left: 4px;
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid #e4eefb; background: #fff; cursor: pointer;
+  font-size: 0.8rem; line-height: 1; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,50,150,0.12); opacity: 0.75; transition: opacity 0.15s, transform 0.15s;
+}
+.btn-coparent:hover { opacity: 1; transform: scale(1.12); }
+.hint-small { font-size: 0.78rem; color: #6b7c93; margin: 0.25rem 0 0.5rem; line-height: 1.4; }
+.rel-select {
+  width: 100%; padding: 0.5rem 0.6rem; border: 1px solid #d4e2f5; border-radius: 8px;
+  font-size: 0.9rem; color: #1a3a6b; background: #fff;
+}
 
 /* ─── Reorder children ─── */
 .btn-reorder        { border-color: #7c9ecc; color: #4a6fa5; }
