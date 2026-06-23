@@ -411,7 +411,7 @@
     ]
   },
   "resources/js/Pages/FamilyTree.vue": {
-    "file": "assets/FamilyTree-CXq3HDdg.js",
+    "file": "assets/FamilyTree-6Qoj68R_.js",
     "name": "FamilyTree",
     "src": "resources/js/Pages/FamilyTree.vue",
     "isDynamicEntry": true,
@@ -423,7 +423,7 @@
       "_AppLayout-TCTrLwtH.js"
     ],
     "css": [
-      "assets/FamilyTree-Dn0B5SBb.css"
+      "assets/FamilyTree-tQAmSJUE.css"
     ]
   },
   "resources/js/Pages/Game.vue": {
@@ -676,7 +676,7 @@
     ]
   },
   "resources/js/Pages/Welcome.vue": {
-    "file": "assets/Welcome-hbyGOaEq.js",
+    "file": "assets/Welcome-CSXluCK4.js",
     "name": "Welcome",
     "src": "resources/js/Pages/Welcome.vue",
     "isDynamicEntry": true,
@@ -686,11 +686,11 @@
       "_runtime-core.esm-bundler-CNqyEwW_.js"
     ],
     "css": [
-      "assets/Welcome-Ctc0Y1mK.css"
+      "assets/Welcome-BKVFldh4.css"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-DVaFJ3pz.js",
+    "file": "assets/app-Cc0JlxU1.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -738,7 +738,7 @@
       "resources/js/Pages/Welcome.vue"
     ],
     "css": [
-      "assets/app-DFAZdTzN.css"
+      "assets/app-CBD8jinv.css"
     ]
   }
 }

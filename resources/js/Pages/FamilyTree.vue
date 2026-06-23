@@ -166,17 +166,17 @@
               :font-size="node.isRoot || node.centerSpouse ? 11 : 9"
               fill="#1a3a6b" font-family="Rubik, sans-serif" font-weight="500"
             >{{ node.firstName.slice(0, 4) }}</text>
-            <!-- Name label placed radially outward — white stroke for readability -->
+            <!-- Name on a bottom half-circle hugging the node — white halo for readability -->
+            <path :id="`lpath-${node.id}`" :d="node.labelArc" fill="none" />
             <text
-              :x="node.labelX" :y="node.labelY"
-              text-anchor="middle"
-              :dominant-baseline="node.labelBaseline"
               font-family="Rubik, sans-serif"
-              :font-size="node.isRoot || node.centerSpouse ? 12 : 8.5"
+              :font-size="node.isRoot || node.centerSpouse ? 11 : 8.5"
               :font-weight="node.isRoot || node.centerSpouse ? '700' : '500'"
               fill="#1a3a6b"
-              stroke="rgba(240,246,255,0.85)" stroke-width="3" paint-order="stroke"
-            >{{ node.isRoot ? node.fullName : node.firstName }}</text>
+              stroke="rgba(240,246,255,0.9)" stroke-width="3" paint-order="stroke"
+            >
+              <textPath :href="`#lpath-${node.id}`" startOffset="50%" text-anchor="middle">{{ node.isRoot ? node.fullName : node.firstName }}</textPath>
+            </text>
             <title>{{ node.fullName }}{{ node.relType === 'spouse' ? ' (בן/בת זוג)' : node.relType === 'parent' ? ' (הורה)' : '' }}</title>
           </g>
         </svg>
