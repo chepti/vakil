@@ -890,12 +890,13 @@ const radialData = computed(() => {
     const nodeR  = isRoot || pos.centerSpouse ? 28 : 20
 
     // Name label hugs the node on a bottom half-circle arc (glued to its own figure,
-    // never drifting toward a neighbour). Path runs right→bottom→left so Hebrew reads RTL.
+    // never drifting toward a neighbour). Path runs left→bottom→right (an upright "smile")
+    // so the text is the right way up; Hebrew bidi places the letters right-to-left for us.
     const Rl = nodeR + 6
-    const a1 = 20 * Math.PI / 180, a2 = 160 * Math.PI / 180
-    const p1x = (Rl * Math.cos(a1)).toFixed(1), p1y = (Rl * Math.sin(a1)).toFixed(1)
-    const p2x = (Rl * Math.cos(a2)).toFixed(1), p2y = (Rl * Math.sin(a2)).toFixed(1)
-    const labelArc = `M ${p1x} ${p1y} A ${Rl} ${Rl} 0 0 1 ${p2x} ${p2y}`
+    const aL = 160 * Math.PI / 180, aR = 20 * Math.PI / 180
+    const pLx = (Rl * Math.cos(aL)).toFixed(1), pLy = (Rl * Math.sin(aL)).toFixed(1)
+    const pRx = (Rl * Math.cos(aR)).toFixed(1), pRy = (Rl * Math.sin(aR)).toFixed(1)
+    const labelArc = `M ${pLx} ${pLy} A ${Rl} ${Rl} 0 0 1 ${pRx} ${pRy}`
 
     // Married-in spouse: a current spouse not placed elsewhere (peripheral hint + hover reveal)
     let spouse = null
