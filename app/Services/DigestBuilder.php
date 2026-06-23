@@ -88,6 +88,7 @@ class DigestBuilder
                     'name'     => $p->full_name,
                     'age'      => $age,
                     'dayMonth' => HebrewDate::dayMonth(Carbon::parse($p->birth_date_gregorian)),
+                    'dateGreg' => Carbon::parse($p->birth_date_gregorian)->format('d/m'),
                     'day'      => $b['day'],
                     'url'      => route('people.show', $p->id),
                     'photoUrl' => $p->profile_photo_url,
@@ -120,6 +121,7 @@ class DigestBuilder
                     'names'    => "{$p1->full_name} ו{$p2->full_name}",
                     'years'    => $years,
                     'dayMonth' => HebrewDate::dayMonth(Carbon::parse($r->marriage_date_gregorian)),
+                    'dateGreg' => Carbon::parse($r->marriage_date_gregorian)->format('d/m'),
                     'day'      => $m['day'],
                     'url'      => route('people.show', $p1->id),
                 ];
@@ -149,6 +151,7 @@ class DigestBuilder
                 'name'        => $p->full_name,
                 'url'         => route('people.show', $p->id),
                 'hebrewBirth' => HebrewDate::format(Carbon::parse($p->birth_date_gregorian)),
+                'dateGreg'    => Carbon::parse($p->birth_date_gregorian)->format('d/m/Y'),
                 'photoUrl'    => $p->profile_photo_url,
                 'context'     => $p->ancestralContext(),
                 'gender'      => $p->gender,
@@ -204,6 +207,7 @@ class DigestBuilder
                     'name'     => $p->full_name,
                     'age'      => $age,
                     'dayMonth' => HebrewDate::dayMonth(Carbon::parse($p->birth_date_gregorian)),
+                    'dateGreg' => Carbon::parse($p->birth_date_gregorian)->format('d/m'),
                     'url'      => route('people.show', $p->id),
                     'photoUrl' => $p->profile_photo_url,
                     'context'  => $p->ancestralContext(),
@@ -243,6 +247,7 @@ class DigestBuilder
                     'names'    => "{$p1->full_name} ו{$p2->full_name}",
                     'years'    => $years,
                     'dayMonth' => HebrewDate::dayMonth(Carbon::parse($r->marriage_date_gregorian)),
+                    'dateGreg' => Carbon::parse($r->marriage_date_gregorian)->format('d/m'),
                     'url'      => route('people.show', $p1->id),
                 ];
             });
