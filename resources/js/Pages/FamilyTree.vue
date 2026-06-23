@@ -39,19 +39,26 @@
             </div>
           </div>
 
-          <button class="ctrl-btn" @click="centerTree" title="חזור למרכז">⊕ מרכז</button>
-          <button class="ctrl-btn" @click="goToRoot" title="הצג מהאב הקדמון">🌳 שורש</button>
-          <button class="ctrl-btn" :class="{ active: showSiblings }" @click="toggleSiblings" title="הצג/הסתר אחים">
-            {{ showSiblings ? '👥 הסתר ענף' : '👥 הצג ענף' }}
-          </button>
-          <div class="depth-ctrl">
-            <button class="ctrl-btn icon-btn" @click="changeDepth(-1)" title="פחות דורות" :disabled="depth <= 1">−</button>
-            <span class="depth-label">{{ depth }} דורות</span>
-            <button class="ctrl-btn icon-btn" @click="changeDepth(1)" title="יותר דורות" :disabled="depth >= 7">+</button>
-          </div>
-          <button class="ctrl-btn" :class="{ active: compactMode }" @click="toggleCompactMode" title="פסים אנכיים — מכווץ את הרוחב, רחף להרחיב">
-            {{ compactMode ? '⊠ מצב רגיל' : '⊟ קומפקטי' }}
-          </button>
+          <!-- Tree-only controls (hidden in radial view, where they have no effect) -->
+          <template v-if="!radialMode">
+            <button class="ctrl-btn" @click="centerTree" title="התאם את העץ לגודל המסך">⊕ מרכז</button>
+            <button class="ctrl-btn" @click="goToRoot" title="הצג מהאב הקדמון">🌳 שורש</button>
+            <button class="ctrl-btn" :class="{ active: hideMode }" @click="toggleHideMode"
+              :title="hideMode ? 'סיום — חזרה למצב רגיל' : 'קיפול ענף — לחצו ואז בחרו דמות כדי לקפל את צאצאיה'">
+              {{ hideMode ? '✓ סיום קיפול' : '👁 קיפול ענף' }}
+            </button>
+            <button v-if="collapsedIds.size" class="ctrl-btn" @click="expandAll" title="פרוס מחדש את כל הענפים המקופלים">
+              ⊕ פרוס הכל ({{ collapsedIds.size }})
+            </button>
+            <div class="depth-ctrl">
+              <button class="ctrl-btn icon-btn" @click="changeDepth(-1)" title="פחות דורות" :disabled="depth <= 1">−</button>
+              <span class="depth-label">{{ depth }} דורות</span>
+              <button class="ctrl-btn icon-btn" @click="changeDepth(1)" title="יותר דורות" :disabled="depth >= 7">+</button>
+            </div>
+            <button class="ctrl-btn" :class="{ active: compactMode }" @click="toggleCompactMode" title="פסים אנכיים — מכווץ את הרוחב, רחף להרחיב">
+              {{ compactMode ? '⊠ מצב רגיל' : '⊟ קומפקטי' }}
+            </button>
+          </template>
           <button class="ctrl-btn" :class="{ active: !radialMode }" @click="toggleRadialMode" title="תצוגה עגולה / עץ רגיל">
             {{ radialMode ? '🌳 עץ רגיל' : '◎ עגול' }}
           </button>
@@ -68,6 +75,7 @@
 
       <!-- Tree container — v-show keeps the chart instance alive when toggling radial -->
       <div v-show="localNodes.length > 0 && !radialMode" class="tree-wrap">
+        <div v-if="hideMode" class="fold-hint">👁 לחצו על דמות כדי לקפל / לפתוח את ענף הצאצאים שלה</div>
         <div ref="chartContainer" id="FamilyChart" class="f3"></div>
       </div>
 
@@ -319,6 +327,8 @@ const localNodes       = ref(props.nodes)  // mutable copy — updated when char
 const depth            = ref(4)
 const showSiblings     = ref(true)
 const compactMode      = ref(false)
+const hideMode         = ref(false)         // "fold branch" mode — click a card to collapse its descendants
+const collapsedIds     = ref(new Set())     // ids whose descendant branch is hidden
 let chartInstance      = null
 let cardHtml           = null
 
@@ -548,6 +558,16 @@ function initChart() {
     .setStyle('imageCircleRect')
     .setCardImageField('avatar')
     .setOnCardClick((e, d) => {
+      const id = String(d.data.id)
+      // Fold mode: clicking a card collapses/expands its descendant branch
+      if (hideMode.value) {
+        const s = new Set(collapsedIds.value)
+        if (s.has(id)) s.delete(id)
+        else s.add(id)
+        collapsedIds.value = s
+        chartInstance.updateTree({})
+        return
+      }
       selectedPerson.value = { id: d.data.id, ...d.data.data }
       addRelType.value = null
       chartInstance.updateMainId(d.data.id)
@@ -609,25 +629,46 @@ function initChart() {
     // into each child's rels.parents — which corrupts our source nodes and then
     // throws "child has more than 1 parent" on a later updateTree (e.g. radial→tree).
     .setSingleParentEmptyCard(false)
+    // Fold branches: prune the children of any collapsed node (progeny side only)
+    .setModifyTreeHierarchy((root, is_ancestry) => {
+      if (is_ancestry || collapsedIds.value.size === 0) return
+      root.descendants().forEach(n => {
+        if (n.children && collapsedIds.value.has(String(n.data.id))) n.children = null
+      })
+    })
     .updateTree({ initial: true })
 }
 
+// Re-fit the tree to the container. MUST run only when the container is visible —
+// family-chart's treeFit divides by getBoundingClientRect(), so a display:none
+// container yields scale(0)/NaN and kills pan+zoom. nextTick + rAF guarantees the
+// v-show has applied display:block and layout has flushed before we measure.
+function fitTreeView() {
+  if (!chartInstance) return
+  nextTick(() => requestAnimationFrame(() => chartInstance.updateTree({ initial: true })))
+}
+
 function centerTree() {
-  if (chartInstance) chartInstance.updateTree({ initial: true })
+  fitTreeView()
 }
 
 function goToRoot() {
   if (chartInstance && props.rootPersonId) {
     chartInstance.updateMainId(props.rootPersonId)
     selectedPerson.value = null
+    fitTreeView()
   }
 }
 
-function toggleSiblings() {
-  showSiblings.value = !showSiblings.value
-  if (chartInstance) {
-    chartInstance.setShowSiblingsOfMain(showSiblings.value).updateTree({})
-  }
+// Fold-branch mode: toggle the eye cursor; clicking a card then collapses its branch
+function toggleHideMode() {
+  hideMode.value = !hideMode.value
+  chartContainer.value?.classList.toggle('hide-mode', hideMode.value)
+}
+
+function expandAll() {
+  collapsedIds.value = new Set()
+  if (chartInstance) chartInstance.updateTree({})
 }
 
 function changeDepth(delta) {
@@ -1052,13 +1093,14 @@ function toggleRadialMode() {
         chartContainer.value?.classList.remove('compact-mode')
       }
     }
-    // Chart was kept alive via v-show — just re-trigger layout
-    if (chartInstance) chartInstance.updateTree({ initial: true })
+    // Chart was kept alive via v-show — re-fit AFTER the container is visible
+    // (nextTick + rAF). Fitting while still display:none gives scale(0)/NaN and
+    // breaks pan+zoom.
+    fitTreeView()
   } else {
+    radialCenterId.value = null
     fitRadialView()
   }
-  radialCenterId.value = null
-  fitRadialView()
 }
 
 // ─── Edit-details helpers ─────────────────────────────────────
@@ -1253,6 +1295,16 @@ function formatDate(d) {
   box-shadow: 0 4px 20px rgba(0,50,150,0.22) !important;
   position: relative !important;
   z-index: 10 !important;
+}
+
+/* ── Fold-branch mode: eye cursor over the whole chart ── */
+#FamilyChart.hide-mode,
+#FamilyChart.hide-mode * {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="white" stroke="%231e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>') 14 14, pointer !important;
+}
+#FamilyChart.hide-mode .card:hover .card-inner {
+  outline: 3px solid #ef4444 !important;
+  outline-offset: 1px !important;
 }
 </style>
 
@@ -1537,6 +1589,25 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   background: rgba(255,255,255,0.85);
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Fold-branch hint banner — top center of the tree view */
+.fold-hint {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1e3a5f;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0,50,150,0.12);
   pointer-events: none;
   white-space: nowrap;
 }
