@@ -9,6 +9,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # הגנה: רק המאגר המקורי יכול לפרוס. fork של הפרויקט לא יוכל לדחוף לשרת שלי,
+    # גם אם הפעילו את ה-workflow ידנית — התנאי נכשל וה-job לא רץ.
+    if: github.repository == 'chepti/vakil'
 
     steps:
       # public/build מנוהל ב-git, לכן git pull מביא גם את הקוד וגם את ה-assets הבנויים.
