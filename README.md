@@ -1,58 +1,327 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+<div dir="rtl">
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+# 🪬 אתר המשפחה — Vakil Family
 
-## About Laravel
+> פלטפורמה אינטרנטית מלאה לניהול עץ משפחה, אירועים, תמונות וזיכרונות משפחתיים.
+> בנויה בעברית, עם תמיכה מלאה בלוח עברי, ומיועדת להרחבה לכל משפחה שרוצה להשתמש בה.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+**🌐 דמו חי:** [vakil.chepti.com](https://vakil.chepti.com)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 📋 תוכן עניינים
 
-## Learning Laravel
+- [על הפרויקט](#על-הפרויקט)
+- [פונקציונליות](#פונקציונליות)
+- [טכנולוגיות](#טכנולוגיות)
+- [התקנה](#התקנה)
+- [הגדרות סביבה](#הגדרות-סביבה)
+- [פריסה לשרת](#פריסה-לשרת)
+- [התאמה למשפחה שלך](#התאמה-למשפחה-שלך)
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+---
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## על הפרויקט
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+אתר המשפחה הוא מערכת web פרטית, מוגנת בהזמנה בלבד, שמאפשרת לבני משפחה:
 
-## Agentic Development
+- לצפות בעץ המשפחה ולתרום לו
+- לעקוב אחרי אירועי חיים (לידות, בר/בת מצוות, חתונות, פטירות)
+- לשתף תמונות משפחתיות עם תיוג פנים
+- לקבל עדכונים אוטומטיים במייל על חברי משפחה חדשים ואירועים
+- לשחק במשחק טריוויה משפחתי
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+---
+
+## פונקציונליות
+
+### 👨‍👩‍👧‍👦 ניהול בני משפחה
+
+- הוספה, עריכה ומחיקה של בני משפחה
+- שדות מלאים: שם פרטי, שם משפחה, שם נעורים, מגדר, תאריך לידה/פטירה (עברי + לועזי)
+- תמונת פרופיל עם חיתוך בדפדפן
+- מידע נוסף: עיר מגורים, עיסוק, ביו, מייל, טלפון
+- ניהול קשרי משפחה: הורים, בני/בנות זוג, ילדים, אחים
+
+### 🌳 עץ משפחה אינטרקטיבי
+
+- ויזואליזציה גרפית של כל עץ המשפחה
+- מצבי תצוגה: אנכי, רדיאלי, עצי אב ואם
+- עריכה ישירה בתוך העץ (ללא טעינה מחדש)
+- חיפוש בן/בת משפחה בעץ
+- הדפסת העץ ל-PDF
+
+### 📅 אירועים ולוח עברי
+
+- ניהול אירועי חיים: לידה, בר מצווה, בת מצווה, חתונה, פטירה, אחר
+- תאריכים בלוח לועזי ועברי
+- מיקום האירוע, תמונת הזמנה, קישור לגלריה
+- קהל יעד: כל המשפחה או ענף ספציפי בעץ
+- ברכות תגובות (תגובות טקסט + אמוג'ים) על כל אירוע
+
+### 📸 גלריית תמונות משפחתיות
+
+- העלאת תמונות קבוצתיות
+- תיוג פנים: סימון כל אדם בתמונה עם קואורדינטות
+- צפייה בתמונה ולחיצה על פנים לפרופיל האדם
+
+### ✉️ מערכת מייל אוטומטית
+
+- **הזמנות**: קישור אישי עם פג תוקף (ברירת מחדל: 7 ימים) לרישום חבר משפחה חדש
+- **חבר משפחה חדש**: מייל אוטומטי לכל המנויים כשנוסף אדם לעץ
+- **דייג'סט חודשי**: סיכום חודשי בעברית עם לידות, ימי הולדת, אירועים — עם אפשרות לסינון לפי ענף עץ
+- **הגדרות אישיות**: כל משתמש שולט מה הוא מקבל
+
+### 🎮 משחק טריוויה משפחתי
+
+- "הדרך אל סבתא" — משחק ניחוש מי קשור למי בעץ
+- שאלות על שרשרת אבות, רמזים חכמים, מסיחים מגובשים
+- מבוסס על נתוני העץ האמיתיים של המשפחה
+
+### 👑 לוח ניהול (Admin)
+
+- ניהול משתמשים: אישור, שינוי תפקיד, מחיקה
+- ייצוא CSV: משפחה, משתמשים, ימי הולדת
+- ניהול מסמכים/ארכיון משפחתי
+- ניהול מערך הזמנות
+- שליחת דייג'סט חודשי ידנית
+
+### 📊 סטטיסטיקות משפחה
+
+- מספר בני המשפחה, תפוצה גאוגרפית, חלוקה לפי גיל ומגדר
+
+---
+
+## טכנולוגיות
+
+| שכבה | טכנולוגיה |
+|------|-----------|
+| Backend | Laravel 13.8 (PHP 8.3) |
+| Frontend | Vue 3 + Inertia.js 2 |
+| עיצוב | Tailwind CSS 3 |
+| Build | Vite 8 |
+| מסד נתונים | MySQL |
+| אימות | Laravel Breeze + Sanctum + Google OAuth (Socialite) |
+| עץ משפחה | family-chart v0.9 |
+| לוח עברי | @hebcal/core v6 |
+| מפות | Leaflet |
+| אייקונים | Lucide Vue |
+
+---
+
+## התקנה
+
+### דרישות מוקדמות
+
+- PHP 8.3+
+- Composer
+- Node.js 20+ ו-npm
+- MySQL 8+
+- (מומלץ) Laragon או Herd לפיתוח מקומי
+
+### 1. שיבוט הפרויקט
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git clone https://github.com/chepti/vakil.git
+cd vakil
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. התקנת תלויות
 
-## Contributing
+```bash
+composer install
+npm install
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 3. הגדרת קובץ סביבה
 
-## Code of Conduct
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 4. הגדרת מסד הנתונים
 
-## Security Vulnerabilities
+ב-`.env` לעדכן:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```env
+DB_DATABASE=vakil
+DB_USERNAME=root
+DB_PASSWORD=
+```
 
-## License
+ואז להריץ:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan migrate
+php artisan db:seed   # (אופציונלי) נתוני דוגמה
+```
+
+### 5. בניית ה-assets
+
+```bash
+npm run build
+# או במצב פיתוח:
+npm run dev
+```
+
+### 6. הרצה מקומית
+
+```bash
+php artisan serve
+```
+
+האתר יעלה על
+
+```
+http://localhost:8000
+```
+
+### 7. יצירת המשתמש הראשון (Admin)
+
+לאחר ההרשמה הראשונה, להריץ ב-Tinker:
+
+```bash
+php artisan tinker
+```
+
+```php
+\App\Models\User::first()->update(['role' => 'admin', 'status' => 'active']);
+```
+
+---
+
+## הגדרות סביבה
+
+קובץ `.env` — משתנים חשובים:
+
+```env
+APP_NAME="משפחת שם-המשפחה"
+APP_URL=https://your-domain.com
+
+# מסד נתונים
+DB_DATABASE=family_db
+DB_USERNAME=...
+DB_PASSWORD=...
+
+# מייל (Hostinger SMTP לדוגמה)
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.hostinger.com
+MAIL_PORT=465
+MAIL_USERNAME=noreply@your-domain.com
+MAIL_PASSWORD=...
+MAIL_ENCRYPTION=ssl
+MAIL_FROM_ADDRESS=noreply@your-domain.com
+MAIL_FROM_NAME="משפחת שם-המשפחה"
+
+# הזמנות
+INVITATION_EXPIRY_DAYS=7
+
+# מגבלת העלאה (KB)
+MAX_UPLOAD_KB=5120
+
+# Google OAuth (אופציונלי)
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REDIRECT_URI=https://your-domain.com/auth/google/callback
+```
+
+---
+
+## פריסה לשרת
+
+הפרויקט כולל סקריפט פריסה אוטומטי ל-Hostinger:
+
+```powershell
+.\deploy.ps1 "תיאור השינוי"
+```
+
+**מה הסקריפט עושה:**
+
+1. בונה assets (`npm run build`)
+2. מבצע commit ו-push ל-GitHub
+3. מתחבר לשרת ב-SSH: `git pull`, סנכרון תיקיות, הרצת migrations, ניקוי cache
+4. בודק שהאתר עלה תקין (HTTP check)
+
+**שרת ייצור — נקודות חשובות:**
+
+- `public/build` עוקב ב-git — אסור ל-SCP בנפרד
+- יש שתי תיקיות build בשרת (`public/build` + `public_html/build`) — הסקריפט מסנכרן אותן
+- PHP 8.3: `/opt/alt/php83/usr/bin/php`
+- להשתמש ב-`config:clear` ולא ב-`config:cache`
+
+**GitHub Actions** מוגדר ל-`workflow_dispatch` בלבד (לא push-to-deploy), כי Hostinger חוסם IPs של GitHub runners.
+
+---
+
+## התאמה למשפחה שלך
+
+כדי להפעיל את הפלטפורמה הזו עבור משפחה אחרת:
+
+### שלב 1 — שיבוט והתקנה
+
+בצע את כל שלבי [ההתקנה](#התקנה) למעלה.
+
+### שלב 2 — שינוי שם המשפחה
+
+בקובץ `.env`:
+
+```env
+APP_NAME="משפחת כהן"
+```
+
+וב-
+
+```
+config/app.php
+```
+
+לעדכן את שם האפליקציה לפי הצורך.
+
+### שלב 3 — שינוי המשחק
+
+בקובץ
+
+```
+app/Http/Controllers/GameController.php
+```
+
+לעדכן את שם "סבתא" לאדם המרכזי של המשפחה שלך (שמירה על ה-`is_main_person` בבסיס הנתונים).
+
+### שלב 4 — לוגו ו-Favicon
+
+להחליף את הקובץ:
+
+```
+public/favicon.ico
+```
+
+ואת הלוגו בתוך
+
+```
+resources/js/Components/ApplicationLogo.vue
+```
+
+### שלב 5 — הגדרת מייל
+
+להגדיר את חשבון SMTP בקובץ `.env` לשליחת הזמנות ועדכונים.
+
+### שלב 6 — אדמין ראשון
+
+להירשם, ואז לשנות את התפקיד ל-admin דרך Tinker (ראה [שלב 7 בהתקנה](#7-יצירת-המשתמש-הראשון-admin)).
+
+### שלב 7 — הוספת "האדם המרכזי"
+
+מלוח הניהול, להוסיף את האבות/אמהות הראשיים של העץ ולסמן אחד מהם כ-"אדם ראשי" — הוא ישמש כשורש העץ ובמשחק.
+
+---
+
+## רישיון
+
+קוד פתוח לשימוש אישי/משפחתי. לשימוש מסחרי — לפנות למפתח.
+
+---
+
+**פותח ב-❤️ עבור משפחת ואקיל**
+
+</div>
