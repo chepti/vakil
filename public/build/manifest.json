@@ -511,7 +511,7 @@
     ]
   },
   "resources/js/Pages/People/Index.vue": {
-    "file": "assets/Index-BC53NmdC.js",
+    "file": "assets/Index-C-p-D3pN.js",
     "name": "Index",
     "src": "resources/js/Pages/People/Index.vue",
     "isDynamicEntry": true,
@@ -522,7 +522,7 @@
       "_AppLayout-TCTrLwtH.js"
     ],
     "css": [
-      "assets/Index-3-tul_Gj.css"
+      "assets/Index-C3grehq-.css"
     ]
   },
   "resources/js/Pages/People/Show.vue": {
@@ -690,7 +690,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-Bi3uL3fl.js",
+    "file": "assets/app-CCNcsXfZ.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
