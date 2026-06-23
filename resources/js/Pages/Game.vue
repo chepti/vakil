@@ -3,7 +3,7 @@
     <div class="game-page" dir="rtl">
 
       <div class="game-header">
-        <h1>🎮 הדרך אל סבתא ואקיל</h1>
+        <h1>🎮 הדרך אל {{ mainPerson ? mainPerson.full_name : 'השורש' }}</h1>
         <div class="score-box">
           <span class="score-label">ניקוד</span>
           <span class="score-value">{{ score }}</span>
@@ -11,7 +11,7 @@
       </div>
 
       <div v-if="!mainPerson" class="notice">
-        כדי לשחק צריך להגדיר דמות מרכזית (סבתא ואקיל) בעץ המשפחה.
+        כדי לשחק צריך להגדיר דמות מרכזית בעץ המשפחה.
       </div>
 
       <div v-else-if="loading" class="notice">טוען סבב חדש…</div>
@@ -24,7 +24,7 @@
       <template v-else>
         <p class="game-intro">
           מי הדמות בתמונה? 🤔 בנו את שרשרת המשפחה כלפי מעלה — מי ההורה? מי הסבא/סבתא? — עד שתגיעו אל
-          <strong>סבתא ואקיל</strong>. לא יודעים מי בתמונה? בקשו רמז זהות (זה עולה בנקודות).
+          <strong>{{ mainPerson.full_name }}</strong>. לא יודעים מי בתמונה? בקשו רמז זהות (זה עולה בנקודות).
         </p>
 
         <div class="game-board">
@@ -38,7 +38,7 @@
                 <span v-else class="initials">{{ initials(mainPerson.full_name) }}</span>
               </div>
               <div class="rung-info">
-                <span class="goal-crown">👑 סבתא ואקיל</span>
+                <span class="goal-crown">👑 {{ mainPerson.full_name }}</span>
                 <span class="rung-name">{{ mainPerson.full_name }}</span>
               </div>
             </div>
@@ -188,7 +188,7 @@
 
           <div class="controls win" v-else>
             <div class="win-emoji">🎉</div>
-            <h2>הגעתם אל סבתא ואקיל!</h2>
+            <h2>הגעתם אל {{ mainPerson.full_name }}!</h2>
             <p class="win-score">צברתם <strong>{{ lastRoundScore }}</strong> נקודות בסבב הזה</p>
             <button class="btn-primary" @click="newRound">סבב חדש 🔄</button>
           </div>

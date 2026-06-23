@@ -1,3 +1,0 @@
-@echo off
-echo מתחבר לשרת ואקיל...
-powershell -NoExit -Command "ssh -p 65002 -i 'T:\.ssh\vakil_deploy' u630483490@46.17.175.26"

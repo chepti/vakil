@@ -33,7 +33,7 @@
         <div class="body">
             <p class="text">
                 @if ($recipientName) שלום {{ $recipientName }}, @else שלום, @endif
-                נוסף אירוע חדש ללוח של משפחת ואקיל:
+                נוסף אירוע חדש ללוח של {{ config('app.name') }}:
             </p>
 
             @php

@@ -42,7 +42,7 @@
         <div class="header">
             <div class="header-emoji">🌳</div>
             <h1>חודש טוב&rlm;!</h1>
-            <p>{{ $d['monthName'] }} {{ $d['yearGematria'] }} · משפחת ואקיל</p>
+            <p>{{ $d['monthName'] }} {{ $d['yearGematria'] }} · {{ config('app.name') }}</p>
         </div>
 
         <div class="body">
@@ -248,7 +248,7 @@
         </div>
 
         <div class="footer">
-            קיבלת מייל זה כי הינך רשום/ה באתר משפחת ואקיל.<br>
+            קיבלת מייל זה כי הינך רשום/ה באתר {{ config('app.name') }}.<br>
             לא רוצה לקבל את העדכון החודשי? <a href="{{ $profileUrl }}">עדכן/י העדפות בפרופיל</a>.
         </div>
     </div>

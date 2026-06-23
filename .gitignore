@@ -16,3 +16,6 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+# סקריפטי פריסה אישיים — מכילים פרטי שרת. מעתיקי הפרויקט מגדירים את שלהם.
+deploy.ps1
+ssh-server.bat

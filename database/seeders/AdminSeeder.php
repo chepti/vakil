@@ -19,7 +19,7 @@ class AdminSeeder extends Seeder
             return;
         }
 
-        $email    = $this->command->ask('Admin email?', 'admin@vakil.chepti.com');
+        $email    = $this->command->ask('Admin email?', 'admin@your-domain.com');
         $name     = $this->command->ask('Admin name?', 'מנהל המערכת');
         $password = $this->command->secret('Admin password?');
 

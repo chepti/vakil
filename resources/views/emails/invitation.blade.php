@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>הזמנה למשפחת ואקיל</title>
+    <title>הזמנה ל{{ config('app.name') }}</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap');
 
@@ -145,7 +145,7 @@
         <!-- Header -->
         <div class="header">
             <div class="header-emoji">🌳</div>
-            <h1>משפחת ואקיל</h1>
+            <h1>{{ config('app.name') }}</h1>
             <p>אתר העץ המשפחתי הפרטי שלנו</p>
         </div>
 
@@ -155,7 +155,7 @@
             <p class="greeting">שלום! 👋</p>
 
             <p class="text">
-                <strong>{{ $inviterName }}</strong> הזמין/ה אותך להצטרף לאתר העץ המשפחתי של משפחת ואקיל.
+                <strong>{{ $inviterName }}</strong> הזמין/ה אותך להצטרף לאתר העץ המשפחתי של {{ config('app.name') }}.
             </p>
 
             @if ($personName)
@@ -190,7 +190,7 @@
 
         <!-- Footer -->
         <div class="footer">
-            אתר זה פרטי ומיועד לבני משפחת ואקיל בלבד.<br>
+            אתר זה פרטי ומיועד לבני {{ config('app.name') }} בלבד.<br>
             קיבלת מייל זה כי {{ $inviterName }} הזמין/ה אותך.
         </div>
     </div>

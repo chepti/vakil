@@ -1,5 +1,9 @@
 # ──────────────────────────────────────────────────────────────
-#  Full reliable deploy to Hostinger
+#  Full reliable deploy to shared hosting (Hostinger / cPanel)
+#  1. Copy this file to deploy.ps1
+#  2. Fill in your own values below
+#  3. deploy.ps1 is in .gitignore — your credentials stay local
+#
 #  Usage:  .\deploy.ps1  "commit message"
 # ──────────────────────────────────────────────────────────────
 param(
@@ -7,12 +11,12 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$ProjectRoot = "T:\laragon\www\vakil"
-$SshKey      = "T:\.ssh\vakil_deploy"
-$SshPort     = "65002"
-$SshTarget   = "u630483490@46.17.175.26"
-$RemoteRoot  = "~/domains/vakil.chepti.com"
-$Php         = "/opt/alt/php83/usr/bin/php"
+$ProjectRoot = "C:\path\to\your\project"         # ← שנה לנתיב המקומי שלך
+$SshKey      = "C:\path\to\your\deploy_key"      # ← מפתח SSH פרטי לפריסה
+$SshPort     = "22"                              # ← פורט SSH (Hostinger: 65002)
+$SshTarget   = "username@your-server-ip"         # ← user@IP של השרת
+$RemoteRoot  = "~/domains/your-domain.com"       # ← נתיב הפרויקט בשרת
+$Php         = "/usr/bin/php"                    # ← נתיב PHP בשרת (Hostinger PHP 8.3: /opt/alt/php83/usr/bin/php)
 
 Set-Location $ProjectRoot
 
@@ -31,8 +35,6 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "=== 3/4  Deploying on server (git pull + sync + clear caches) ===" -ForegroundColor Cyan
-# public/build IS tracked in git, so git pull delivers both PHP code and built assets.
-# The checkout/clean before pull discards any local drift in public/build so pull never conflicts.
 $remoteScript = @"
 cd $RemoteRoot
 git checkout -- public/build 2>/dev/null || true
@@ -51,7 +53,7 @@ if ($LASTEXITCODE -ne 0) { Write-Host "Remote deploy FAILED" -ForegroundColor Re
 
 Write-Host "=== 4/4  Sanity check ===" -ForegroundColor Cyan
 try {
-    $r = Invoke-WebRequest -Uri "https://vakil.chepti.com" -UseBasicParsing -TimeoutSec 20 -MaximumRedirection 0 -ErrorAction SilentlyContinue
+    $r = Invoke-WebRequest -Uri "https://your-domain.com" -UseBasicParsing -TimeoutSec 20 -MaximumRedirection 0 -ErrorAction SilentlyContinue
     Write-Host "Site responds: $($r.StatusCode)" -ForegroundColor Green
 } catch {
     $code = $_.Exception.Response.StatusCode.value__

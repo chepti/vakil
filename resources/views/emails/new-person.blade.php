@@ -33,7 +33,7 @@
         <div class="body">
             <p class="text">
                 @if ($recipientName) שלום {{ $recipientName }}, @else שלום, @endif
-                נוספה דמות חדשה לעץ המשפחה של משפחת ואקיל:
+                נוספה דמות חדשה לעץ המשפחה של {{ config('app.name') }}:
             </p>
 
             <div class="person-card">

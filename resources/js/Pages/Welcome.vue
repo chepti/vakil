@@ -2,7 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { onMounted } from 'vue';
 
-defineProps({ canLogin: Boolean });
+defineProps({ canLogin: Boolean, contactEmail: String });
 
 onMounted(() => {
     const revObs = new IntersectionObserver(
@@ -339,10 +339,10 @@ onMounted(() => {
                     הפלטפורמה בקוד פתוח — ניתן להתאים לכל משפחה.<br>
                     לפרטים, עזרה בהתקנה או שיתוף פעולה:
                 </p>
-                <a href="mailto:chepti@gmail.com"
+                <a :href="'mailto:' + contactEmail"
                     class="inline-flex items-center gap-2 text-white font-bold px-8 py-4 rounded-full text-base transition-all hover:opacity-90 hover:-translate-y-1"
                     style="background:#c8a45a;box-shadow:0 6px 24px rgba(200,164,90,0.4)">
-                    ✉️ chepti@gmail.com
+                    ✉️ {{ contactEmail }}
                 </a>
                 <p class="mt-5 text-sm" style="color:#8aace0">
                     קוד פתוח:

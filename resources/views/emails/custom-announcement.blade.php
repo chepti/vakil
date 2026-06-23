@@ -24,7 +24,7 @@
         <div class="header">
             <div class="header-emoji">🌳</div>
             <h1>{{ $mailSubject }}</h1>
-            <p>משפחת ואקיל</p>
+            <p>{{ config('app.name') }}</p>
         </div>
 
         <div class="body">
@@ -35,7 +35,7 @@
         </div>
 
         <div class="footer">
-            קיבלת מייל זה כי הינך רשום/ה באתר משפחת ואקיל.<br>
+            קיבלת מייל זה כי הינך רשום/ה באתר {{ config('app.name') }}.<br>
             <a href="{{ $profileUrl }}">לפרופיל שלי</a>
         </div>
     </div>
