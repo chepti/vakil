@@ -89,10 +89,23 @@
         <!-- פיזור גאוגרפי — מפה -->
         <section class="panel map-panel" v-if="cities.length">
           <h2>🗺️ פיזור גאוגרפי</h2>
+
+          <div v-if="placing" class="placing-banner">
+            👆 לחצו על המפה כדי למקם את <b>{{ placing }}</b>
+            <button class="cancel-place" @click="placing = null">ביטול</button>
+          </div>
+          <div v-else-if="saveMsg" class="save-msg">{{ saveMsg }}</div>
+
           <div ref="mapEl" class="map"></div>
-          <p v-if="unplaced.length" class="map-note">
-            ללא מיקום על המפה: {{ unplaced.map(u => u.city).join('، ') }}
-          </p>
+
+          <div v-if="unplaced.length" class="unplaced">
+            <span class="unplaced-title">ללא מיקום על המפה — לחצו "מקם" כדי לסמן (יישמר לכולם):</span>
+            <div class="unplaced-chips">
+              <button v-for="u in unplaced" :key="u.city" class="place-chip" @click="startPlacing(u.city)">
+                📍 {{ u.city }} ({{ u.count }})
+              </button>
+            </div>
+          </div>
         </section>
       </div>
     </div>
@@ -114,6 +127,7 @@ import 'leaflet/dist/leaflet.css'
 const props = defineProps({
   stats:                 { type: Object, default: () => ({}) },
   cities:                { type: Array, default: () => [] },
+  savedLocations:        { type: Object, default: () => ({}) },
   babies:                { type: Array, default: () => [] },
   birthdayCandidates:    { type: Array, default: () => [] },
   anniversaryCandidates: { type: Array, default: () => [] },
@@ -151,11 +165,19 @@ const anniversaries = computed(() =>
     .sort((a, b) => a.parts.day - b.parts.day)
 )
 
-// ── מפה: גאוקוד הערים ואיחוד לפי מקום ──
+// ── מפה: פתרון מיקום לעיר — קודם מיקומים ידניים שמורים, אחר כך הטבלה המובנית ──
+const overrides = ref({ ...props.savedLocations })
+
+function resolve(cityText) {
+  const o = overrides.value[cityText]
+  if (o) return { lat: Number(o.lat), lng: Number(o.lng), name: cityText }
+  return geocodeCity(cityText)
+}
+
 const placed = computed(() => {
   const byPlace = {}
   for (const c of props.cities) {
-    const g = geocodeCity(c.city)
+    const g = resolve(c.city)
     if (!g) continue
     if (!byPlace[g.name]) byPlace[g.name] = { name: g.name, lat: g.lat, lng: g.lng, count: 0, people: [] }
     byPlace[g.name].count += c.count
@@ -164,37 +186,74 @@ const placed = computed(() => {
   return Object.values(byPlace)
 })
 
-const unplaced = computed(() => props.cities.filter(c => !geocodeCity(c.city)))
+const unplaced = computed(() => props.cities.filter(c => !resolve(c.city)))
 
 const mapEl = ref(null)
+const placing = ref(null)      // מחרוזת העיר שממקמים כרגע
+const saveMsg = ref('')
 let map = null
+let L = null
+const markers = {}             // name → marker (כדי לעדכן/למנוע כפילות)
+
+function markerHtml(p) {
+  const names = p.people.join('، ')
+  return `<div dir="rtl" style="font-family:Rubik,sans-serif"><b>${p.name}</b> · ${p.count}<br>${names}</div>`
+}
+
+function addMarker(p, maxCount) {
+  if (!L || !map) return
+  const radius = 8 + Math.round((p.count / Math.max(maxCount, 1)) * 18)
+  const m = L.circleMarker([p.lat, p.lng], {
+    radius, color: '#2d6be4', fillColor: '#4d8bf5', fillOpacity: 0.55, weight: 2,
+  })
+    .bindTooltip(markerHtml(p), { direction: 'top', opacity: 0.97 })
+    .bindPopup(markerHtml(p))
+    .addTo(map)
+  markers[p.name] = m
+}
+
+function startPlacing(cityText) {
+  placing.value = cityText
+  saveMsg.value = ''
+  if (mapEl.value) mapEl.value.classList.add('placing')
+}
+
+async function onMapClick(e) {
+  if (!placing.value) return
+  const cityText = placing.value
+  const { lat, lng } = e.latlng
+  try {
+    await window.axios.post('/stats/location', { name: cityText, lat, lng })
+    overrides.value[cityText] = { lat, lng }
+    // הוסף סמן מיידית (מאוחד עם count של אותה עיר)
+    const c = props.cities.find(x => x.city === cityText)
+    addMarker({ name: cityText, lat, lng, count: c?.count || 1, people: c?.people || [] },
+              Math.max(...placed.value.map(p => p.count), 1))
+    saveMsg.value = `📍 "${cityText}" מוקם ונשמר לכולם`
+  } catch {
+    saveMsg.value = 'שמירת המיקום נכשלה, נסו שוב'
+  } finally {
+    placing.value = null
+    if (mapEl.value) mapEl.value.classList.remove('placing')
+  }
+}
 
 onMounted(async () => {
-  if (!mapEl.value || !placed.value.length) return
-  const L = (await import('leaflet')).default
+  if (!mapEl.value) return
+  L = (await import('leaflet')).default
 
-  map = L.map(mapEl.value, { scrollWheelZoom: false, attributionControl: true }).setView(ISRAEL_CENTER, 7)
+  map = L.map(mapEl.value, { scrollWheelZoom: false, attributionControl: true }).setView(ISRAEL_CENTER, 8)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 18,
     attribution: '© OpenStreetMap',
   }).addTo(map)
 
+  map.on('click', onMapClick)
+
   const maxCount = Math.max(...placed.value.map(p => p.count), 1)
   const bounds = []
   for (const p of placed.value) {
-    const radius = 8 + Math.round((p.count / maxCount) * 18)
-    const names = p.people.join('، ')
-    const html = `<div dir="rtl" style="font-family:Rubik,sans-serif"><b>${p.name}</b> · ${p.count}<br>${names}</div>`
-    L.circleMarker([p.lat, p.lng], {
-      radius,
-      color: '#2d6be4',
-      fillColor: '#4d8bf5',
-      fillOpacity: 0.55,
-      weight: 2,
-    })
-      .bindTooltip(html, { direction: 'top', opacity: 0.97 })
-      .bindPopup(html)
-      .addTo(map)
+    addMarker(p, maxCount)
     bounds.push([p.lat, p.lng])
   }
   if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] })
@@ -276,7 +335,33 @@ ul { list-style: none; margin: 0; padding: 0; }
 
 /* מפה */
 .map { height: 380px; border-radius: 12px; overflow: hidden; border: 1px solid #e6eefb; }
+.map.placing { cursor: crosshair; outline: 3px solid #f0b65a; }
+.map.placing :deep(.leaflet-container) { cursor: crosshair; }
 .map-note { font-size: 0.8rem; color: #9aa7c0; margin: 0.6rem 0 0; }
+
+.placing-banner {
+  background: #fff4e6; border: 1px solid #f0c896; color: #b06a1a;
+  border-radius: 9px; padding: 0.55rem 0.9rem; margin-bottom: 0.6rem; font-size: 0.9rem;
+  display: flex; align-items: center; gap: 0.6rem;
+}
+.cancel-place {
+  margin-right: auto; background: none; border: none; color: #c0392b;
+  cursor: pointer; font-family: inherit; font-size: 0.85rem;
+}
+.save-msg {
+  background: #d1fae5; border: 1px solid #6ee7b7; color: #065f46;
+  border-radius: 9px; padding: 0.5rem 0.9rem; margin-bottom: 0.6rem; font-size: 0.88rem;
+}
+
+.unplaced { margin-top: 0.85rem; }
+.unplaced-title { font-size: 0.8rem; color: #9aa7c0; }
+.unplaced-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.place-chip {
+  background: #fff4e6; border: 1px dashed #f0c896; color: #b06a1a;
+  border-radius: 20px; padding: 0.25rem 0.7rem; font-size: 0.82rem;
+  cursor: pointer; font-family: 'Rubik', sans-serif;
+}
+.place-chip:hover { background: #ffe9cc; }
 
 @media (max-width: 720px) {
   .stat-cards { grid-template-columns: repeat(2, 1fr); }

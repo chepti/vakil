@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CityLocation;
 use App\Models\FamilyPhoto;
 use App\Models\Person;
 use App\Models\Relationship;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class StatsController extends Controller
@@ -29,10 +31,29 @@ class StatsController extends Controller
                 'photos'   => $people->whereNotNull('profile_photo')->count() + FamilyPhoto::count(),
             ],
             'cities'                => $this->cities($people),
+            'savedLocations'        => CityLocation::all()
+                ->mapWithKeys(fn($l) => [$l->name => ['lat' => $l->lat, 'lng' => $l->lng]]),
             'babies'                => $this->recentBabies($people),
             'birthdayCandidates'    => $this->birthdayCandidates($people),
             'anniversaryCandidates' => $this->anniversaryCandidates(),
         ]);
+    }
+
+    /** שמירת מיקום עיר על המפה — כל משתמש יכול, נשמר לכולם. */
+    public function saveLocation(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'lat'  => 'required|numeric|between:-90,90',
+            'lng'  => 'required|numeric|between:-180,180',
+        ]);
+
+        CityLocation::updateOrCreate(
+            ['name' => $data['name']],
+            ['lat' => $data['lat'], 'lng' => $data['lng'], 'created_by' => auth()->id()]
+        );
+
+        return response()->json(['ok' => true]);
     }
 
     /** ערים שונות שבהן גרים בני המשפחה, עם מספר ושמות לכל עיר. */

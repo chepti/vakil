@@ -72,6 +72,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // סטטיסטיקות — פתוח לכל המשתמשים
     Route::get('/stats', [StatsController::class, 'index'])->name('stats');
+    // מיקום עיר על המפה — כל משתמש יכול למקם, נשמר לכולם
+    Route::post('/stats/location', [StatsController::class, 'saveLocation'])->name('stats.location');
 
     // הדפסה ל-PDF — תצוגת ענף ידידותית להדפסה
     Route::get('/print/tree', [FamilyTreeController::class, 'printable'])->name('print.tree');

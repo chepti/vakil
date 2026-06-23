@@ -650,7 +650,7 @@
     ]
   },
   "resources/js/Pages/Stats/Index.vue": {
-    "file": "assets/Index-C3rYuWEZ.js",
+    "file": "assets/Index-Dhs3KTWm.js",
     "name": "Index",
     "src": "resources/js/Pages/Stats/Index.vue",
     "isDynamicEntry": true,
@@ -667,7 +667,7 @@
       "node_modules/leaflet/dist/leaflet-src.js"
     ],
     "css": [
-      "assets/Index-Cm96NuTl.css"
+      "assets/Index-Bf05F6wX.css"
     ],
     "assets": [
       "assets/layers-BWBAp2CZ.png",
@@ -690,7 +690,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-5t9121iU.js",
+    "file": "assets/app-CYfAEvh6.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
