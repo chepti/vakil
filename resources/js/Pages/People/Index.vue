@@ -40,7 +40,7 @@
           <div class="person-info">
             <div class="person-name">{{ person.full_name }}</div>
             <div class="person-meta">
-              <span v-if="person.birth_year">יוהד {{ person.birth_year }}</span>
+              <span v-if="person.birth_year">נולד/ה {{ person.birth_year }}</span>
               <span v-if="person.is_deceased" class="deceased-badge">ז"ל</span>
             </div>
           </div>

@@ -1,1 +1,0 @@
-import{i as e,n as t,r as n,t as r}from"./classApi-CtHRkR4c.js";Object.defineProperties(globalThis,e({Temporal:r})),Object.defineProperties(Intl,e({DateTimeFormat:t})),Object.defineProperties(Date.prototype,e({toTemporalInstant:n}));
