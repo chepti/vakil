@@ -60,6 +60,7 @@ class FamilyPhotoController extends Controller
             'photo' => [
                 'id'          => $familyPhoto->id,
                 'url'         => $familyPhoto->url,
+                'path'        => $familyPhoto->path,
                 'title'       => $familyPhoto->title,
                 'uploaded_by' => $familyPhoto->uploaded_by,
                 'tags'        => $familyPhoto->tags->map(fn($t) => [

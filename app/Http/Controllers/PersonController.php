@@ -167,10 +167,11 @@ class PersonController extends Controller
                 ->with('familyPhoto')
                 ->get()
                 ->map(fn($t) => [
-                    'id'        => $t->family_photo_id,
-                    'tag_id'    => $t->id,
-                    'url'       => $t->familyPhoto->url,
-                    'title'     => $t->familyPhoto->title,
+                    'id'         => $t->family_photo_id,
+                    'tag_id'     => $t->id,
+                    'url'        => $t->familyPhoto->url,
+                    'source_path' => $t->familyPhoto->path,
+                    'title'      => $t->familyPhoto->title,
                     'x_percent' => (float) $t->x_percent,
                     'y_percent' => (float) $t->y_percent,
                     'w_percent' => (float) ($t->w_percent ?? 10),
@@ -180,6 +181,27 @@ class PersonController extends Controller
             $photosTagged = collect();
         }
 
+        // תמונות פרופיל שהועלו לדמות (כולל מקור לעריכת חיתוך)
+        $photoRows = $person->photos()->latest()->get();
+        $profilePhotos = $photoRows->map(fn($p) => [
+            'id'           => $p->id,
+            'thumb_url'    => $p->thumb_url,
+            'original_url' => $p->original_url,
+            'source_path'  => $p->original_path ?: $p->thumb_path,
+            'is_current'   => $p->thumb_path === $person->profile_photo,
+        ])->values();
+
+        // השלמה: תמונת הפרופיל הנוכחית שאין לה רשומת Photo (העלאות ישנות)
+        if ($person->profile_photo && !$photoRows->firstWhere('thumb_path', $person->profile_photo)) {
+            $profilePhotos->prepend([
+                'id'           => null,
+                'thumb_url'    => $person->profile_photo_url,
+                'original_url' => $person->profile_photo_url,
+                'source_path'  => $person->profile_photo,
+                'is_current'   => true,
+            ]);
+        }
+
         $allPeople = Person::where('id', '!=', $person->id)
             ->select('id', 'first_name', 'last_name')
             ->orderBy('first_name')
@@ -187,7 +209,8 @@ class PersonController extends Controller
             ->map(fn($p) => ['id' => $p->id, 'label' => $p->full_name]);
 
         return Inertia::render('People/Show', [
-            'person'       => $this->formatPerson($person),
+            'person'        => $this->formatPerson($person),
+            'profilePhotos' => $profilePhotos,
             'parents'      => $person->parents->map(fn($p) => $this->formatMini($p)),
             'children'     => $person->children->map(fn($p) => $this->formatMini($p)),
             'spouses'      => $spouses->map(function ($p) use ($spouseRels) {
@@ -370,16 +393,102 @@ class PersonController extends Controller
 
     public function uploadPhoto(Request $request, Person $person)
     {
-        $request->validate(['profile_photo' => 'required|image|max:5120']);
+        $data = $request->validate([
+            'profile_photo' => 'required|image|max:10240',
+            'source_path'   => 'nullable|string',   // נתיב אחסון של מקור קיים (גלריה / פרופיל ישן) לשמירה כמקור
+            'crop_x' => 'nullable|numeric', 'crop_y' => 'nullable|numeric',
+            'crop_w' => 'nullable|numeric', 'crop_h' => 'nullable|numeric',
+        ]);
 
-        if ($person->profile_photo) {
-            Storage::disk('public')->delete($person->profile_photo);
+        // התמונה המוצגת (avatar)
+        $thumbPath = $request->file('profile_photo')->store('avatars', 'public');
+
+        // המקור שיישמר לעריכת חיתוך עתידית
+        $originalPath = $thumbPath;   // ברירת מחדל: העלאה גולמית — המקור הוא הקובץ עצמו
+        if (!empty($data['source_path']) && Storage::disk('public')->exists($data['source_path'])) {
+            $ext  = pathinfo($data['source_path'], PATHINFO_EXTENSION) ?: 'jpg';
+            $copy = 'photos/originals/' . \Illuminate\Support\Str::uuid() . '.' . $ext;
+            Storage::disk('public')->copy($data['source_path'], $copy);
+            $originalPath = $copy;
         }
 
-        $path = $request->file('profile_photo')->store('avatars', 'public');
-        $person->update(['profile_photo' => $path]);
+        \App\Models\Photo::create([
+            'person_id'     => $person->id,
+            'thumb_path'    => $thumbPath,
+            'original_path' => $originalPath,
+            'crop_x' => $data['crop_x'] ?? null, 'crop_y' => $data['crop_y'] ?? null,
+            'crop_w' => $data['crop_w'] ?? null, 'crop_h' => $data['crop_h'] ?? null,
+            'uploaded_by'   => Auth::id(),
+        ]);
+
+        $person->update(['profile_photo' => $thumbPath]);
 
         return redirect()->back()->with('success', 'התמונה עודכנה');
+    }
+
+    /** עריכת חיתוך של תמונת פרופיל קיימת — מקבל מהלקוח את הקטע החתוך מחדש */
+    public function cropProfilePhoto(Request $request, Person $person, \App\Models\Photo $photo)
+    {
+        abort_unless($photo->person_id === $person->id, 404);
+
+        $data = $request->validate([
+            'profile_photo' => 'required|image|max:10240',
+            'crop_x' => 'nullable|numeric', 'crop_y' => 'nullable|numeric',
+            'crop_w' => 'nullable|numeric', 'crop_h' => 'nullable|numeric',
+        ]);
+
+        $wasCurrent = $person->profile_photo === $photo->thumb_path;
+
+        // מחיקת ה-thumb הישן (אך לא המקור!)
+        if ($photo->thumb_path && $photo->thumb_path !== $photo->original_path) {
+            Storage::disk('public')->delete($photo->thumb_path);
+        }
+
+        $newThumb = $request->file('profile_photo')->store('avatars', 'public');
+        $photo->update([
+            'thumb_path' => $newThumb,
+            'crop_x' => $data['crop_x'] ?? null, 'crop_y' => $data['crop_y'] ?? null,
+            'crop_w' => $data['crop_w'] ?? null, 'crop_h' => $data['crop_h'] ?? null,
+        ]);
+
+        if ($wasCurrent) {
+            $person->update(['profile_photo' => $newThumb]);
+        }
+
+        return response()->json([
+            'id'        => $photo->id,
+            'thumb_url' => $photo->thumb_url,
+            'is_current' => $wasCurrent,
+        ]);
+    }
+
+    public function setProfilePhoto(Person $person, \App\Models\Photo $photo)
+    {
+        abort_unless($photo->person_id === $person->id, 404);
+        $person->update(['profile_photo' => $photo->thumb_path]);
+        return redirect()->back()->with('success', 'תמונת הפרופיל עודכנה');
+    }
+
+    public function deleteProfilePhoto(Person $person, \App\Models\Photo $photo)
+    {
+        abort_unless($photo->person_id === $person->id, 404);
+
+        if ($photo->thumb_path && $photo->thumb_path !== $photo->original_path) {
+            Storage::disk('public')->delete($photo->thumb_path);
+        }
+        if ($photo->original_path) {
+            Storage::disk('public')->delete($photo->original_path);
+        }
+
+        $wasCurrent = $person->profile_photo === $photo->thumb_path;
+        $photo->delete();
+
+        if ($wasCurrent) {
+            $next = $person->photos()->latest()->first();
+            $person->update(['profile_photo' => $next?->thumb_path]);
+        }
+
+        return redirect()->back()->with('success', 'התמונה נמחקה');
     }
 
     public function destroy(Person $person)

@@ -166,6 +166,28 @@
 
       </div>
 
+      <!-- ─── Profile photos (uploaded) ─── -->
+      <div class="family-section photos-section" v-if="profilePhotos.length > 0">
+        <div class="section-header">
+          <h2>תמונות פרופיל ({{ profilePhotos.length }})</h2>
+          <button class="btn-add-inline" @click="showChangePhoto = true">+ העלה תמונה</button>
+        </div>
+        <p class="photos-hint">אפשר להגדיר כל תמונה כפרופיל, לערוך את החיתוך, או למחוק</p>
+        <div class="photos-grid">
+          <div v-for="(pp, i) in profilePhotos" :key="pp.id ?? 'cur-' + i" class="profile-photo-wrap">
+            <div class="profile-photo-thumb" :class="{ current: pp.is_current }">
+              <img :src="pp.thumb_url" alt="תמונת פרופיל" />
+              <span v-if="pp.is_current" class="current-badge">פרופיל נוכחי</span>
+            </div>
+            <div class="profile-photo-actions">
+              <button v-if="!pp.is_current && pp.id" class="pp-btn" @click="setAsProfile(pp)" title="הגדר כפרופיל">⭐</button>
+              <button class="pp-btn" @click="openCrop(pp)" title="ערוך חיתוך">✂️</button>
+              <button v-if="pp.id" class="pp-btn pp-del" @click="deleteProfilePhoto(pp)" title="מחק">🗑</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ─── Photos tagged ─── -->
       <div class="family-section photos-section" v-if="photosTagged.length > 0">
         <div class="section-header">
@@ -222,6 +244,47 @@
           <button class="btn-cancel" @click="closePhotoModal">ביטול</button>
           <button v-if="photoForm.profile_photo" class="btn-primary-modal" @click="submitPhoto" :disabled="photoForm.processing">
             {{ photoForm.processing ? 'מעלה...' : 'העלה' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Modal: עריכת חיתוך ─── -->
+    <div v-if="showCrop" class="modal-overlay" @click.self="showCrop = false">
+      <div class="modal modal-wide" dir="rtl">
+        <h3>✂️ עריכת חיתוך תמונה</h3>
+        <p class="crop-hint">גררו ריבוע על הפנים. הריבוע נשמר מרובע (מתאים לתמונת פרופיל עגולה).</p>
+
+        <div class="crop-area">
+          <div
+            class="crop-stage"
+            ref="cropStage"
+            @mousedown.prevent="cropDown"
+            @mousemove.prevent="cropMove"
+            @mouseup="cropUp"
+            @mouseleave="cropUp"
+            @touchstart.prevent="cropTouchStart"
+            @touchmove.prevent="cropTouchMove"
+            @touchend.prevent="cropUp"
+          >
+            <img :src="cropSrc" ref="cropImg" class="crop-img" crossorigin="anonymous" @dragstart.prevent @load="cropImgLoaded = true" />
+            <div v-if="cropBox" class="crop-box" :style="cropBoxStyle"></div>
+          </div>
+
+          <div class="crop-side">
+            <div class="crop-preview-label">תצוגה מקדימה</div>
+            <div class="crop-preview-circle">
+              <img v-if="cropPreviewUrl" :src="cropPreviewUrl" />
+              <span v-else class="crop-preview-empty">סמנו אזור</span>
+            </div>
+          </div>
+        </div>
+
+        <p v-if="cropMsg" class="error-msg">{{ cropMsg }}</p>
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="showCrop = false">ביטול</button>
+          <button class="btn-primary-modal" @click="saveCrop" :disabled="!cropBox || savingCrop">
+            {{ savingCrop ? 'שומר...' : 'שמור חיתוך' }}
           </button>
         </div>
       </div>
@@ -611,7 +674,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, nextTick } from 'vue'
 import { Link, router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { gregorianToHebrew, hebrewToGregorian } from '@/utils/hebrewDate'
@@ -627,6 +690,7 @@ const props = defineProps({
   spouses:      { type: Array,  default: () => [] },
   siblings:     { type: Array,  default: () => [] },
   photosTagged: { type: Array,  default: () => [] },
+  profilePhotos:{ type: Array,  default: () => [] },
   allPeople:    { type: Array,  default: () => [] },
   parentIds:    { type: Array,  default: () => [] },
   spouseId:     { type: [Number, null], default: null },
@@ -651,8 +715,165 @@ function closePhotoModal() {
 
 function submitPhoto() {
   photoForm.post(`/people/${props.person.id}/photo`, {
-    onSuccess: () => { showChangePhoto.value = false },
+    onSuccess: () => { showChangePhoto.value = false; photoForm.profile_photo = null },
   })
+}
+
+// ─── Profile photos: set / delete ────────────────────────
+function setAsProfile(pp) {
+  if (!pp.id) return
+  router.post(`/people/${props.person.id}/photos/${pp.id}/set-profile`, {}, { preserveScroll: true })
+}
+
+function deleteProfilePhoto(pp) {
+  if (!pp.id) return
+  if (!confirm('למחוק את התמונה?')) return
+  router.delete(`/people/${props.person.id}/photos/${pp.id}`, { preserveScroll: true })
+}
+
+// ─── Crop editor ─────────────────────────────────────────
+const showCrop       = ref(false)
+const cropTarget     = ref(null)   // ה-pp שעורכים
+const cropSrc        = ref(null)
+const cropImg        = ref(null)
+const cropStage      = ref(null)
+const cropImgLoaded  = ref(false)
+const cropBox        = ref(null)   // { left, top, size } בפיקסלים יחסית לתמונה המוצגת
+const cropDragging   = ref(false)
+const cropStart      = ref(null)
+const cropPreviewUrl = ref(null)
+const savingCrop     = ref(false)
+const cropMsg        = ref(null)
+
+const cropBoxStyle = computed(() => {
+  if (!cropBox.value) return null
+  return {
+    left:   cropBox.value.left + 'px',
+    top:    cropBox.value.top + 'px',
+    width:  cropBox.value.size + 'px',
+    height: cropBox.value.size + 'px',
+  }
+})
+
+function openCrop(pp) {
+  cropTarget.value     = pp
+  cropSrc.value        = pp.original_url
+  cropBox.value        = null
+  cropPreviewUrl.value = null
+  cropImgLoaded.value  = false
+  cropMsg.value        = null
+  showCrop.value       = true
+}
+
+function cropPoint(clientX, clientY) {
+  const img = cropImg.value
+  if (!img) return null
+  const r = img.getBoundingClientRect()
+  return {
+    x: Math.max(0, Math.min(clientX - r.left, r.width)),
+    y: Math.max(0, Math.min(clientY - r.top, r.height)),
+    w: r.width,
+    h: r.height,
+  }
+}
+
+function cropDown(e) {
+  if (e.button !== undefined && e.button !== 0) return
+  const p = cropPoint(e.clientX, e.clientY)
+  if (!p) return
+  cropDragging.value = true
+  cropStart.value = p
+  cropBox.value = null
+}
+
+function cropMoveTo(clientX, clientY) {
+  if (!cropDragging.value || !cropStart.value) return
+  const p = cropPoint(clientX, clientY)
+  if (!p) return
+  const s = cropStart.value
+  const dirX = p.x >= s.x ? 1 : -1
+  const dirY = p.y >= s.y ? 1 : -1
+  const maxX = dirX > 0 ? p.w - s.x : s.x
+  const maxY = dirY > 0 ? p.h - s.y : s.y
+  const side = Math.min(Math.max(Math.abs(p.x - s.x), Math.abs(p.y - s.y)), maxX, maxY)
+  cropBox.value = {
+    left: dirX > 0 ? s.x : s.x - side,
+    top:  dirY > 0 ? s.y : s.y - side,
+    size: side,
+  }
+}
+
+function cropMove(e)  { cropMoveTo(e.clientX, e.clientY) }
+function cropTouchStart(e) { const t = e.touches[0]; cropDown({ clientX: t.clientX, clientY: t.clientY }) }
+function cropTouchMove(e)  { const t = e.touches[0]; cropMoveTo(t.clientX, t.clientY) }
+
+function cropUp() {
+  if (!cropDragging.value) return
+  cropDragging.value = false
+  if (cropBox.value && cropBox.value.size < 12) cropBox.value = null
+  renderCropPreview()
+}
+
+function getCroppedCanvas() {
+  const img = cropImg.value
+  if (!img || !cropBox.value) return null
+  const r = img.getBoundingClientRect()
+  const scale = img.naturalWidth / r.width
+  const sx = cropBox.value.left * scale
+  const sy = cropBox.value.top * scale
+  const ss = cropBox.value.size * scale
+  const out = Math.min(600, Math.round(ss))   // עד 600px — מספיק לאווטאר
+  const canvas = document.createElement('canvas')
+  canvas.width = out
+  canvas.height = out
+  canvas.getContext('2d').drawImage(img, sx, sy, ss, ss, 0, 0, out, out)
+  return { canvas, sx, sy, ss }
+}
+
+function renderCropPreview() {
+  const c = getCroppedCanvas()
+  cropPreviewUrl.value = c ? c.canvas.toDataURL('image/jpeg', 0.9) : null
+}
+
+async function saveCrop() {
+  if (!cropBox.value || savingCrop.value) return
+  savingCrop.value = true
+  cropMsg.value = null
+  try {
+    const c = getCroppedCanvas()
+    if (!c) throw new Error()
+    const blob = await new Promise(res => c.canvas.toBlob(res, 'image/jpeg', 0.9))
+    if (!blob) throw new Error()
+
+    const img = cropImg.value
+    const fd = new FormData()
+    fd.append('profile_photo', blob, 'crop.jpg')
+    fd.append('crop_x', (c.sx / img.naturalWidth) * 100)
+    fd.append('crop_y', (c.sy / img.naturalHeight) * 100)
+    fd.append('crop_w', (c.ss / img.naturalWidth) * 100)
+    fd.append('crop_h', (c.ss / img.naturalHeight) * 100)
+
+    const pp = cropTarget.value
+    let url
+    if (pp.id) {
+      url = `/people/${props.person.id}/photos/${pp.id}/crop`
+    } else {
+      // פרופיל ישן ללא רשומה — יוצרים רשומה חדשה תוך שמירת המקור
+      url = `/people/${props.person.id}/photo`
+      if (pp.source_path) fd.append('source_path', pp.source_path)
+    }
+
+    const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
+    const res = await fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': token }, body: fd })
+    if (!res.ok && !res.redirected) throw new Error()
+
+    showCrop.value = false
+    router.reload({ only: ['person', 'profilePhotos', 'parents', 'children', 'spouses', 'siblings'] })
+  } catch {
+    cropMsg.value = 'שגיאה בשמירת החיתוך, נסו שוב'
+  } finally {
+    savingCrop.value = false
+  }
 }
 
 // ─── Edit personal info ──────────────────────────────────
@@ -990,6 +1211,12 @@ async function cropAndSetProfile(pt) {
     const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
     const fd = new FormData()
     fd.append('profile_photo', blob, 'face.jpg')
+    // שומרים את תמונת הגלריה המלאה כמקור — לעריכת חיתוך עתידית
+    if (pt.source_path) fd.append('source_path', pt.source_path)
+    fd.append('crop_x', pt.x_percent)
+    fd.append('crop_y', pt.y_percent)
+    fd.append('crop_w', pt.w_percent)
+    fd.append('crop_h', pt.h_percent)
     const res = await fetch(`/people/${props.person.id}/photo`, {
       method:  'POST',
       headers: { 'X-CSRF-TOKEN': token },
@@ -999,6 +1226,7 @@ async function cropAndSetProfile(pt) {
 
     photoPreview.value  = URL.createObjectURL(blob)
     profileSetMsg.value = { ok: true, text: 'תמונת הפרופיל עודכנה' }
+    router.reload({ only: ['person', 'profilePhotos'] })
   } catch {
     profileSetMsg.value = { ok: false, text: 'שגיאה — נסה/י שוב' }
   } finally {
@@ -1195,6 +1423,48 @@ h2 { font-size: 1rem; color: #2d4a7a; margin: 0; font-weight: 600; }
 .profile-set-msg.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
 .photos-empty-action { margin-top: 0.5rem; text-align: center; padding: 0.5rem 0 1rem; }
+
+/* ─── Profile photos gallery ─── */
+.profile-photo-wrap { display: flex; flex-direction: column; gap: 0.4rem; width: 110px; }
+.profile-photo-thumb {
+  position: relative; width: 110px; height: 110px; border-radius: 12px; overflow: hidden;
+  border: 2px solid #e4eefb; background: #f0f4f8;
+}
+.profile-photo-thumb.current { border-color: #22c55e; box-shadow: 0 0 0 2px #bbf7d0; }
+.profile-photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.current-badge {
+  position: absolute; bottom: 0; right: 0; left: 0; background: rgba(34,197,94,.92);
+  color: white; font-size: 0.68rem; text-align: center; padding: 0.15rem;
+}
+.profile-photo-actions { display: flex; gap: 0.3rem; justify-content: center; }
+.pp-btn {
+  flex: 1; border: 1.5px solid #d1dce8; background: white; border-radius: 7px;
+  padding: 0.3rem 0; font-size: 0.85rem; cursor: pointer; font-family: 'Rubik', sans-serif;
+}
+.pp-btn:hover { border-color: #2d6be4; background: #edf3ff; }
+.pp-del:hover { border-color: #fca5a5; background: #fef2f2; }
+
+/* ─── Crop modal ─── */
+.crop-hint { font-size: 0.85rem; color: #8a9ab5; margin: 0 0 1rem; }
+.crop-area { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; }
+.crop-stage {
+  position: relative; display: inline-block; line-height: 0; flex: 1 1 320px;
+  max-width: 100%; cursor: crosshair; user-select: none; border-radius: 10px; overflow: hidden;
+  background: #0b1424;
+}
+.crop-img { display: block; max-width: 100%; max-height: 60vh; width: auto; height: auto; pointer-events: none; }
+.crop-box {
+  position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,.45);
+  border-radius: 50%; box-sizing: border-box;
+}
+.crop-side { flex-shrink: 0; text-align: center; }
+.crop-preview-label { font-size: 0.8rem; color: #8a9ab5; margin-bottom: 0.4rem; }
+.crop-preview-circle {
+  width: 120px; height: 120px; border-radius: 50%; overflow: hidden; border: 3px solid #dbeafe;
+  background: #e8f0fe; display: flex; align-items: center; justify-content: center;
+}
+.crop-preview-circle img { width: 100%; height: 100%; object-fit: cover; }
+.crop-preview-empty { font-size: 0.75rem; color: #94a3b8; padding: 0 0.5rem; text-align: center; }
 
 /* ─── Modals ─── */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }

@@ -368,6 +368,12 @@ async function saveTag(person) {
     if (blob) {
       const fd = new FormData()
       fd.append('profile_photo', blob, 'face.jpg')
+      // שומרים את תמונת הגלריה כמקור — כדי לאפשר עריכת חיתוך מאוחר יותר בכרטיס
+      if (props.photo.path) fd.append('source_path', props.photo.path)
+      fd.append('crop_x', rect.x_percent)
+      fd.append('crop_y', rect.y_percent)
+      fd.append('crop_w', rect.w_percent)
+      fd.append('crop_h', rect.h_percent)
       const upRes = await fetch(`/people/${person.id}/photo`, {
         method:  'POST',
         headers: { 'X-CSRF-TOKEN': csrfToken() },

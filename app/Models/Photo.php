@@ -9,6 +9,7 @@ class Photo extends Model
 {
     protected $fillable = [
         'person_id', 'event_id', 'thumb_path', 'original_path',
+        'crop_x', 'crop_y', 'crop_w', 'crop_h',
         'caption', 'taken_at', 'uploaded_by',
     ];
 
@@ -16,11 +17,16 @@ class Photo extends Model
         'taken_at' => 'date',
     ];
 
-    protected $appends = ['thumb_url'];
+    protected $appends = ['thumb_url', 'original_url'];
 
     public function getThumbUrlAttribute(): string
     {
         return asset('storage/' . $this->thumb_path);
+    }
+
+    public function getOriginalUrlAttribute(): string
+    {
+        return asset('storage/' . ($this->original_path ?: $this->thumb_path));
     }
 
     public function person(): BelongsTo

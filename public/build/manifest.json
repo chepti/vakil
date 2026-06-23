@@ -396,7 +396,7 @@
     ]
   },
   "resources/js/Pages/FamilyPhotos/Show.vue": {
-    "file": "assets/Show-DaKON3oz.js",
+    "file": "assets/Show-ClmPF0w6.js",
     "name": "Show",
     "src": "resources/js/Pages/FamilyPhotos/Show.vue",
     "isDynamicEntry": true,
@@ -407,7 +407,7 @@
       "_AppLayout-TCTrLwtH.js"
     ],
     "css": [
-      "assets/Show-Bbci5lKd.css"
+      "assets/Show-Ct3rJjZz.css"
     ]
   },
   "resources/js/Pages/FamilyTree.vue": {
@@ -526,7 +526,7 @@
     ]
   },
   "resources/js/Pages/People/Show.vue": {
-    "file": "assets/Show-ltEaVGOI.js",
+    "file": "assets/Show-8DRFwD4f.js",
     "name": "Show",
     "src": "resources/js/Pages/People/Show.vue",
     "isDynamicEntry": true,
@@ -538,7 +538,7 @@
       "_AppLayout-TCTrLwtH.js"
     ],
     "css": [
-      "assets/Show-BZsI_Hu5.css"
+      "assets/Show-CHzURUfp.css"
     ]
   },
   "resources/js/Pages/Print/AncestorNode.vue": {
@@ -686,7 +686,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-CYWMCCOw.js",
+    "file": "assets/app-B6Q2sRgs.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

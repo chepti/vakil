@@ -45,6 +45,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('people', PersonController::class);
     Route::post('/people/{person}/spouse', [PersonController::class, 'addSpouse'])->name('people.spouse');
     Route::post('/people/{person}/photo', [PersonController::class, 'uploadPhoto'])->name('people.photo');
+    Route::post('/people/{person}/photos/{photo}/crop', [PersonController::class, 'cropProfilePhoto'])->name('people.photo.crop');
+    Route::post('/people/{person}/photos/{photo}/set-profile', [PersonController::class, 'setProfilePhoto'])->name('people.photo.set');
+    Route::delete('/people/{person}/photos/{photo}', [PersonController::class, 'deleteProfilePhoto'])->name('people.photo.delete');
     Route::post('/people/{person}/parent', [PersonController::class, 'addParent'])->name('people.parent');
     Route::post('/people/{person}/sibling', [PersonController::class, 'addSibling'])->name('people.sibling');
     Route::post('/people/{person}/reorder-children', [PersonController::class, 'reorderChildren'])->name('people.reorder-children');
