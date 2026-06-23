@@ -888,13 +888,14 @@ const radialData = computed(() => {
     const isRoot = id === centerId
     // Center spouse shares the center's size — they read as one couple
     const nodeR  = isRoot || pos.centerSpouse ? 28 : 20
-    const angle  = pos.angle || 0
-    // Root and center-spouse label below; others radially outward
-    const labelBelow = isRoot || pos.centerSpouse
-    const lDist  = nodeR + 11
-    const lx = labelBelow ? 0 : Math.cos(angle - Math.PI / 2) * lDist
-    const ly = labelBelow ? nodeR + 9 : Math.sin(angle - Math.PI / 2) * lDist
-    const labelBaseline = ly > 3 ? 'hanging' : ly < -3 ? 'auto' : 'central'
+
+    // Name label hugs the node on a bottom half-circle arc (glued to its own figure,
+    // never drifting toward a neighbour). Path runs right→bottom→left so Hebrew reads RTL.
+    const Rl = nodeR + 6
+    const a1 = 20 * Math.PI / 180, a2 = 160 * Math.PI / 180
+    const p1x = (Rl * Math.cos(a1)).toFixed(1), p1y = (Rl * Math.sin(a1)).toFixed(1)
+    const p2x = (Rl * Math.cos(a2)).toFixed(1), p2y = (Rl * Math.sin(a2)).toFixed(1)
+    const labelArc = `M ${p1x} ${p1y} A ${Rl} ${Rl} 0 0 1 ${p2x} ${p2y}`
 
     // Married-in spouse: a current spouse not placed elsewhere (peripheral hint + hover reveal)
     let spouse = null
@@ -915,7 +916,7 @@ const radialData = computed(() => {
     return {
       id,
       x: pos.x, y: pos.y, level: pos.level, relType: pos.relType,
-      nodeR, labelX: lx, labelY: ly, labelBaseline,
+      nodeR, labelArc,
       gender:    n?.data?.gender,
       avatar:    n?.data?.avatar || null,
       firstName: n?.data?.['first name'] || '',
