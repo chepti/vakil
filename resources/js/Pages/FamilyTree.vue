@@ -935,11 +935,11 @@ const radialData = computed(() => {
     // (glued, but never over the face). Glyphs extend inward from the baseline, so the arc
     // radius must clear the node by at least the font height. Path left→bottom→right keeps
     // the text upright; Hebrew bidi places the letters right-to-left for us.
-    const Rl = nodeR + 4
+    const Rl = nodeR + 6
     const aL = 155 * Math.PI / 180, aR = 25 * Math.PI / 180
     const pLx = (Rl * Math.cos(aL)).toFixed(1), pLy = (Rl * Math.sin(aL)).toFixed(1)
     const pRx = (Rl * Math.cos(aR)).toFixed(1), pRy = (Rl * Math.sin(aR)).toFixed(1)
-    const labelArc = `M ${pLx} ${pLy} A ${Rl} ${Rl} 0 0 1 ${pRx} ${pRy}`
+    const labelArc = `M ${pLx} ${pLy} A ${Rl} ${Rl} 0 0 0 ${pRx} ${pRy}`
 
     // Married-in spouse: a current spouse not placed elsewhere (peripheral hint + hover reveal)
     let spouse = null
