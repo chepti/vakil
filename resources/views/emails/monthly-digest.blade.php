@@ -19,7 +19,8 @@
         .item { padding: 10px 14px; background: #f8fafc; border-radius: 10px; margin-bottom: 8px; font-size: 14px; color: #374151; line-height: 1.6; direction: rtl; text-align: right; }
         .item a { color: #2563eb; text-decoration: none; font-weight: 600; }
         .item .meta { color: #6b7a99; font-size: 13px; }
-        .item-row { display: flex; align-items: center; gap: 12px; direction: rtl; }
+        /* chip first (rightmost in RTL), then avatar, then text */
+        .item-row { display: flex; align-items: center; gap: 16px; direction: rtl; }
         .item-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
         .item-avatar-placeholder { width: 48px; height: 48px; border-radius: 50%; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
         .item-avatar-sq { width: 54px; height: 54px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
@@ -31,7 +32,7 @@
         .badge-wed  { background: #fce7f3; color: #9d174d; border: 1px solid #fbcfe8; }
         .badge-birth { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
         .badge-death { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
-        .date-chip { background: #edf3ff; border-radius: 8px; padding: 5px 10px; min-width: 64px; text-align: center; flex-shrink: 0; }
+        .date-chip { background: #edf3ff; border-radius: 8px; padding: 6px 10px; min-width: 68px; text-align: center; flex-shrink: 0; }
         .dc-heb { color: #2d6be4; font-size: 12px; font-weight: 700; display: block; white-space: nowrap; }
         .dc-greg { color: #9aa7c0; font-size: 11px; display: block; }
         .empty { font-size: 14px; color: #9ca3af; }
@@ -60,6 +61,10 @@
                 @foreach ($d['newBabies'] as $baby)
                 <div class="item">
                     <div class="item-row">
+                        <div class="date-chip">
+                            <span class="dc-heb">{{ $baby['hebrewBirth'] }}</span>
+                            <span class="dc-greg">{{ $baby['dateGreg'] ?? '' }}</span>
+                        </div>
                         @if ($baby['photoUrl'])
                         <img src="{{ $baby['photoUrl'] }}" alt="" class="item-avatar">
                         @else
@@ -68,10 +73,6 @@
                         <div class="item-text">
                             <div><a href="{{ $baby['url'] }}">{{ $baby['name'] }}</a>@if ($baby['context'] ?? '') <span class="meta"> {{ $baby['context'] }}</span>@endif</div>
                             <div class="meta">@php echo match($baby['gender'] ?? null) { 'male' => 'נולד', 'female' => 'נולדה', default => 'נולד/ה' }; @endphp</div>
-                        </div>
-                        <div class="date-chip">
-                            <span class="dc-heb">{{ $baby['hebrewBirth'] }}</span>
-                            <span class="dc-greg">{{ $baby['dateGreg'] ?? '' }}</span>
                         </div>
                     </div>
                 </div>
@@ -85,31 +86,31 @@
                 <div class="section-title">📅 אירועים החודש</div>
                 @foreach ($d['events'] as $ev)
                 @php $evImg = $ev['invitationImgUrl'] ?? ($ev['personPhotoUrl'] ?? null); @endphp
+                @php
+                    $badgeCss = match($ev['type'] ?? '') {
+                        'bar_mitzvah' => 'badge badge-bar',
+                        'bat_mitzvah' => 'badge badge-bat',
+                        'wedding'     => 'badge badge-wed',
+                        'birth'       => 'badge badge-birth',
+                        'death'       => 'badge badge-death',
+                        default       => 'badge',
+                    };
+                @endphp
                 <div class="item">
                     <div class="item-row">
+                        <div class="date-chip">
+                            <span class="dc-heb">{{ $ev['hebrewDate'] }}</span>
+                            <span class="dc-greg">{{ $ev['date'] }}</span>
+                        </div>
                         @if ($evImg)
                         <img src="{{ $evImg }}" alt="" class="item-avatar-sq">
                         @else
                         <div class="item-avatar-sq-placeholder">📅</div>
                         @endif
-                        @php
-                            $badgeCss = match($ev['type'] ?? '') {
-                                'bar_mitzvah' => 'badge badge-bar',
-                                'bat_mitzvah' => 'badge badge-bat',
-                                'wedding'     => 'badge badge-wed',
-                                'birth'       => 'badge badge-birth',
-                                'death'       => 'badge badge-death',
-                                default       => 'badge',
-                            };
-                        @endphp
                         <div class="item-text">
                             <div><span class="{{ $badgeCss }}">{{ $ev['typeLabel'] }}</span> <a href="{{ $ev['url'] }}">{{ $ev['title'] }}</a></div>
                             @if ($ev['personName'])<div class="meta">{{ $ev['personName'] }}</div>@endif
                             @if ($ev['location'])<div class="meta">{{ $ev['location'] }}</div>@endif
-                        </div>
-                        <div class="date-chip">
-                            <span class="dc-heb">{{ $ev['hebrewDate'] }}</span>
-                            <span class="dc-greg">{{ $ev['date'] }}</span>
                         </div>
                     </div>
                 </div>
@@ -124,6 +125,10 @@
                 @foreach ($d['roundBirthdays'] as $bd)
                 <div class="item">
                     <div class="item-row">
+                        <div class="date-chip">
+                            <span class="dc-heb">{{ $bd['dayMonth'] }}</span>
+                            <span class="dc-greg">{{ $bd['dateGreg'] ?? '' }}</span>
+                        </div>
                         @if ($bd['photoUrl'] ?? null)
                         <img src="{{ $bd['photoUrl'] }}" alt="" class="item-avatar">
                         @else
@@ -132,10 +137,6 @@
                         <div class="item-text">
                             <div><a href="{{ $bd['url'] }}">{{ $bd['name'] }}</a>@if ($bd['context'] ?? '') <span class="meta"> {{ $bd['context'] }}</span>@endif</div>
                             <div class="meta">חוגג/ת {{ $bd['age'] }}</div>
-                        </div>
-                        <div class="date-chip">
-                            <span class="dc-heb">{{ $bd['dayMonth'] }}</span>
-                            <span class="dc-greg">{{ $bd['dateGreg'] ?? '' }}</span>
                         </div>
                     </div>
                 </div>
@@ -150,14 +151,14 @@
                 @foreach ($d['roundAnniversaries'] as $an)
                 <div class="item">
                     <div class="item-row">
+                        <div class="date-chip">
+                            <span class="dc-heb">{{ $an['dayMonth'] }}</span>
+                            <span class="dc-greg">{{ $an['dateGreg'] ?? '' }}</span>
+                        </div>
                         <div class="item-avatar-placeholder">💍</div>
                         <div class="item-text">
                             <div><a href="{{ $an['url'] }}">{{ $an['names'] }}</a></div>
                             <div class="meta">{{ $an['years'] }} שנות נישואין</div>
-                        </div>
-                        <div class="date-chip">
-                            <span class="dc-heb">{{ $an['dayMonth'] }}</span>
-                            <span class="dc-greg">{{ $an['dateGreg'] ?? '' }}</span>
                         </div>
                     </div>
                 </div>
@@ -173,6 +174,10 @@
                 @foreach ($branch['birthdays'] as $bd)
                 <div class="item">
                     <div class="item-row">
+                        <div class="date-chip">
+                            <span class="dc-heb">{{ $bd['dayMonth'] }}</span>
+                            <span class="dc-greg">{{ $bd['dateGreg'] ?? '' }}</span>
+                        </div>
                         @if ($bd['photoUrl'] ?? null)
                         <img src="{{ $bd['photoUrl'] }}" alt="" class="item-avatar">
                         @else
@@ -182,24 +187,20 @@
                             <div><a href="{{ $bd['url'] }}">{{ $bd['name'] }}</a>@if ($bd['context'] ?? '') <span class="meta"> {{ $bd['context'] }}</span>@endif</div>
                             <div class="meta">יום הולדת {{ $bd['age'] }}</div>
                         </div>
-                        <div class="date-chip">
-                            <span class="dc-heb">{{ $bd['dayMonth'] }}</span>
-                            <span class="dc-greg">{{ $bd['dateGreg'] ?? '' }}</span>
-                        </div>
                     </div>
                 </div>
                 @endforeach
                 @foreach ($branch['anniversaries'] as $an)
                 <div class="item">
                     <div class="item-row">
+                        <div class="date-chip">
+                            <span class="dc-heb">{{ $an['dayMonth'] }}</span>
+                            <span class="dc-greg">{{ $an['dateGreg'] ?? '' }}</span>
+                        </div>
                         <div class="item-avatar-placeholder">💍</div>
                         <div class="item-text">
                             <div><a href="{{ $an['url'] }}">{{ $an['names'] }}</a></div>
                             <div class="meta">{{ $an['years'] }} שנות נישואין</div>
-                        </div>
-                        <div class="date-chip">
-                            <span class="dc-heb">{{ $an['dayMonth'] }}</span>
-                            <span class="dc-greg">{{ $an['dateGreg'] ?? '' }}</span>
                         </div>
                     </div>
                 </div>
