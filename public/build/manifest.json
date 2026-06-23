@@ -411,7 +411,7 @@
     ]
   },
   "resources/js/Pages/FamilyTree.vue": {
-    "file": "assets/FamilyTree-Dsz7YLW8.js",
+    "file": "assets/FamilyTree-Dqdavm8P.js",
     "name": "FamilyTree",
     "src": "resources/js/Pages/FamilyTree.vue",
     "isDynamicEntry": true,
@@ -423,7 +423,7 @@
       "_AppLayout-TCTrLwtH.js"
     ],
     "css": [
-      "assets/FamilyTree-OrQGmv0F.css"
+      "assets/FamilyTree-CBcdd_KE.css"
     ]
   },
   "resources/js/Pages/Game.vue": {
@@ -511,7 +511,7 @@
     ]
   },
   "resources/js/Pages/People/Index.vue": {
-    "file": "assets/Index-Dqh8hnf4.js",
+    "file": "assets/Index-BC53NmdC.js",
     "name": "Index",
     "src": "resources/js/Pages/People/Index.vue",
     "isDynamicEntry": true,
@@ -522,7 +522,7 @@
       "_AppLayout-TCTrLwtH.js"
     ],
     "css": [
-      "assets/Index-Cry94lEK.css"
+      "assets/Index-3-tul_Gj.css"
     ]
   },
   "resources/js/Pages/People/Show.vue": {
@@ -690,7 +690,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-CqR9zE4w.js",
+    "file": "assets/app-kHGnC7xl.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
