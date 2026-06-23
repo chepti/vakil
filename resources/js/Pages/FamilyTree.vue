@@ -170,6 +170,7 @@
             <path :id="`lpath-${node.id}`" :d="node.labelArc" fill="none" />
             <text
               font-family="Rubik, sans-serif"
+              dominant-baseline="hanging"
               :font-size="node.isRoot || node.centerSpouse ? 11 : 8.5"
               :font-weight="node.isRoot || node.centerSpouse ? '700' : '500'"
               fill="#1a3a6b"
@@ -889,11 +890,12 @@ const radialData = computed(() => {
     // Center spouse shares the center's size — they read as one couple
     const nodeR  = isRoot || pos.centerSpouse ? 28 : 20
 
-    // Name label hugs the node on a bottom half-circle arc (glued to its own figure,
-    // never drifting toward a neighbour). Path runs left→bottom→right (an upright "smile")
-    // so the text is the right way up; Hebrew bidi places the letters right-to-left for us.
-    const Rl = nodeR + 6
-    const aL = 160 * Math.PI / 180, aR = 20 * Math.PI / 180
+    // Name label hugs the node on a bottom half-circle arc that sits JUST OUTSIDE the circle
+    // (glued, but never over the face). Glyphs extend inward from the baseline, so the arc
+    // radius must clear the node by at least the font height. Path left→bottom→right keeps
+    // the text upright; Hebrew bidi places the letters right-to-left for us.
+    const Rl = nodeR + 4
+    const aL = 155 * Math.PI / 180, aR = 25 * Math.PI / 180
     const pLx = (Rl * Math.cos(aL)).toFixed(1), pLy = (Rl * Math.sin(aL)).toFixed(1)
     const pRx = (Rl * Math.cos(aR)).toFixed(1), pRy = (Rl * Math.sin(aR)).toFixed(1)
     const labelArc = `M ${pLx} ${pLy} A ${Rl} ${Rl} 0 0 1 ${pRx} ${pRy}`
