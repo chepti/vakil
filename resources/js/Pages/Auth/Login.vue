@@ -56,9 +56,8 @@ const submit = () => {
       </button>
     </form>
 
-    <div class="auth-foot">
-      אין לך חשבון?
-      <Link :href="route('register')" class="auth-link">הרשמה</Link>
+    <div class="auth-foot" style="color:#8aace0;font-size:0.82rem">
+      🔒 כניסה בהזמנה בלבד — פנה למנהל/ת האתר
     </div>
   </GuestLayout>
 </template>
