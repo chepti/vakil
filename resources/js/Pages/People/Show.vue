@@ -242,8 +242,11 @@
         <p v-if="photoForm.errors.profile_photo" class="error-msg">{{ photoForm.errors.profile_photo }}</p>
         <div class="modal-actions">
           <button class="btn-cancel" @click="closePhotoModal">ביטול</button>
-          <button v-if="photoForm.profile_photo" class="btn-primary-modal" @click="submitPhoto" :disabled="photoForm.processing">
-            {{ photoForm.processing ? 'מעלה...' : 'העלה' }}
+          <button v-if="photoForm.profile_photo" class="btn-cancel" @click="submitPhoto" :disabled="photoForm.processing">
+            {{ photoForm.processing ? 'מעלה...' : 'העלה כמו שהיא' }}
+          </button>
+          <button v-if="photoForm.profile_photo" class="btn-primary-modal" @click="openCropForUpload">
+            ✂️ חתוך והעלה
           </button>
         </div>
       </div>
@@ -733,6 +736,8 @@ function deleteProfilePhoto(pp) {
 
 // ─── Crop editor ─────────────────────────────────────────
 const showCrop       = ref(false)
+const cropMode       = ref('existing')   // 'existing' | 'legacy' | 'upload'
+const cropUploadFile = ref(null)         // קובץ המקור בעת העלאה חדשה
 const cropTarget     = ref(null)   // ה-pp שעורכים
 const cropSrc        = ref(null)
 const cropImg        = ref(null)
@@ -756,8 +761,23 @@ const cropBoxStyle = computed(() => {
 })
 
 function openCrop(pp) {
+  cropMode.value       = pp.id ? 'existing' : 'legacy'
   cropTarget.value     = pp
   cropSrc.value        = pp.original_url
+  cropBox.value        = null
+  cropPreviewUrl.value = null
+  cropImgLoaded.value  = false
+  cropMsg.value        = null
+  showCrop.value       = true
+}
+
+// חיתוך תוך כדי העלאת תמונה חדשה
+function openCropForUpload() {
+  if (!photoForm.profile_photo) return
+  cropMode.value       = 'upload'
+  cropUploadFile.value = photoForm.profile_photo
+  cropTarget.value     = null
+  cropSrc.value        = photoPreview.value   // object URL של הקובץ שנבחר
   cropBox.value        = null
   cropPreviewUrl.value = null
   cropImgLoaded.value  = false
@@ -853,14 +873,17 @@ async function saveCrop() {
     fd.append('crop_w', (c.ss / img.naturalWidth) * 100)
     fd.append('crop_h', (c.ss / img.naturalHeight) * 100)
 
-    const pp = cropTarget.value
     let url
-    if (pp.id) {
-      url = `/people/${props.person.id}/photos/${pp.id}/crop`
+    if (cropMode.value === 'existing') {
+      url = `/people/${props.person.id}/photos/${cropTarget.value.id}/crop`
+    } else if (cropMode.value === 'upload') {
+      // העלאה חדשה: התמונה החתוכה כפרופיל + הקובץ המלא כמקור
+      url = `/people/${props.person.id}/photo`
+      if (cropUploadFile.value) fd.append('source', cropUploadFile.value)
     } else {
       // פרופיל ישן ללא רשומה — יוצרים רשומה חדשה תוך שמירת המקור
       url = `/people/${props.person.id}/photo`
-      if (pp.source_path) fd.append('source_path', pp.source_path)
+      if (cropTarget.value?.source_path) fd.append('source_path', cropTarget.value.source_path)
     }
 
     const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
@@ -868,6 +891,9 @@ async function saveCrop() {
     if (!res.ok && !res.redirected) throw new Error()
 
     showCrop.value = false
+    showChangePhoto.value = false
+    photoForm.profile_photo = null
+    cropUploadFile.value = null
     router.reload({ only: ['person', 'profilePhotos', 'parents', 'children', 'spouses', 'siblings'] })
   } catch {
     cropMsg.value = 'שגיאה בשמירת החיתוך, נסו שוב'
@@ -1455,7 +1481,12 @@ h2 { font-size: 1rem; color: #2d4a7a; margin: 0; font-weight: 600; }
 .crop-img { display: block; max-width: 100%; max-height: 60vh; width: auto; height: auto; pointer-events: none; }
 .crop-box {
   position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,.45);
-  border-radius: 50%; box-sizing: border-box;
+  border-radius: 3px; box-sizing: border-box;
+}
+/* רמז שהאזור יוצג כעיגול */
+.crop-box::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  border: 1.5px dashed rgba(255,255,255,.7);
 }
 .crop-side { flex-shrink: 0; text-align: center; }
 .crop-preview-label { font-size: 0.8rem; color: #8a9ab5; margin-bottom: 0.4rem; }

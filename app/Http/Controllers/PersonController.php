@@ -395,7 +395,8 @@ class PersonController extends Controller
     {
         $data = $request->validate([
             'profile_photo' => 'required|image|max:10240',
-            'source_path'   => 'nullable|string',   // נתיב אחסון של מקור קיים (גלריה / פרופיל ישן) לשמירה כמקור
+            'source'        => 'nullable|image|max:10240',   // קובץ מקור מלא (כשמעלים תמונה חתוכה)
+            'source_path'   => 'nullable|string',            // נתיב אחסון של מקור קיים (גלריה / פרופיל ישן)
             'crop_x' => 'nullable|numeric', 'crop_y' => 'nullable|numeric',
             'crop_w' => 'nullable|numeric', 'crop_h' => 'nullable|numeric',
         ]);
@@ -405,7 +406,9 @@ class PersonController extends Controller
 
         // המקור שיישמר לעריכת חיתוך עתידית
         $originalPath = $thumbPath;   // ברירת מחדל: העלאה גולמית — המקור הוא הקובץ עצמו
-        if (!empty($data['source_path']) && Storage::disk('public')->exists($data['source_path'])) {
+        if ($request->hasFile('source')) {
+            $originalPath = $request->file('source')->store('photos/originals', 'public');
+        } elseif (!empty($data['source_path']) && Storage::disk('public')->exists($data['source_path'])) {
             $ext  = pathinfo($data['source_path'], PATHINFO_EXTENSION) ?: 'jpg';
             $copy = 'photos/originals/' . \Illuminate\Support\Str::uuid() . '.' . $ext;
             Storage::disk('public')->copy($data['source_path'], $copy);
