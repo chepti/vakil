@@ -15,9 +15,20 @@
           <Link href="/people" :class="['nav-link', { active: $page.url.startsWith('/people') && !$page.url.startsWith('/people/create') }]"><Users :size="18" /> בני המשפחה</Link>
           <Link href="/family-photos" :class="['nav-link', { active: $page.url.startsWith('/family-photos') }]"><Images :size="18" /> תמונות</Link>
           <Link href="/events" :class="['nav-link', { active: $page.url.startsWith('/events') }]"><CalendarDays :size="18" /> אירועים</Link>
-          <Link href="/game" :class="['nav-link', { active: $page.url.startsWith('/game') }]"><Gamepad2 :size="18" /> משחק</Link>
-          <Link href="/stats" :class="['nav-link', { active: $page.url.startsWith('/stats') }]"><BarChart3 :size="18" /> מספרים</Link>
-          <Link href="/print/tree" :class="['nav-link', { active: $page.url.startsWith('/print') }]"><Printer :size="18" /> הדפסה</Link>
+          <Link href="/recipes" :class="['nav-link', { active: $page.url.startsWith('/recipes') }]"><ChefHat :size="18" /> מתכונים</Link>
+
+          <!-- פעילות dropdown -->
+          <div class="nav-dropdown" :class="{ open: activityOpen }" @mouseenter="activityOpen = true" @mouseleave="activityOpen = false">
+            <button class="nav-link dropdown-trigger" :class="{ active: isActivityActive }">
+              <Sparkles :size="18" /> פעילות <ChevronDown :size="14" class="chevron" />
+            </button>
+            <div class="dropdown-menu">
+              <Link href="/game" class="dropdown-item" @click="activityOpen = false"><Gamepad2 :size="16" /> משחק</Link>
+              <Link href="/stats" class="dropdown-item" @click="activityOpen = false"><BarChart3 :size="16" /> מספרים</Link>
+              <Link href="/print/tree" class="dropdown-item" @click="activityOpen = false"><Printer :size="16" /> הדפסה</Link>
+            </div>
+          </div>
+
           <Link v-if="$page.props.auth.user.role === 'admin'" href="/admin" :class="['nav-link', { active: $page.url.startsWith('/admin') }]"><Settings :size="18" /> ניהול</Link>
         </div>
 
@@ -42,9 +53,11 @@
         <Link href="/people" class="mobile-link" @click="mobileOpen = false"><Users :size="18" /> בני המשפחה</Link>
         <Link href="/family-photos" class="mobile-link" @click="mobileOpen = false"><Images :size="18" /> תמונות</Link>
         <Link href="/events" class="mobile-link" @click="mobileOpen = false"><CalendarDays :size="18" /> אירועים</Link>
-        <Link href="/game" class="mobile-link" @click="mobileOpen = false"><Gamepad2 :size="18" /> משחק</Link>
-        <Link href="/stats" class="mobile-link" @click="mobileOpen = false"><BarChart3 :size="18" /> מספרים</Link>
-        <Link href="/print/tree" class="mobile-link" @click="mobileOpen = false"><Printer :size="18" /> הדפסה</Link>
+        <Link href="/recipes" class="mobile-link" @click="mobileOpen = false"><ChefHat :size="18" /> מתכונים</Link>
+        <div class="mobile-section-label">פעילות</div>
+        <Link href="/game" class="mobile-link mobile-indent" @click="mobileOpen = false"><Gamepad2 :size="18" /> משחק</Link>
+        <Link href="/stats" class="mobile-link mobile-indent" @click="mobileOpen = false"><BarChart3 :size="18" /> מספרים</Link>
+        <Link href="/print/tree" class="mobile-link mobile-indent" @click="mobileOpen = false"><Printer :size="18" /> הדפסה</Link>
         <Link v-if="$page.props.auth.user.role === 'admin'" href="/admin" class="mobile-link" @click="mobileOpen = false"><Settings :size="18" /> ניהול</Link>
         <Link href="/profile" class="mobile-link" @click="mobileOpen = false">פרופיל</Link>
         <Link href="/logout" method="post" as="button" class="mobile-link mobile-logout" @click="mobileOpen = false">יציאה</Link>
@@ -64,15 +77,22 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { Link } from '@inertiajs/vue3'
-import { TreePine, Network, Users, Images, CalendarDays, Gamepad2, BarChart3, Printer, Settings } from 'lucide-vue-next'
+import { ref, computed } from 'vue'
+import { Link, usePage } from '@inertiajs/vue3'
+import { TreePine, Network, Users, Images, CalendarDays, Gamepad2, BarChart3, Printer, Settings, ChefHat, Sparkles, ChevronDown } from 'lucide-vue-next'
 
 defineProps({
   title: { type: String, default: '' },
 })
 
 const mobileOpen = ref(false)
+const activityOpen = ref(false)
+const page = usePage()
+
+const isActivityActive = computed(() => {
+  const url = page.url
+  return url.startsWith('/game') || url.startsWith('/stats') || url.startsWith('/print')
+})
 </script>
 
 <style scoped>
@@ -147,18 +167,68 @@ const mobileOpen = ref(false)
   background: #edf3ff;
 }
 
-.nav-link-btn {
-  background: #2d6be4;
-  color: white !important;
-  text-decoration: none;
-  font-size: 0.88rem;
-  font-weight: 600;
-  padding: 0.35rem 0.9rem;
-  border-radius: 7px;
-  transition: background 0.2s;
+/* Dropdown */
+.nav-dropdown {
+  position: relative;
 }
 
-.nav-link-btn:hover { background: #1a55c8; }
+.dropdown-trigger {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Rubik', sans-serif;
+  font-size: 0.93rem;
+}
+
+.chevron {
+  transition: transform 0.2s;
+  color: #8aa0c2 !important;
+}
+
+.nav-dropdown.open .chevron {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: white;
+  border: 1px solid #e0eaf8;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,50,150,0.1);
+  padding: 0.4rem;
+  min-width: 140px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: all 0.2s;
+  z-index: 200;
+}
+
+.nav-dropdown.open .dropdown-menu,
+.nav-dropdown:hover .dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  color: #4a5568;
+  text-decoration: none;
+  font-size: 0.9rem;
+  border-radius: 7px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.dropdown-item svg { color: #8aa0c2; flex-shrink: 0; }
+.dropdown-item:hover { background: #edf3ff; color: #2d6be4; }
+.dropdown-item:hover svg { color: #2d6be4; }
 
 .nav-user {
   position: relative;
@@ -238,9 +308,21 @@ const mobileOpen = ref(false)
 }
 
 .mobile-link svg { color: #8aa0c2; flex-shrink: 0; }
-
 .mobile-link:hover { background: #edf3ff; }
 .mobile-logout { color: #e74c3c; }
+
+.mobile-section-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #9aa5b4;
+  padding: 0.5rem 0.75rem 0.15rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mobile-indent {
+  padding-right: 1.5rem;
+}
 
 /* Flash */
 .flash-success {

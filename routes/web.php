@@ -5,6 +5,7 @@ use App\Http\Controllers\FamilyPhotoController;
 use App\Http\Controllers\FamilyTreeController;
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PersonController;
@@ -96,6 +97,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/invitations/{invitation}/extend', [InvitationController::class, 'extend'])->name('invitations.extend');
         Route::delete('/invitations/{invitation}', [InvitationController::class, 'destroy'])->name('invitations.delete');
     });
+
+    // מתכונים
+    Route::get('/recipes', [RecipeController::class, 'index'])->name('recipes.index');
+    Route::get('/recipes/create', [RecipeController::class, 'create'])->name('recipes.create');
+    Route::post('/recipes', [RecipeController::class, 'store'])->name('recipes.store');
+    Route::get('/recipes/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
+    Route::get('/recipes/{recipe}/edit', [RecipeController::class, 'edit'])->name('recipes.edit');
+    Route::put('/recipes/{recipe}', [RecipeController::class, 'update'])->name('recipes.update');
+    Route::delete('/recipes/{recipe}', [RecipeController::class, 'destroy'])->name('recipes.destroy');
+    Route::post('/recipes/{recipe}/comments', [RecipeController::class, 'addComment'])->name('recipes.comments.add');
+    Route::delete('/recipe-comments/{comment}', [RecipeController::class, 'deleteComment'])->name('recipes.comments.delete');
+    Route::post('/recipes/{recipe}/adaptation', [RecipeController::class, 'saveAdaptation'])->name('recipes.adaptation');
 
     // משחק — "הדרך אל סבתא ואקיל"
     Route::get('/game', [GameController::class, 'index'])->name('game');
