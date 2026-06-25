@@ -34,7 +34,14 @@ class RecipesSeeder extends Seeder
             return;
         }
 
-        $recipes = json_decode(file_get_contents($jsonPath), true);
+        $content = file_get_contents($jsonPath);
+        $content = ltrim($content, "\xEF\xBB\xBF"); // strip UTF-8 BOM if present
+        $recipes = json_decode($content, true);
+
+        if (!is_array($recipes)) {
+            $this->command->error('JSON parse failed: ' . json_last_error_msg());
+            return;
+        }
 
         foreach ($recipes as $data) {
             $ownerText = $data['owner_text'] ?? '';
