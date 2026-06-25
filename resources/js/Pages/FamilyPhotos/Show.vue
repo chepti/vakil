@@ -112,7 +112,10 @@
                 :disabled="savingTag"
               >
                 <div class="result-initials">{{ initials(p.label) }}</div>
-                {{ p.label }}
+                <div class="result-text">
+                  <div class="result-name">{{ p.label }}</div>
+                  <div v-if="p.hint" class="result-hint">{{ p.hint }}</div>
+                </div>
               </button>
               <div v-if="personSearch && !searchResults.length" class="no-results">לא נמצאו תוצאות</div>
             </div>
@@ -726,6 +729,9 @@ h3 { font-size: 1rem; color: #1a3a6b; margin: 0 0 0.8rem; }
   color: #2d6be4;
   flex-shrink: 0;
 }
+.result-text { display: flex; flex-direction: column; align-items: flex-end; text-align: right; flex: 1; min-width: 0; }
+.result-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.result-hint { font-size: 0.75rem; color: #8a9ab5; white-space: nowrap; }
 .no-results { font-size: 0.85rem; color: #8a9ab5; padding: 0.5rem 0; text-align: center; }
 .btn-cancel {
   margin-top: 0.75rem;

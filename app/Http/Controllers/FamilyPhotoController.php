@@ -51,10 +51,17 @@ class FamilyPhotoController extends Controller
     {
         $familyPhoto->load('tags.person');
 
-        $allPeople = Person::select('id', 'first_name', 'last_name')
+        $allPeople = Person::with('parents')
+            ->select('id', 'first_name', 'last_name')
             ->orderBy('first_name')
             ->get()
-            ->map(fn($p) => ['id' => $p->id, 'label' => $p->full_name]);
+            ->map(fn($p) => [
+                'id'    => $p->id,
+                'label' => $p->full_name,
+                'hint'  => $p->parents->isNotEmpty()
+                    ? 'של ' . $p->parents->first()->first_name
+                    : null,
+            ]);
 
         return Inertia::render('FamilyPhotos/Show', [
             'photo' => [
