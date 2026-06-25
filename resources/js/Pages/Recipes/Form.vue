@@ -38,13 +38,26 @@
             <div class="form-field">
               <label>קטגוריה *</label>
               <select v-model="form.category" required>
-                <option value="soups">🍲 מרקים</option>
-                <option value="mains">🍽️ עיקריות</option>
-                <option value="salads">🥗 סלטים</option>
-                <option value="pastries">🥐 מאפים</option>
-                <option value="desserts">🍰 קינוחים</option>
-                <option value="drinks">🥤 שתייה</option>
-                <option value="other">✨ שונות</option>
+                <option value="">— בחר קטגוריה —</option>
+                <option value="מרקים">🍲 מרקים</option>
+                <option value="עיקריות">🍽️ עיקריות</option>
+                <option value="סלטים">🥗 סלטים</option>
+                <option value="פחמימה">🍞 פחמימה</option>
+                <option value="בשרי">🥩 בשרי</option>
+                <option value="חלבי">🧀 חלבי</option>
+                <option value="עוגות">🎂 עוגות</option>
+                <option value="עוגיות">🍪 עוגיות</option>
+                <option value="מושקע">👨‍🍳 מושקע</option>
+                <option value="פודי">🍽️ פודי</option>
+                <option value="ירקות">🥦 ירקות</option>
+                <option value="שתייה">🥤 שתייה</option>
+                <option value="שבת">✨ שבת</option>
+                <option value="לפסח">🫓 לפסח</option>
+                <option value="לראש השנה">🍎 לראש השנה</option>
+                <option value="לחנוכה">🕎 לחנוכה</option>
+                <option value="לשבועות">🌸 לשבועות</option>
+                <option value="לפורים">🎭 לפורים</option>
+                <option value="כללי">✨ כללי</option>
               </select>
             </div>
             <div class="form-field">

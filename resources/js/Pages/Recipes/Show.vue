@@ -3,14 +3,14 @@
     <div class="show-page" dir="rtl">
 
       <!-- Hero section -->
-      <div class="recipe-hero" :class="`cat-${recipe.category}`">
+      <div class="recipe-hero" :class="getCategoryBgClass(recipe.category)">
         <div class="hero-inner">
           <Link href="/recipes" class="back-link">← חזרה למתכונים</Link>
 
           <div class="hero-content">
             <div class="hero-text">
               <div class="hero-badges">
-                <span class="cat-badge">{{ getCategoryLabel(recipe.category) }}</span>
+                <span class="cat-badge">{{ getCategoryEmoji(recipe.category) }} {{ recipe.category }}</span>
                 <span v-if="recipe.is_favorite" class="badge-special">❤️ מועדף</span>
                 <span v-if="recipe.is_gluten_free" class="badge-special">🌾 ללא גלוטן</span>
                 <span v-if="recipe.quantity" class="badge-special">🍴 {{ recipe.quantity }}</span>
@@ -45,6 +45,12 @@
             <button class="btn-copy" @click="copyRecipe">
               {{ copied ? '✓ הועתק!' : '📋 העתק מתכון' }}
             </button>
+            <button
+              class="btn-wakelock"
+              :class="{ active: screenAwake }"
+              @click="toggleScreenLock"
+              :title="screenAwake ? 'שחרר נעילת מסך' : 'שמור מסך דולק בזמן בישול'"
+            >{{ screenAwake ? '🔆 מסך נעול' : '🔅 שמור מסך' }}</button>
             <template v-if="recipe.can_edit">
               <Link :href="`/recipes/${recipe.id}/edit`" class="btn-edit">✏️ עריכה</Link>
               <button class="btn-delete" @click="confirmDelete">🗑️ מחק</button>
@@ -58,16 +64,37 @@
         <!-- חומרים + הכנה -->
         <div class="recipe-main">
           <div class="recipe-section ingredients-section">
-            <h2>🥕 חומרים</h2>
+            <div class="section-title-row">
+              <h2>🥕 חומרים</h2>
+              <button v-if="checkedIngredients.size > 0" class="btn-reset-checks" @click="checkedIngredients = new Set()">נקה סימונים</button>
+            </div>
             <ul class="ingredients-list">
-              <li v-for="(line, i) in ingredientLines" :key="i">{{ line }}</li>
+              <li
+                v-for="(line, i) in ingredientLines"
+                :key="i"
+                :class="{ 'item-checked': checkedIngredients.has(i) }"
+                @click="toggleIngredient(i)"
+              >
+                <span class="check-box" :class="{ done: checkedIngredients.has(i) }">
+                  <svg v-if="checkedIngredients.has(i)" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+                <span>{{ line }}</span>
+              </li>
             </ul>
           </div>
 
           <div class="recipe-section preparation-section">
-            <h2>👩‍🍳 אופן הכנה</h2>
+            <div class="section-title-row">
+              <h2>👩‍🍳 אופן הכנה</h2>
+              <button v-if="checkedSteps.size > 0" class="btn-reset-checks" @click="checkedSteps = new Set()">נקה סימונים</button>
+            </div>
             <ol class="steps-list">
-              <li v-for="(step, i) in preparationSteps" :key="i">{{ step }}</li>
+              <li
+                v-for="(step, i) in preparationSteps"
+                :key="i"
+                :class="{ 'item-checked': checkedSteps.has(i) }"
+                @click="toggleStep(i)"
+              >{{ step }}</li>
             </ol>
           </div>
         </div>
@@ -174,7 +201,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
@@ -190,11 +217,73 @@ const replyingTo = ref(null)
 const myAdaptationText = ref(props.myAdaptation || '')
 const savingAdaptation = ref(false)
 
-const catLabels = { soups:'מרקים', mains:'עיקריות', salads:'סלטים', pastries:'מאפים', desserts:'קינוחים', drinks:'שתייה', other:'שונות' }
-const catEmojis = { soups:'🍲', mains:'🍽️', salads:'🥗', pastries:'🥐', desserts:'🍰', drinks:'🥤', other:'✨' }
+// Checkboxes (client-side only, not saved)
+const checkedIngredients = ref(new Set())
+const checkedSteps = ref(new Set())
 
-function getCategoryLabel(c) { return catLabels[c] || c }
-function getCategoryEmoji(c) { return catEmojis[c] || '🍴' }
+function toggleIngredient(i) {
+  const s = new Set(checkedIngredients.value)
+  s.has(i) ? s.delete(i) : s.add(i)
+  checkedIngredients.value = s
+}
+
+function toggleStep(i) {
+  const s = new Set(checkedSteps.value)
+  s.has(i) ? s.delete(i) : s.add(i)
+  checkedSteps.value = s
+}
+
+// Wake Lock
+let _wakeLock = null
+const screenAwake = ref(false)
+
+async function toggleScreenLock() {
+  if (screenAwake.value) {
+    try { await _wakeLock?.release() } catch {}
+    _wakeLock = null
+    screenAwake.value = false
+    return
+  }
+  if (!('wakeLock' in navigator)) {
+    alert('הדפדפן שלך לא תומך בנעילת מסך')
+    return
+  }
+  try {
+    _wakeLock = await navigator.wakeLock.request('screen')
+    screenAwake.value = true
+    _wakeLock.addEventListener('release', () => { screenAwake.value = false; _wakeLock = null })
+  } catch {
+    alert('לא ניתן לנעול את המסך — ודא שהדף פתוח ב-HTTPS')
+  }
+}
+
+onUnmounted(() => { try { _wakeLock?.release() } catch {} })
+
+const catEmojis = {
+  'מרקים':'🍲', 'שבת':'✨', 'עוגות':'🎂', 'עוגיות':'🍪',
+  'מושקע':'👨‍🍳', 'פודי':'🍽️', 'פחמימה':'🍞', 'לראש השנה':'🍎',
+  'חלבי':'🧀', 'לפסח':'🫓', 'לחנוכה':'🕎', 'בשרי':'🥩',
+  'ירקות':'🥦', 'לשבועות':'🌸', 'סלטים':'🥗', 'לפורים':'🎭',
+  'ליום העצמאות':'🇮🇱', 'שתייה':'🥤', 'עיקריות':'🍽️',
+}
+
+const catBgClasses = {
+  'מרקים':'cat-soups', 'שבת':'cat-shabbat', 'עוגות':'cat-desserts',
+  'עוגיות':'cat-desserts', 'מושקע':'cat-mains', 'פודי':'cat-mains',
+  'פחמימה':'cat-pastries', 'לראש השנה':'cat-shabbat', 'חלבי':'cat-drinks',
+  'לפסח':'cat-salads', 'לחנוכה':'cat-shabbat', 'בשרי':'cat-mains',
+  'ירקות':'cat-salads', 'לשבועות':'cat-shabbat', 'סלטים':'cat-salads',
+}
+
+function getCategoryLabel(c) { return c || '' }
+function getCategoryEmoji(c) {
+  const first = c ? c.split(',')[0].trim() : ''
+  return catEmojis[first] || '🍽️'
+}
+function getCategoryBgClass(c) {
+  const first = c ? c.split(',')[0].trim() : ''
+  return catBgClasses[first] || 'cat-other'
+}
 
 const ingredientLines = computed(() =>
   props.recipe.ingredients.split('\n').map(l => l.trim()).filter(Boolean)
@@ -282,6 +371,7 @@ function saveAdaptation() {
 .recipe-hero.cat-pastries { background: linear-gradient(135deg, #fffbf0, #fff3cd); }
 .recipe-hero.cat-desserts { background: linear-gradient(135deg, #fdf0ff, #f3e5f5); }
 .recipe-hero.cat-drinks   { background: linear-gradient(135deg, #f0f8ff, #e3f2fd); }
+.recipe-hero.cat-shabbat  { background: linear-gradient(135deg, #fdf6ff, #f3e5f5); }
 .recipe-hero.cat-other    { background: linear-gradient(135deg, #f8f9fa, #f1f3f5); }
 
 .hero-inner {
@@ -399,6 +489,28 @@ h1 {
   flex-wrap: wrap;
 }
 
+.btn-wakelock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: white;
+  border: 1.5px solid #e0eaf8;
+  color: #4a5568;
+  padding: 0.5rem 1.1rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-family: 'Rubik', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+.btn-wakelock:hover { border-color: #f59e0b; color: #f59e0b; }
+.btn-wakelock.active {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #b45309;
+}
+
 .btn-copy {
   display: inline-flex;
   align-items: center;
@@ -475,14 +587,34 @@ h1 {
   border: 1px solid #f0f4fb;
 }
 
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #f7f0e8;
+}
+
 .recipe-section h2 {
   font-size: 1.1rem;
   font-weight: 700;
   color: #1a3a6b;
-  margin: 0 0 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 2px solid #f7f0e8;
+  margin: 0;
 }
+
+.btn-reset-checks {
+  background: none;
+  border: 1px solid #e0eaf8;
+  color: #8aa0c2;
+  padding: 0.2rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-family: 'Rubik', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-reset-checks:hover { border-color: #ff6b35; color: #ff6b35; }
 
 /* Ingredients */
 .ingredients-list {
@@ -495,12 +627,50 @@ h1 {
 }
 
 .ingredients-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   padding: 0.45rem 0.75rem;
   background: #fafcff;
   border-radius: 8px;
   font-size: 0.95rem;
   color: #2d3748;
   border-right: 3px solid #ffd4c2;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.ingredients-list li:hover { background: #f0f6ff; }
+
+.ingredients-list li.item-checked {
+  opacity: 0.45;
+  text-decoration: line-through;
+  background: #f8fdf8;
+  border-right-color: #68d391;
+}
+
+.check-box {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid #cbd5e0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  background: white;
+}
+
+.check-box.done {
+  background: #38a169;
+  border-color: #38a169;
+}
+
+.check-box svg {
+  width: 12px;
+  height: 12px;
 }
 
 /* Steps */
@@ -515,15 +685,30 @@ h1 {
 }
 
 .steps-list li {
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1rem 0.75rem 3rem;
   background: #fafcff;
   border-radius: 10px;
   font-size: 0.95rem;
   color: #2d3748;
   line-height: 1.6;
   position: relative;
-  padding-right: 3rem;
   counter-increment: steps;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.steps-list li:hover { background: #f0f6ff; }
+
+.steps-list li.item-checked {
+  opacity: 0.45;
+  background: #f8fdf8;
+}
+
+.steps-list li.item-checked::before {
+  content: '✓';
+  background: #38a169;
+  font-size: 0.85rem;
 }
 
 .steps-list li::before {

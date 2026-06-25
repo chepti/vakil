@@ -6,12 +6,22 @@ use App\Models\Person;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class RecipesSeeder extends Seeder
 {
     public function run(): void
     {
-        if (Recipe::count() > 0) { return; }
+        // If recipes have old-style English enum categories, truncate and re-seed
+        $oldCategories = ['soups','mains','salads','pastries','desserts','drinks','other'];
+        $hasOldStyle = Recipe::whereIn('category', $oldCategories)->exists();
+        if ($hasOldStyle) {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            Recipe::truncate();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        } elseif (Recipe::count() > 0) {
+            return;
+        }
 
         $adminId = User::where('role', 'admin')->value('id') ?? User::first()->id;
 
@@ -57,6 +67,7 @@ class RecipesSeeder extends Seeder
                 'category'       => $data['category'],
                 'is_favorite'    => $data['is_favorite'],
                 'is_gluten_free' => $data['is_gluten_free'],
+                'image'          => $data['image'] ?: null,
                 'created_by'     => $adminId,
             ]);
         }

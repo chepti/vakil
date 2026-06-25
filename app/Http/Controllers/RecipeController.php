@@ -22,8 +22,18 @@ class RecipeController extends Controller
             ->latest();
 
         if ($category && $category !== 'all') {
-            $query->where('category', $category);
+            $query->where('category', 'LIKE', '%' . $category . '%');
         }
+
+        // Build unique category tokens from all recipes (split comma-separated)
+        $allCategoryTokens = Recipe::pluck('category')
+            ->flatMap(fn ($c) => array_map('trim', explode(',', $c)))
+            ->filter()
+            ->countBy()
+            ->sortByDesc(fn ($v) => $v)
+            ->keys()
+            ->values()
+            ->toArray();
 
         $recipes = $query->get()->map(fn ($r) => [
             'id'           => $r->id,
@@ -44,6 +54,7 @@ class RecipeController extends Controller
         return Inertia::render('Recipes/Index', [
             'recipes'         => $recipes,
             'currentCategory' => $category ?? 'all',
+            'categoryOptions' => $allCategoryTokens,
         ]);
     }
 
@@ -59,7 +70,7 @@ class RecipeController extends Controller
     {
         $data = $request->validate([
             'title'          => 'required|string|max:255',
-            'category'       => 'required|in:soups,mains,salads,pastries,desserts,drinks,other',
+            'category'       => 'required|string|max:100',
             'quantity'       => 'nullable|string|max:100',
             'ingredients'    => 'required|string',
             'preparation'    => 'required|string',
@@ -165,7 +176,7 @@ class RecipeController extends Controller
 
         $data = $request->validate([
             'title'          => 'required|string|max:255',
-            'category'       => 'required|in:soups,mains,salads,pastries,desserts,drinks,other',
+            'category'       => 'required|string|max:100',
             'quantity'       => 'nullable|string|max:100',
             'ingredients'    => 'required|string',
             'preparation'    => 'required|string',

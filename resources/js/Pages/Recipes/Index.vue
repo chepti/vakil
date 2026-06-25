@@ -20,12 +20,16 @@
         <!-- Category filters -->
         <div class="category-filters">
           <button
-            v-for="cat in categories"
-            :key="cat.value"
-            :class="['cat-btn', { active: currentCategory === cat.value }]"
-            @click="filterBy(cat.value)"
+            :class="['cat-btn', { active: currentCategory === 'all' }]"
+            @click="filterBy('all')"
+          >🍴 הכל</button>
+          <button
+            v-for="cat in categoryOptions"
+            :key="cat"
+            :class="['cat-btn', { active: currentCategory === cat }]"
+            @click="filterBy(cat)"
           >
-            <span>{{ cat.emoji }}</span> {{ cat.label }}
+            <span>{{ getCategoryEmoji(cat) }}</span> {{ cat }}
           </button>
         </div>
       </div>
@@ -59,7 +63,7 @@
           <div class="card-body">
             <div class="card-meta">
               <span class="cat-tag" :style="{ background: getCategoryColor(recipe.category) }">
-                {{ getCategoryLabel(recipe.category) }}
+                {{ recipe.category }}
               </span>
               <span v-if="recipe.quantity" class="quantity">{{ recipe.quantity }}</span>
             </div>
@@ -93,42 +97,34 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 const props = defineProps({
   recipes: Array,
   currentCategory: String,
+  categoryOptions: Array,
 })
 
-const categories = [
-  { value: 'all',      label: 'הכל',      emoji: '🍴' },
-  { value: 'soups',    label: 'מרקים',    emoji: '🍲' },
-  { value: 'mains',    label: 'עיקריות',  emoji: '🍽️' },
-  { value: 'salads',   label: 'סלטים',    emoji: '🥗' },
-  { value: 'pastries', label: 'מאפים',    emoji: '🥐' },
-  { value: 'desserts', label: 'קינוחים',  emoji: '🍰' },
-  { value: 'drinks',   label: 'שתייה',    emoji: '🥤' },
-  { value: 'other',    label: 'שונות',    emoji: '✨' },
-]
+const catEmojis = {
+  'מרקים': '🍲', 'שבת': '✨', 'עוגות': '🎂', 'עוגיות': '🍪',
+  'מושקע': '👨‍🍳', 'פודי': '🍽️', 'פחמימה': '🍞', 'לראש השנה': '🍎',
+  'חלבי': '🧀', 'לפסח': '🫓', 'לחנוכה': '🕎', 'בשרי': '🥩',
+  'ירקות': '🥦', 'לשבועות': '🌸', 'סלטים': '🥗', 'לפורים': '🎭',
+  'ליום העצמאות': '🇮🇱', 'שתייה': '🥤', 'כללי': '✨',
+}
 
 const catColors = {
-  soups:    '#fff3e0',
-  mains:    '#fce4ec',
-  salads:   '#e8f5e9',
-  pastries: '#fff8e1',
-  desserts: '#f3e5f5',
-  drinks:   '#e3f2fd',
-  other:    '#f5f5f5',
+  'מרקים': '#fff3e0', 'שבת': '#fdf6ff', 'עוגות': '#fce4ec',
+  'עוגיות': '#fff8e1', 'מושקע': '#fce4ec', 'פודי': '#f1f8e9',
+  'פחמימה': '#fff3e0', 'לראש השנה': '#fff8e1', 'חלבי': '#e3f2fd',
+  'לפסח': '#f9fbe7', 'לחנוכה': '#fff8e1', 'בשרי': '#fce4ec',
+  'ירקות': '#e8f5e9', 'לשבועות': '#fce4ec', 'סלטים': '#e8f5e9',
 }
 
-const catLabels = {
-  soups: 'מרקים', mains: 'עיקריות', salads: 'סלטים',
-  pastries: 'מאפים', desserts: 'קינוחים', drinks: 'שתייה', other: 'שונות',
+function getCategoryColor(cat) {
+  const first = cat ? cat.split(',')[0].trim() : ''
+  return catColors[first] || '#f5f5f5'
 }
 
-const catEmojis = {
-  soups: '🍲', mains: '🍽️', salads: '🥗',
-  pastries: '🥐', desserts: '🍰', drinks: '🥤', other: '✨',
+function getCategoryEmoji(cat) {
+  const first = cat ? cat.split(',')[0].trim() : ''
+  return catEmojis[first] || '🍴'
 }
-
-function getCategoryColor(cat) { return catColors[cat] || '#f5f5f5' }
-function getCategoryLabel(cat) { return catLabels[cat] || cat }
-function getCategoryEmoji(cat) { return catEmojis[cat] || '🍴' }
 
 function filterBy(value) {
   router.get('/recipes', value === 'all' ? {} : { category: value }, { preserveState: true })
@@ -251,8 +247,8 @@ h1 {
 /* Grid */
 .recipes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 1rem;
 }
 
 /* Recipe card */
@@ -276,7 +272,7 @@ h1 {
 
 /* Card image */
 .card-image {
-  height: 180px;
+  height: 140px;
   background: linear-gradient(135deg, #fff3e0, #fce4ec);
   display: flex;
   align-items: center;
@@ -322,7 +318,7 @@ h1 {
 
 /* Card body */
 .card-body {
-  padding: 1rem 1.1rem 1.1rem;
+  padding: 0.7rem 0.9rem 0.9rem;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -350,7 +346,7 @@ h1 {
 }
 
 .card-title {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: #1a3a6b;
   margin: 0;
@@ -394,7 +390,7 @@ h1 {
 }
 
 @media (max-width: 640px) {
-  .recipes-grid { grid-template-columns: 1fr; }
+  .recipes-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
   h1 { font-size: 1.4rem; }
   .header-content { flex-wrap: wrap; }
 }
