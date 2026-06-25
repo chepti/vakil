@@ -139,6 +139,7 @@ import { ref, computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { gregorianToHebrewParts, gregorianToHebrew } from '@/utils/hebrewDate'
+import { HDate } from '@hebcal/core'
 
 const props = defineProps({
   events: { type: Array, default: () => [] },
@@ -151,14 +152,17 @@ const panel = ref(null)
 const weekdays = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש']
 const GREG_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 
-const today = new Date()
-const todayStr = iso(today)
-
-const view = ref({ year: today.getFullYear(), month: today.getMonth() })
-
 function pad2(n) { return String(n).padStart(2, '0') }
 function iso(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` }
 function formatGreg(s) { const [y, m, d] = s.split('-'); return `${d}.${m}.${y}` }
+function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n) }
+
+const today = new Date()
+const todayStr = iso(today)
+
+// תצוגה לפי חודש עברי (חודש + שנה עבריים)
+const todayHd = new HDate(today)
+const view = ref({ month: todayHd.getMonth(), year: todayHd.getFullYear() })
 
 // אירועים לפי תאריך
 const eventsByDate = computed(() => {
@@ -196,22 +200,32 @@ const anniversariesByHebKey = computed(() => {
   return map
 })
 
-const grid = computed(() => {
-  const { year, month } = view.value
-  const first = new Date(year, month, 1)
-  const startWeekday = first.getDay() // 0=ראשון
-  const cells = []
-  const start = new Date(year, month, 1 - startWeekday)
+// תחילת/סוף החודש העברי המוצג (כתאריכים לועזיים)
+const monthStartGreg = computed(() => new HDate(1, view.value.month, view.value.year).greg())
+const monthEndGreg = computed(() =>
+  new HDate(HDate.daysInMonth(view.value.month, view.value.year), view.value.month, view.value.year).greg()
+)
+const monthNameEn = computed(() => new HDate(1, view.value.month, view.value.year).getMonthName())
 
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
+const grid = computed(() => {
+  const first = monthStartGreg.value
+  const daysInMonth = HDate.daysInMonth(view.value.month, view.value.year)
+  const startWeekday = first.getDay() // 0=ראשון
+  const start = addDays(first, -startWeekday)              // ראשון שלפני א' בחודש
+  const cellCount = Math.ceil((startWeekday + daysInMonth) / 7) * 7
+  const cells = []
+
+  for (let i = 0; i < cellCount; i++) {
+    const d = addDays(start, i)
     const dateStr = iso(d)
     const parts = gregorianToHebrewParts(dateStr)
     const hebKey = parts ? `${parts.day}-${parts.monthEn}` : null
+    // שייך לחודש העברי המוצג? לפי חודש+שנה עבריים
+    const inMonth = !!parts && parts.monthEn === monthNameEn.value && parts.year === view.value.year
     cells.push({
       date: dateStr,
       day: d.getDate(),
-      inMonth: d.getMonth() === month,
+      inMonth,
       isToday: dateStr === todayStr,
       hebDay: parts ? parts.dayHe : '',
       events: eventsByDate.value[dateStr] || [],
@@ -222,27 +236,30 @@ const grid = computed(() => {
   return cells
 })
 
-const gregTitle = computed(() => `${GREG_MONTHS[view.value.month]} ${view.value.year}`)
-
+// כותרת עברית — חודש עברי שלם
 const hebrewTitle = computed(() => {
-  const { year, month } = view.value
-  const a = gregorianToHebrewParts(iso(new Date(year, month, 1)))
-  const b = gregorianToHebrewParts(iso(new Date(year, month + 1, 0)))
-  if (!a) return ''
-  if (b && b.monthHe !== a.monthHe) return `${a.monthHe}–${b.monthHe} ${b.yearHe}`
-  return `${a.monthHe} ${a.yearHe}`
+  const p = gregorianToHebrewParts(iso(monthStartGreg.value))
+  return p ? `${p.monthHe} ${p.yearHe}` : ''
+})
+
+// כותרת לועזית — טווח החודשים הלועזיים שהחודש העברי חוצה
+const gregTitle = computed(() => {
+  const a = monthStartGreg.value, b = monthEndGreg.value
+  const m1 = GREG_MONTHS[a.getMonth()], m2 = GREG_MONTHS[b.getMonth()]
+  return m1 === m2 ? `${m1} ${b.getFullYear()}` : `${m1}–${m2} ${b.getFullYear()}`
 })
 
 function prevMonth() {
-  const m = view.value.month - 1
-  view.value = m < 0 ? { year: view.value.year - 1, month: 11 } : { year: view.value.year, month: m }
+  const prevLast = new HDate(addDays(monthStartGreg.value, -1)) // היום האחרון של החודש העברי הקודם
+  view.value = { month: prevLast.getMonth(), year: prevLast.getFullYear() }
 }
 function nextMonth() {
-  const m = view.value.month + 1
-  view.value = m > 11 ? { year: view.value.year + 1, month: 0 } : { year: view.value.year, month: m }
+  const nextFirst = new HDate(addDays(monthEndGreg.value, 1))   // א' של החודש העברי הבא
+  view.value = { month: nextFirst.getMonth(), year: nextFirst.getFullYear() }
 }
 function goToday() {
-  view.value = { year: today.getFullYear(), month: today.getMonth() }
+  const hd = new HDate(today)
+  view.value = { month: hd.getMonth(), year: hd.getFullYear() }
 }
 
 // ─── תפריט צד ──────────────────────────────────────────────────
@@ -348,8 +365,8 @@ const upcoming = computed(() =>
 .cal-cell.today { outline: 2px solid #2d6be4; background: #eaf2ff; }
 
 .cell-dates { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.2rem; }
-.greg-day { font-size: 0.95rem; font-weight: 600; color: #5a4a2e; }
-.heb-day { font-size: 0.8rem; color: #b08d4d; }
+.heb-day { font-size: 1rem; font-weight: 700; color: #5a4a2e; }
+.greg-day { font-size: 0.78rem; color: #b08d4d; }
 
 .cell-items { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
 .cell-event {
