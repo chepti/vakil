@@ -665,7 +665,7 @@
     ]
   },
   "resources/js/Pages/Recipes/Index.vue": {
-    "file": "assets/Index-CQX7vh6H.js",
+    "file": "assets/Index-DOhzvs30.js",
     "name": "Index",
     "src": "resources/js/Pages/Recipes/Index.vue",
     "isDynamicEntry": true,
@@ -676,11 +676,11 @@
       "_AppLayout-RNVb8ksf.js"
     ],
     "css": [
-      "assets/Index-3QNQ1YVN.css"
+      "assets/Index-WO3pOEdj.css"
     ]
   },
   "resources/js/Pages/Recipes/Show.vue": {
-    "file": "assets/Show-BQo4NMaj.js",
+    "file": "assets/Show-BSv0Fpu3.js",
     "name": "Show",
     "src": "resources/js/Pages/Recipes/Show.vue",
     "isDynamicEntry": true,
@@ -691,7 +691,7 @@
       "_AppLayout-RNVb8ksf.js"
     ],
     "css": [
-      "assets/Show-DKDkVGv8.css"
+      "assets/Show-ChJorZio.css"
     ]
   },
   "resources/js/Pages/Stats/Index.vue": {
@@ -735,7 +735,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-C0Gn8HAH.js",
+    "file": "assets/app-C3pJD30_.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

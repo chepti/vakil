@@ -71,7 +71,7 @@
                 🧑‍🍳 {{ recipe.person_name }}
                 <span v-if="recipe.person_context" class="author-context">{{ recipe.person_context }}</span>
               </span>
-              <span v-else class="author-user">🧑‍🍳 {{ recipe.created_by_name }}</span>
+              <span v-else-if="recipe.owner_text" class="author-user">🧑‍🍳 {{ recipe.owner_text }}</span>
             </div>
 
             <div class="card-footer">

@@ -27,8 +27,8 @@
                   </div>
                 </Link>
               </div>
-              <div v-else class="recipe-owner-plain">
-                🧑‍🍳 {{ recipe.created_by_name }}
+              <div v-else-if="recipe.owner_text" class="recipe-owner-plain">
+                🧑‍🍳 {{ recipe.owner_text }}
               </div>
             </div>
 

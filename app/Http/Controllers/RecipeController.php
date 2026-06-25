@@ -36,6 +36,7 @@ class RecipeController extends Controller
             'comments_count' => $r->comments_count,
             'person_name'  => $r->person?->full_name,
             'person_context' => $r->person?->ancestralContext(),
+            'owner_text'   => $r->owner_text,
             'created_by_name' => $r->createdBy->name,
             'can_edit'     => Auth::user()->role === 'admin' || $r->created_by === Auth::id(),
         ]);
@@ -65,6 +66,7 @@ class RecipeController extends Controller
             'is_favorite'    => 'boolean',
             'is_gluten_free' => 'boolean',
             'person_id'      => 'nullable|exists:people,id',
+            'owner_text'     => 'nullable|string|max:255',
             'image'          => 'nullable|image|max:8192',
         ]);
 
@@ -100,6 +102,7 @@ class RecipeController extends Controller
                 'is_favorite'    => $recipe->is_favorite,
                 'is_gluten_free' => $recipe->is_gluten_free,
                 'image_url'      => $recipe->image_url,
+                'owner_text'     => $recipe->owner_text,
                 'created_by_name' => $recipe->createdBy->name,
                 'person'         => $recipe->person ? [
                     'id'      => $recipe->person->id,
