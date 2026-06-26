@@ -256,27 +256,28 @@
     <div v-if="showCrop" class="modal-overlay" @click.self="showCrop = false">
       <div class="modal modal-wide" dir="rtl">
         <h3>✂️ עריכת חיתוך תמונה</h3>
-        <p class="crop-hint">גררו ריבוע על הפנים. הריבוע נשמר מרובע (מתאים לתמונת פרופיל עגולה).</p>
+        <p class="crop-hint">גררו ריבוע על האזור הרצוי. מה שמסומן בתמונה יופיע בתצוגה המקדימה.</p>
 
         <div class="crop-area">
-          <div
-            class="crop-stage"
-            ref="cropStage"
-            @mousedown.prevent="cropDown"
-            @mousemove.prevent="cropMove"
-            @mouseup="cropUp"
-            @mouseleave="cropUp"
-            @touchstart.prevent="cropTouchStart"
-            @touchmove.prevent="cropTouchMove"
-            @touchend.prevent="cropUp"
-          >
-            <img :src="cropSrc" ref="cropImg" class="crop-img" crossorigin="anonymous" @dragstart.prevent @load="cropImgLoaded = true" />
-            <div v-if="cropBox" class="crop-box" :style="cropBoxStyle"></div>
+          <div class="crop-stage" ref="cropStage">
+            <div
+              class="crop-frame"
+              @mousedown.prevent="cropDown"
+              @mousemove.prevent="cropMove"
+              @mouseup="cropUp"
+              @mouseleave="cropUp"
+              @touchstart.prevent="cropTouchStart"
+              @touchmove.prevent="cropTouchMove"
+              @touchend.prevent="cropUp"
+            >
+              <img :src="cropSrc" ref="cropImg" class="crop-img" crossorigin="anonymous" @dragstart.prevent @load="onCropImgLoad" />
+              <div v-if="cropBox" class="crop-box" :style="cropBoxStyle"></div>
+            </div>
           </div>
 
           <div class="crop-side">
             <div class="crop-preview-label">תצוגה מקדימה</div>
-            <div class="crop-preview-circle">
+            <div class="crop-preview-square">
               <img v-if="cropPreviewUrl" :src="cropPreviewUrl" />
               <span v-else class="crop-preview-empty">סמנו אזור</span>
             </div>
@@ -760,6 +761,12 @@ const cropBoxStyle = computed(() => {
   }
 })
 
+function onCropImgLoad() {
+  cropImgLoaded.value = true
+  cropBox.value = null
+  cropPreviewUrl.value = null
+}
+
 function openCrop(pp) {
   cropMode.value       = pp.id ? 'existing' : 'legacy'
   cropTarget.value     = pp
@@ -821,6 +828,7 @@ function cropMoveTo(clientX, clientY) {
     top:  dirY > 0 ? s.y : s.y - side,
     size: side,
   }
+  renderCropPreview()
 }
 
 function cropMove(e)  { cropMoveTo(e.clientX, e.clientY) }
@@ -1474,27 +1482,25 @@ h2 { font-size: 1rem; color: #2d4a7a; margin: 0; font-weight: 600; }
 .crop-hint { font-size: 0.85rem; color: #8a9ab5; margin: 0 0 1rem; }
 .crop-area { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; }
 .crop-stage {
-  position: relative; display: inline-block; line-height: 0; flex: 1 1 320px;
-  max-width: 100%; cursor: crosshair; user-select: none; border-radius: 10px; overflow: hidden;
-  background: #0b1424;
+  flex: 1 1 320px; max-width: 100%; display: flex; justify-content: center; align-items: flex-start;
+  padding: 0.5rem; border-radius: 10px; background: #0b1424;
+}
+.crop-frame {
+  position: relative; display: inline-block; line-height: 0; max-width: 100%;
+  cursor: crosshair; user-select: none;
 }
 .crop-img { display: block; max-width: 100%; max-height: 60vh; width: auto; height: auto; pointer-events: none; }
 .crop-box {
   position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,.45);
-  border-radius: 3px; box-sizing: border-box;
-}
-/* רמז שהאזור יוצג כעיגול */
-.crop-box::after {
-  content: ''; position: absolute; inset: 0; border-radius: 50%;
-  border: 1.5px dashed rgba(255,255,255,.7);
+  border-radius: 2px; box-sizing: border-box;
 }
 .crop-side { flex-shrink: 0; text-align: center; }
 .crop-preview-label { font-size: 0.8rem; color: #8a9ab5; margin-bottom: 0.4rem; }
-.crop-preview-circle {
-  width: 120px; height: 120px; border-radius: 50%; overflow: hidden; border: 3px solid #dbeafe;
+.crop-preview-square {
+  width: 120px; height: 120px; border-radius: 8px; overflow: hidden; border: 3px solid #dbeafe;
   background: #e8f0fe; display: flex; align-items: center; justify-content: center;
 }
-.crop-preview-circle img { width: 100%; height: 100%; object-fit: cover; }
+.crop-preview-square img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .crop-preview-empty { font-size: 0.75rem; color: #94a3b8; padding: 0 0.5rem; text-align: center; }
 
 /* ─── Modals ─── */
