@@ -231,7 +231,7 @@
             <title>{{ node.fullName }}{{ node.relType === 'spouse' ? ' (בן/בת זוג)' : node.relType === 'parent' ? ' (הורה)' : '' }}</title>
           </g>
         </svg>
-        <div class="radial-hint">גלגל לזום · גרירה להזזה · לחיצה על דמות למרכז · על ענף קטן לפתיחת קרובים נסתרים</div>
+        <div class="radial-hint">{{ radialHintText }}</div>
       </div>
 
       <!-- Side panel -->
@@ -529,12 +529,19 @@ function refreshChart(freshNodes) {
 }
 
 onMounted(() => {
+  radialMobileMq = window.matchMedia(RADIAL_MOBILE_MQ)
+  syncRadialMobile()
+  radialMobileMq.addEventListener('change', syncRadialMobile)
   if (radialMode.value) fitRadialView()   // radial is the default view — fit on entry
   if (!chartContainer.value || props.nodes.length === 0) return
   initChart()
 })
 
-onUnmounted(() => { chartInstance = null; cardHtml = null })
+onUnmounted(() => {
+  radialMobileMq?.removeEventListener('change', syncRadialMobile)
+  chartInstance = null
+  cardHtml = null
+})
 
 function csrfToken() {
   return document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
@@ -794,6 +801,18 @@ function toggleCompactMode() {
 }
 
 // ── Radial view ──────────────────────────────────────────────
+const RADIAL_MOBILE_MQ = '(max-width: 640px)'
+const isRadialMobile   = ref(false)
+const radialHintText   = computed(() => isRadialMobile.value
+  ? 'גרירה להזזה · לחיצה על דמות למרכז · לחיצה נוספת לתפריט · על ענף קטן לפתיחת קרובים נסתרים'
+  : 'גלגל לזום · גרירה להזזה · לחיצה על דמות למרכז · על ענף קטן לפתיחת קרובים נסתרים')
+let radialMobileMq = null
+const syncRadialMobile = () => {
+  const was = isRadialMobile.value
+  isRadialMobile.value = radialMobileMq?.matches ?? false
+  if (radialMode.value && was !== isRadialMobile.value) fitRadialView()
+}
+
 const radialMode     = ref(true)   // default: radial on entry
 const radialCenterId = ref(null)   // null = use defaultMainPersonId
 const radialExpansions = ref([])   // ענפים שנפתחו במקביל: { key, anchorId, dir, targetIds }
@@ -1044,10 +1063,11 @@ const radialData = computed(() => {
   const positions = {}
   const links = []
   const visited = new Set()
-  const NODE_D  = 44        // effective node diameter + gap
+  const mob     = isRadialMobile.value
+  const NODE_D  = mob ? 52 : 44        // effective node diameter + gap
   let   relSector = 0       // angular width of the parents wedge (filled at level 0)
-  const REL_R_PAR = 145     // parents radius
-  const R_LVL     = 130     // nominal radius per generation
+  const REL_R_PAR = mob ? 165 : 145     // parents radius
+  const R_LVL     = mob ? 150 : 130     // nominal radius per generation
   const LEAF_ARC  = NODE_D / 620   // angular budget per descendant leaf
 
   // Minimum angular spacing for a node at the given generation (so siblings never touch)
@@ -1157,7 +1177,7 @@ const radialData = computed(() => {
   // Assign final positions with a GLOBAL greedy multi-row per generation: walking all
   // nodes of a level in angular order, each node takes the innermost row whose previous
   // node is far enough away. This guarantees no overlap even across sibling-family borders.
-  const ROW_OFFSET = 42  // radial gap between rows (>= node diameter so stacked rows clear)
+  const ROW_OFFSET = mob ? 48 : 42  // radial gap between rows (>= node diameter so stacked rows clear)
   Object.keys(childByLevel).forEach(lvl => {
     const l       = parseInt(lvl)
     const base    = levelR[l]
@@ -1186,7 +1206,7 @@ const radialData = computed(() => {
     const pos = positions[id]
     const isRoot = id === centerId
     // Center spouse shares the center's size — they read as one couple
-    const nodeR  = isRoot || pos.centerSpouse ? 28 : 20
+    const nodeR  = isRoot || pos.centerSpouse ? (mob ? 34 : 28) : (mob ? 24 : 20)
 
     // Name label hugs the node on a bottom half-circle arc that sits JUST OUTSIDE the circle
     // (glued, but never over the face). Glyphs extend inward from the baseline, so the arc
@@ -1324,9 +1344,21 @@ function onRadialPointerUp(e) {
 function fitRadialView() {
   nextTick(() => {
     const maxR = radialData.value.maxR || 300
-    const size = Math.min(Math.max(maxR * 2.2, 380), 820)
+    const mob  = isRadialMobile.value
+    const size = Math.min(Math.max(maxR * (mob ? 2.0 : 2.2), 380), mob ? 720 : 820)
     radialVB.value = { x: -size / 2, y: -size / 2, w: size, h: size }
   })
+}
+
+function radialActiveCenterId() {
+  return String(radialCenterId.value || props.defaultMainPersonId || props.rootPersonId || localNodes.value[0]?.id)
+}
+
+function openRadialPersonPanel(id) {
+  const node = localNodes.value.find(n => String(n.id) === String(id))
+  if (!node) return
+  selectedPerson.value = { id: node.id, ...node.data }
+  addRelType.value = null
 }
 
 function onBranchExpand(anchorId, branch) {
@@ -1396,12 +1428,23 @@ function onRadialNodeClick(id) {
   // Ignore if this ended a drag
   if (radialDrag?.moved) return
   radialExpansions.value = []
-  // Single click: make this person the center + open side panel
-  radialCenterId.value = String(id)
-  const node = localNodes.value.find(n => String(n.id) === String(id))
-  if (!node) return
-  selectedPerson.value = { id: node.id, ...node.data }
-  addRelType.value = null
+  const sid = String(id)
+
+  if (isRadialMobile.value) {
+    if (sid === radialActiveCenterId()) {
+      openRadialPersonPanel(sid)
+    } else {
+      radialCenterId.value = sid
+      selectedPerson.value = null
+      addRelType.value = null
+      fitRadialView()
+    }
+    return
+  }
+
+  // Desktop: single click centers + opens side panel
+  radialCenterId.value = sid
+  openRadialPersonPanel(sid)
   fitRadialView()
 }
 
