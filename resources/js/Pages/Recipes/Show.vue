@@ -10,7 +10,7 @@
           <div class="hero-content">
             <div class="hero-text">
               <div class="hero-badges">
-                <span class="cat-badge">{{ getCategoryEmoji(recipe.category) }} {{ recipe.category }}</span>
+                <span v-for="cat in categoryList" :key="cat" class="cat-badge">{{ getCategoryEmoji(cat) }} {{ cat }}</span>
                 <span v-if="recipe.is_favorite" class="badge-special">❤️ מועדף</span>
                 <span v-if="recipe.is_gluten_free" class="badge-special">🌾 ללא גלוטן</span>
                 <span v-if="recipe.quantity" class="badge-special">🍴 {{ recipe.quantity }}</span>
@@ -94,7 +94,10 @@
                 :key="i"
                 :class="{ 'item-checked': checkedSteps.has(i) }"
                 @click="toggleStep(i)"
-              >{{ step }}</li>
+              >
+                <span class="step-num">{{ checkedSteps.has(i) ? '✓' : i + 1 }}</span>
+                <span class="step-text">{{ step }}</span>
+              </li>
             </ol>
           </div>
         </div>
@@ -285,6 +288,12 @@ function getCategoryBgClass(c) {
   return catBgClasses[first] || 'cat-other'
 }
 
+const categoryList = computed(() =>
+  props.recipe.category
+    ? props.recipe.category.split(',').map(c => c.trim()).filter(Boolean)
+    : []
+)
+
 const ingredientLines = computed(() =>
   props.recipe.ingredients.split('\n').map(l => l.trim()).filter(Boolean)
 )
@@ -298,9 +307,16 @@ const totalCommentCount = computed(() =>
 )
 
 function copyRecipe() {
+  const ownerLine = props.recipe.person
+    ? `של: ${props.recipe.person.name}${props.recipe.person.context ? ' (' + props.recipe.person.context + ')' : ''}`
+    : props.recipe.owner_text
+      ? `של: ${props.recipe.owner_text}`
+      : ''
+
   const text = [
     `🍽️ ${props.recipe.title}`,
-    props.recipe.person ? `של: ${props.recipe.person.name} ${props.recipe.person.context || ''}` : '',
+    categoryList.value.length ? `קטגוריה: ${categoryList.value.join(', ')}` : '',
+    ownerLine,
     props.recipe.quantity ? `כמות: ${props.recipe.quantity}` : '',
     props.recipe.is_gluten_free ? '🌾 ללא גלוטן' : '',
     '',
@@ -309,7 +325,7 @@ function copyRecipe() {
     '',
     '👩‍🍳 הכנה:',
     ...preparationSteps.value.map((s, i) => `${i + 1}. ${s}`),
-  ].filter(l => l !== undefined && l !== null).join('\n')
+  ].filter(l => l !== undefined && l !== null && l !== '').join('\n')
 
   navigator.clipboard.writeText(text).then(() => {
     copied.value = true
@@ -677,7 +693,6 @@ h1 {
 .steps-list {
   padding: 0;
   margin: 0;
-  counter-reset: steps;
   list-style: none;
   display: flex;
   flex-direction: column;
@@ -685,14 +700,15 @@ h1 {
 }
 
 .steps-list li {
-  padding: 0.75rem 1rem 0.75rem 3rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
   background: #fafcff;
   border-radius: 10px;
   font-size: 0.95rem;
   color: #2d3748;
   line-height: 1.6;
-  position: relative;
-  counter-increment: steps;
   cursor: pointer;
   transition: all 0.15s;
   user-select: none;
@@ -705,17 +721,8 @@ h1 {
   background: #f8fdf8;
 }
 
-.steps-list li.item-checked::before {
-  content: '✓';
-  background: #38a169;
-  font-size: 0.85rem;
-}
-
-.steps-list li::before {
-  content: counter(steps);
-  position: absolute;
-  right: 0.75rem;
-  top: 0.75rem;
+.step-num {
+  flex-shrink: 0;
   width: 1.6rem;
   height: 1.6rem;
   background: #ff6b35;
@@ -726,6 +733,17 @@ h1 {
   justify-content: center;
   font-size: 0.75rem;
   font-weight: 700;
+  margin-top: 0.1rem;
+}
+
+.steps-list li.item-checked .step-num {
+  background: #38a169;
+  font-size: 0.85rem;
+}
+
+.step-text {
+  flex: 1;
+  min-width: 0;
 }
 
 /* Adaptations */

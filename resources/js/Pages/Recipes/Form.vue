@@ -33,32 +33,17 @@
             <input v-model="form.title" type="text" placeholder="למשל: שניצל של סבתא" required />
           </div>
 
-          <!-- קטגוריה + כמות -->
+          <!-- קטגוריות + כמות -->
           <div class="form-row">
-            <div class="form-field">
-              <label>קטגוריה *</label>
-              <select v-model="form.category" required>
-                <option value="">— בחר קטגוריה —</option>
-                <option value="מרקים">🍲 מרקים</option>
-                <option value="עיקריות">🍽️ עיקריות</option>
-                <option value="סלטים">🥗 סלטים</option>
-                <option value="פחמימה">🍞 פחמימה</option>
-                <option value="בשרי">🥩 בשרי</option>
-                <option value="חלבי">🧀 חלבי</option>
-                <option value="עוגות">🎂 עוגות</option>
-                <option value="עוגיות">🍪 עוגיות</option>
-                <option value="מושקע">👨‍🍳 מושקע</option>
-                <option value="פודי">🍽️ פודי</option>
-                <option value="ירקות">🥦 ירקות</option>
-                <option value="שתייה">🥤 שתייה</option>
-                <option value="שבת">✨ שבת</option>
-                <option value="לפסח">🫓 לפסח</option>
-                <option value="לראש השנה">🍎 לראש השנה</option>
-                <option value="לחנוכה">🕎 לחנוכה</option>
-                <option value="לשבועות">🌸 לשבועות</option>
-                <option value="לפורים">🎭 לפורים</option>
-                <option value="כללי">✨ כללי</option>
-              </select>
+            <div class="form-field form-field-categories">
+              <label>קטגוריות * <span class="field-hint-inline">(ניתן לבחור כמה)</span></label>
+              <div class="category-checkboxes">
+                <label v-for="cat in categoryOptions" :key="cat.value" class="checkbox-label">
+                  <input type="checkbox" :value="cat.value" v-model="selectedCategories" />
+                  <span class="checkbox-custom">{{ cat.emoji }} {{ cat.label }}</span>
+                </label>
+              </div>
+              <span v-if="categoryError" class="field-error">{{ categoryError }}</span>
             </div>
             <div class="form-field">
               <label>כמות מנות</label>
@@ -69,12 +54,20 @@
           <!-- של מי -->
           <div class="form-field">
             <label>המתכון של מי? (לקשר לבן/בת משפחה)</label>
-            <select v-model="form.person_id">
-              <option :value="null">— לא מקושר לאיש ספציפי —</option>
-              <option v-for="p in people" :key="p.id" :value="p.id">
-                {{ p.first_name }} {{ p.last_name }}
-              </option>
-            </select>
+            <div class="person-select-row">
+              <select v-model="form.person_id">
+                <option :value="null">— לא מקושר לאיש ספציפי —</option>
+                <option v-for="p in people" :key="p.id" :value="p.id">
+                  {{ p.first_name }} {{ p.last_name }}
+                </option>
+              </select>
+              <button
+                v-if="form.person_id"
+                type="button"
+                class="btn-clear-person"
+                @click="form.person_id = null"
+              >הסר שיוך</button>
+            </div>
           </div>
 
           <!-- חומרים -->
@@ -137,14 +130,42 @@ const props = defineProps({
   people: Array,
 })
 
+const categoryOptions = [
+  { value: 'מרקים', label: 'מרקים', emoji: '🍲' },
+  { value: 'עיקריות', label: 'עיקריות', emoji: '🍽️' },
+  { value: 'סלטים', label: 'סלטים', emoji: '🥗' },
+  { value: 'פחמימה', label: 'פחמימה', emoji: '🍞' },
+  { value: 'בשרי', label: 'בשרי', emoji: '🥩' },
+  { value: 'חלבי', label: 'חלבי', emoji: '🧀' },
+  { value: 'עוגות', label: 'עוגות', emoji: '🎂' },
+  { value: 'עוגיות', label: 'עוגיות', emoji: '🍪' },
+  { value: 'מושקע', label: 'מושקע', emoji: '👨‍🍳' },
+  { value: 'פודי', label: 'פודי', emoji: '🍽️' },
+  { value: 'ירקות', label: 'ירקות', emoji: '🥦' },
+  { value: 'שתייה', label: 'שתייה', emoji: '🥤' },
+  { value: 'שבת', label: 'שבת', emoji: '✨' },
+  { value: 'לפסח', label: 'לפסח', emoji: '🫓' },
+  { value: 'לראש השנה', label: 'לראש השנה', emoji: '🍎' },
+  { value: 'לחנוכה', label: 'לחנוכה', emoji: '🕎' },
+  { value: 'לשבועות', label: 'לשבועות', emoji: '🌸' },
+  { value: 'לפורים', label: 'לפורים', emoji: '🎭' },
+  { value: 'כללי', label: 'כללי', emoji: '✨' },
+]
+
 const imageInput = ref(null)
 const imagePreview = ref(props.recipe?.image_url || null)
 const imageFile = ref(null)
 const submitting = ref(false)
+const categoryError = ref('')
+
+const selectedCategories = ref(
+  props.recipe?.category
+    ? props.recipe.category.split(',').map(c => c.trim()).filter(Boolean)
+    : []
+)
 
 const form = reactive({
   title:          props.recipe?.title ?? '',
-  category:       props.recipe?.category ?? 'mains',
   quantity:       props.recipe?.quantity ?? '',
   ingredients:    props.recipe?.ingredients ?? '',
   preparation:    props.recipe?.preparation ?? '',
@@ -192,9 +213,20 @@ function removeImage() {
 }
 
 function submit() {
+  categoryError.value = ''
+  if (!selectedCategories.value.length) {
+    categoryError.value = 'יש לבחור לפחות קטגוריה אחת'
+    return
+  }
+
   submitting.value = true
   const data = new FormData()
+  data.append('category', selectedCategories.value.join(', '))
   Object.entries(form).forEach(([k, v]) => {
+    if (k === 'person_id') {
+      data.append(k, v ?? '')
+      return
+    }
     if (v === null || v === undefined) return
     data.append(k, typeof v === 'boolean' ? (v ? '1' : '0') : v)
   })
@@ -382,6 +414,51 @@ h1 {
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
+
+.form-field-categories {
+  grid-column: 1 / -1;
+}
+
+.category-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.field-hint-inline {
+  font-weight: 400;
+  color: #8aa0c2;
+  font-size: 0.8rem;
+}
+
+.field-error {
+  font-size: 0.8rem;
+  color: #e74c3c;
+}
+
+.person-select-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.person-select-row select {
+  flex: 1;
+}
+
+.btn-clear-person {
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  color: #e74c3c;
+  padding: 0.5rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-family: 'Rubik', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.btn-clear-person:hover { background: #ffe4e4; }
 
 /* Checkboxes */
 .form-checkboxes {

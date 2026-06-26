@@ -15,14 +15,21 @@ class RecipeController extends Controller
 {
     public function index(Request $request)
     {
-        $category = $request->query('category');
+        $categories = $request->query('categories', []);
+        if (is_string($categories)) {
+            $categories = array_filter(array_map('trim', explode(',', $categories)));
+        }
 
         $query = Recipe::with(['person', 'createdBy'])
             ->withCount('comments')
             ->latest();
 
-        if ($category && $category !== 'all') {
-            $query->where('category', 'LIKE', '%' . $category . '%');
+        if (!empty($categories)) {
+            $query->where(function ($q) use ($categories) {
+                foreach ($categories as $cat) {
+                    $q->orWhere('category', 'LIKE', '%' . $cat . '%');
+                }
+            });
         }
 
         // Build unique category tokens from all recipes (split comma-separated)
@@ -52,9 +59,9 @@ class RecipeController extends Controller
         ]);
 
         return Inertia::render('Recipes/Index', [
-            'recipes'         => $recipes,
-            'currentCategory' => $category ?? 'all',
-            'categoryOptions' => $allCategoryTokens,
+            'recipes'          => $recipes,
+            'activeCategories' => array_values($categories),
+            'categoryOptions'  => $allCategoryTokens,
         ]);
     }
 
@@ -68,9 +75,11 @@ class RecipeController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge(['person_id' => $request->input('person_id') ?: null]);
+
         $data = $request->validate([
             'title'          => 'required|string|max:255',
-            'category'       => 'required|string|max:100',
+            'category'       => 'required|string|max:255',
             'quantity'       => 'nullable|string|max:100',
             'ingredients'    => 'required|string',
             'preparation'    => 'required|string',
@@ -80,6 +89,10 @@ class RecipeController extends Controller
             'owner_text'     => 'nullable|string|max:255',
             'image'          => 'nullable|image|max:8192',
         ]);
+
+        if (empty($data['person_id'])) {
+            $data['person_id'] = null;
+        }
 
         $imagePath = null;
         if ($request->hasFile('image')) {
@@ -174,9 +187,11 @@ class RecipeController extends Controller
     {
         $this->authorizeEdit($recipe);
 
+        $request->merge(['person_id' => $request->input('person_id') ?: null]);
+
         $data = $request->validate([
             'title'          => 'required|string|max:255',
-            'category'       => 'required|string|max:100',
+            'category'       => 'required|string|max:255',
             'quantity'       => 'nullable|string|max:100',
             'ingredients'    => 'required|string',
             'preparation'    => 'required|string',
@@ -185,6 +200,10 @@ class RecipeController extends Controller
             'person_id'      => 'nullable|exists:people,id',
             'image'          => 'nullable|image|max:8192',
         ]);
+
+        if ($request->has('person_id') && empty($data['person_id'])) {
+            $data['person_id'] = null;
+        }
 
         if ($request->hasFile('image')) {
             if ($recipe->image) {

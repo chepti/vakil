@@ -650,7 +650,7 @@
     ]
   },
   "resources/js/Pages/Recipes/Form.vue": {
-    "file": "assets/Form-ufHvNwm6.js",
+    "file": "assets/Form-DE76clAp.js",
     "name": "Form",
     "src": "resources/js/Pages/Recipes/Form.vue",
     "isDynamicEntry": true,
@@ -661,11 +661,11 @@
       "_AppLayout-RNVb8ksf.js"
     ],
     "css": [
-      "assets/Form-SBwP1x2d.css"
+      "assets/Form-_8CYdELQ.css"
     ]
   },
   "resources/js/Pages/Recipes/Index.vue": {
-    "file": "assets/Index-C5Uw93t2.js",
+    "file": "assets/Index-CUM0ertH.js",
     "name": "Index",
     "src": "resources/js/Pages/Recipes/Index.vue",
     "isDynamicEntry": true,
@@ -676,11 +676,11 @@
       "_AppLayout-RNVb8ksf.js"
     ],
     "css": [
-      "assets/Index-WMSibSXC.css"
+      "assets/Index-BfsQfG_7.css"
     ]
   },
   "resources/js/Pages/Recipes/Show.vue": {
-    "file": "assets/Show-BA59pUEK.js",
+    "file": "assets/Show-DhHYYMYv.js",
     "name": "Show",
     "src": "resources/js/Pages/Recipes/Show.vue",
     "isDynamicEntry": true,
@@ -691,7 +691,7 @@
       "_AppLayout-RNVb8ksf.js"
     ],
     "css": [
-      "assets/Show-DityOQ5G.css"
+      "assets/Show-e8iwxlpZ.css"
     ]
   },
   "resources/js/Pages/Stats/Index.vue": {
@@ -735,7 +735,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-qoUTUQDr.js",
+    "file": "assets/app-Cdg47p7z.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

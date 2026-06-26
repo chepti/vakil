@@ -20,14 +20,14 @@
         <!-- Category filters -->
         <div class="category-filters">
           <button
-            :class="['cat-btn', { active: currentCategory === 'all' }]"
-            @click="filterBy('all')"
+            :class="['cat-btn', { active: activeCategories.length === 0 }]"
+            @click="clearFilters"
           >🍴 הכל</button>
           <button
             v-for="cat in categoryOptions"
             :key="cat"
-            :class="['cat-btn', { active: currentCategory === cat }]"
-            @click="filterBy(cat)"
+            :class="['cat-btn', { active: activeCategories.includes(cat) }]"
+            @click="toggleCategory(cat)"
           >
             <span>{{ getCategoryEmoji(cat) }}</span> {{ cat }}
           </button>
@@ -62,8 +62,13 @@
 
           <div class="card-body">
             <div class="card-meta">
-              <span class="cat-tag" :style="{ background: getCategoryColor(recipe.category) }">
-                {{ recipe.category }}
+              <span
+                v-for="cat in splitCategories(recipe.category)"
+                :key="cat"
+                class="cat-tag"
+                :style="{ background: getCategoryColor(cat) }"
+              >
+                {{ cat }}
               </span>
               <span v-if="recipe.quantity" class="quantity">{{ recipe.quantity }}</span>
             </div>
@@ -90,13 +95,15 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 const props = defineProps({
   recipes: Array,
-  currentCategory: String,
+  activeCategories: {
+    type: Array,
+    default: () => [],
+  },
   categoryOptions: Array,
 })
 
@@ -116,18 +123,31 @@ const catColors = {
   'ירקות': '#e8f5e9', 'לשבועות': '#fce4ec', 'סלטים': '#e8f5e9',
 }
 
+function splitCategories(cat) {
+  return cat ? cat.split(',').map(c => c.trim()).filter(Boolean) : []
+}
+
 function getCategoryColor(cat) {
-  const first = cat ? cat.split(',')[0].trim() : ''
-  return catColors[first] || '#f5f5f5'
+  return catColors[cat] || '#f5f5f5'
 }
 
 function getCategoryEmoji(cat) {
-  const first = cat ? cat.split(',')[0].trim() : ''
-  return catEmojis[first] || '🍴'
+  return catEmojis[cat] || '🍴'
 }
 
-function filterBy(value) {
-  router.get('/recipes', value === 'all' ? {} : { category: value }, { preserveState: true })
+function clearFilters() {
+  router.get('/recipes', {}, { preserveState: true })
+}
+
+function toggleCategory(cat) {
+  const current = [...props.activeCategories]
+  const idx = current.indexOf(cat)
+  if (idx >= 0) {
+    current.splice(idx, 1)
+  } else {
+    current.push(cat)
+  }
+  router.get('/recipes', current.length ? { categories: current } : {}, { preserveState: true })
 }
 </script>
 
