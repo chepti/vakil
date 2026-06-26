@@ -922,31 +922,60 @@ function collectDescendantIds(anchorId, positions, nodeMap) {
   return out
 }
 
-/** דוחף את מניפת הילדים כקבוצה אחת לצד הנגדי — שומר על הסדר הפנימי */
-function pushChildrenForSiblings(positions, anchorId, side, nodeMap, count) {
+/** מעביר את מניפת הילדים לצד הנגדי — שומר רדיוס וסדר, משנה רק זווית */
+function relocateFanForSiblings(positions, anchorId, nodeMap, sibSide) {
   const anchor = positions[anchorId]
   if (!anchor) return
   const ax = anchor.x, ay = anchor.y
-  const descendants = collectDescendantIds(anchorId, positions, nodeMap)
-  if (!descendants.size) return
+  const descendants = [...collectDescendantIds(anchorId, positions, nodeMap)]
+  if (!descendants.length) return
 
-  const openLeft = side === 'side-left'
-  const PER_COL = 5
-  const COL_STEP = 46
-  const RAD_SIDE = 82
-  const sibCols = Math.ceil(count / PER_COL)
-  const shiftX = (openLeft ? 1 : -1) * (RAD_SIDE + sibCols * COL_STEP + 24)
-  // צמצום קל אחיד סביב העוגן — לא משנה זוויות יחסיות בתוך המניפה
-  const scale = Math.max(0.88, 1 - Math.min(count, 20) * 0.006)
+  const fanOnRight = sibSide === 'side-left'
+  // זוויות פריסה (מערכת layout: x=r·cos(a−π/2)) — מניפה בצד ימין-תחתון, לא מתנגשת בהורים למעלה
+  const arcA0 = fanOnRight ? 0.12 * Math.PI : 1.12 * Math.PI
+  const arcA1 = fanOnRight ? 0.88 * Math.PI : 1.88 * Math.PI
 
-  for (const id of descendants) {
-    const pos = positions[id]
-    if (!pos || pos.siblingSlot) continue
-    const dx = pos.x - ax, dy = pos.y - ay
-    pos.x = ax + dx * scale + shiftX
-    pos.y = ay + dy * scale
-    pos.fanMember = true
-  }
+  const byRow = {}
+  descendants.forEach(id => {
+    const p = positions[id]
+    const lv = p.level || 1
+    const row = p.fanRow || 0
+    const rk = `${lv}-${row}`
+    if (!byRow[rk]) byRow[rk] = []
+    byRow[rk].push({
+      id,
+      ang: p.fanAngle ?? p.angle ?? 0,
+      r: p.fanR ?? Math.hypot(p.x - ax, p.y - ay),
+    })
+  })
+
+  Object.keys(byRow).sort().forEach(rk => {
+    const group = byRow[rk].sort((a, b) => a.ang - b.ang)
+    const n = group.length
+    const arcSpan = arcA1 - arcA0
+    const minNodeD = 48
+
+    let usedArc = 0
+    if (n > 1) {
+      const avgR = group.reduce((s, g) => s + g.r, 0) / n
+      usedArc = Math.min((n - 1) * (minNodeD / Math.max(avgR, 90)), arcSpan)
+    }
+    const arcStart = (arcA0 + arcA1) / 2 - usedArc / 2
+
+    group.forEach((item, i) => {
+      const t = n > 1 ? i / (n - 1) : 0.5
+      const a = n > 1 ? arcStart + t * usedArc : (arcA0 + arcA1) / 2
+      let r = item.r
+      if (n > 1 && usedArc >= arcSpan * 0.98) {
+        r *= 1 + (n / 35) * 0.1
+      }
+      const pos = positions[item.id]
+      pos.x = ax + r * Math.cos(a - Math.PI / 2)
+      pos.y = ay + r * Math.sin(a - Math.PI / 2)
+      pos.fanMember = true
+      pos.fanRelocated = true
+    })
+  })
 }
 
 /** מפנה מקום למעלה כשפותחים הורים */
@@ -996,12 +1025,12 @@ function expansionTitle(key) {
 }
 
 function applyRadialExpansions(positions, links, centerId, nodeMap) {
-  const GAP = 50
+  const GAP = 52
   const RAD_UP = 88
-  const RAD_SIDE = 82
+  const RAD_SIDE = 88
   const RAD_DOWN = 82
-  const PER_COL = 5
-  const COL_STEP = 46
+  const PER_COL = 6
+  const COL_STEP = 50
 
   for (const exp of radialExpansions.value) {
     const anchor = positions[exp.anchorId]
@@ -1015,28 +1044,39 @@ function applyRadialExpansions(positions, links, centerId, nodeMap) {
         exp.side = pickSiblingSide(ax, ay, positions, centerId, exp.anchorId, nodeMap)
       }
       side = exp.side
-      pushChildrenForSiblings(positions, exp.anchorId, side, nodeMap, n)
+      relocateFanForSiblings(positions, exp.anchorId, nodeMap, side)
     }
     if (exp.dir === 'up') pushUpwardClearance(positions, anchor, centerId, n)
 
     exp.targetIds.forEach((tid, i) => {
       if (positions[tid]) return
-      const spread = (i - (n - 1) / 2) * GAP
       let x = ax, y = ay
 
       if (exp.dir === 'up') {
+        const spread = (i - (n - 1) / 2) * GAP
         x = ax + spread
         y = ay - RAD_UP - (n > 4 ? Math.floor(i / 4) * 42 : 0)
       } else if (exp.dir === 'down') {
+        const spread = (i - (n - 1) / 2) * GAP
         x = ax + spread
         y = ay + RAD_DOWN + (n > 4 ? Math.floor(i / 4) * 40 : 0)
       } else if (isSib && (side === 'side-left' || side === 'side-right')) {
         const sign = side === 'side-left' ? -1 : 1
-        const col = Math.floor(i / PER_COL)
-        const row = i % PER_COL
-        const rowsInCol = Math.min(PER_COL, n - col * PER_COL)
-        x = ax + sign * (RAD_SIDE + col * COL_STEP)
-        y = ay + (row - (rowsInCol - 1) / 2) * GAP
+        if (n <= 10) {
+          const col = Math.floor(i / PER_COL)
+          const row = i % PER_COL
+          const rowsInCol = Math.min(PER_COL, n - col * PER_COL)
+          x = ax + sign * (RAD_SIDE + col * COL_STEP)
+          y = ay + 36 + (row - (rowsInCol - 1) / 2) * GAP
+        } else {
+          const arcA0 = side === 'side-left' ? 1.02 * Math.PI : 0.02 * Math.PI
+          const arcA1 = side === 'side-left' ? 1.62 * Math.PI : 0.62 * Math.PI
+          const t = n > 1 ? i / (n - 1) : 0.5
+          const a = arcA0 + t * (arcA1 - arcA0)
+          const r = RAD_SIDE + Math.floor(i / 12) * 54
+          x = ax + r * Math.cos(a - Math.PI / 2)
+          y = ay + r * Math.sin(a - Math.PI / 2)
+        }
       }
 
       positions[tid] = {
@@ -1068,23 +1108,21 @@ function shouldCollidePair(idA, idB, positions, centerId) {
   return true
 }
 
-/** דחיפת עיגולים חופפים — רק ענפים שנפתחו, לא מניפת הילדים */
+/** דחיפת עיגולים חופפים — רק הורים/ילדים שנפתחו, לא אחים ולא מניפה */
 function resolveRadialCollisions(positions, centerId) {
   const ids = Object.keys(positions)
   const MIN = 52
   const movers = ids.filter(id => {
     const p = positions[id]
-    return p.expanded || p.siblingSlot || p.relType === 'parent'
+    return (p.expanded && !p.siblingSlot) || p.relType === 'parent'
   })
   if (!movers.length) return
 
-  for (let iter = 0; iter < 20; iter++) {
-    for (const mid of movers) {
-      for (let j = 0; j < ids.length; j++) {
-        const idB = ids[j]
-        if (mid === idB) continue
-        if (!shouldCollidePair(mid, idB, positions, centerId)) continue
-        const idA = mid
+  for (let iter = 0; iter < 16; iter++) {
+    for (let i = 0; i < movers.length; i++) {
+      for (let j = i + 1; j < movers.length; j++) {
+        const idA = movers[i], idB = movers[j]
+        if (!shouldCollidePair(idA, idB, positions, centerId)) continue
         const a = positions[idA], b = positions[idB]
         let dx = b.x - a.x, dy = b.y - a.y
         let dist = Math.hypot(dx, dy)
@@ -1093,8 +1131,8 @@ function resolveRadialCollisions(positions, centerId) {
         const push = (MIN - dist) / 2
         const ux = dx / dist, uy = dy / dist
         const fixed = (id) => id === centerId || positions[id]?.centerSpouse
-        const wa = fixed(idA) ? 0.08 : (a.siblingSlot ? 0.8 : (a.expanded ? 0.85 : 0.45))
-        const wb = fixed(idB) ? 0.08 : (b.siblingSlot ? 0.8 : (b.expanded ? 0.85 : (isFanMember(b) ? 0.15 : 0.5)))
+        const wa = fixed(idA) ? 0.08 : 0.85
+        const wb = fixed(idB) ? 0.08 : 0.85
         const sum = wa + wb
         a.x -= ux * push * (wa / sum)
         a.y -= uy * push * (wa / sum)
@@ -1266,6 +1304,9 @@ const radialData = computed(() => {
       const r = base + row * ROW_OFFSET
       positions[id].x = r * Math.cos(a - Math.PI / 2)
       positions[id].y = r * Math.sin(a - Math.PI / 2)
+      positions[id].fanR = r
+      positions[id].fanAngle = a
+      positions[id].fanRow = row
     })
   })
 
