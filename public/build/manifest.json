@@ -427,7 +427,7 @@
     ]
   },
   "resources/js/Pages/Game.vue": {
-    "file": "assets/Game-C5IZG3Uh.js",
+    "file": "assets/Game-CyydunhM.js",
     "name": "Game",
     "src": "resources/js/Pages/Game.vue",
     "isDynamicEntry": true,
@@ -438,7 +438,7 @@
       "_AppLayout-RNVb8ksf.js"
     ],
     "css": [
-      "assets/Game-Co3sj-Iq.css"
+      "assets/Game-D3AR_VPC.css"
     ]
   },
   "resources/js/Pages/Invite/Expired.vue": {
@@ -735,7 +735,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-D4fkUbuz.js",
+    "file": "assets/app-C7jYuuGb.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
