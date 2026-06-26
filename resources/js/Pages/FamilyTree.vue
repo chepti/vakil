@@ -107,6 +107,7 @@
           <line
             v-for="link in radialData.links" :key="link.key"
             :x1="link.x1" :y1="link.y1" :x2="link.x2" :y2="link.y2"
+            class="radial-link-anim"
             :stroke="link.type === 'expanded' ? '#94a3b8' : link.type === 'spouse' ? '#f0abfc' : link.type === 'parent' ? '#fcd34d' : '#b0c8e4'"
             :stroke-width="link.type === 'expanded' ? 1.2 : link.type === 'spouse' || link.type === 'parent' ? 1.5 : 1.2"
             :stroke-dasharray="link.type === 'expanded' ? '3 2' : link.type === 'spouse' ? '4 3' : link.type === 'parent' ? '5 3' : 'none'"
@@ -115,8 +116,8 @@
           <!-- Nodes -->
           <g
             v-for="node in radialData.nodes" :key="node.id"
-            :transform="`translate(${node.x},${node.y})`"
-            class="radial-node"
+            class="radial-node radial-node-anim"
+            :style="{ transform: `translate(${node.x}px, ${node.y}px)` }"
             :class="{ 'radial-spouse': node.relType === 'spouse', 'radial-deceased': node.isDeceased }"
             @pointerdown.stop
             @click.stop="onRadialNodeClick(node.id)"
@@ -194,25 +195,27 @@
             >
               <textPath :href="`#lpath-${node.id}`" startOffset="50%" text-anchor="middle">{{ node.isRoot ? node.fullName : node.firstName }}</textPath>
             </text>
-            <!-- רמזי ענפים נסתרים -->
+            <!-- רמזי ענפים נסתרים — ענף SVG, מספר בריחוף בלבד -->
             <g v-if="node.hiddenBranches?.length" class="branch-hints">
               <g
                 v-for="branch in node.hiddenBranches" :key="branch.key"
                 class="branch-hint"
+                :transform="`translate(${branch.dx}, ${branch.dy})`"
                 @pointerdown.stop
                 @click.stop="onBranchExpand(node.id, branch)"
               >
-                <line
-                  :x1="branch.lx" :y1="branch.ly" :x2="branch.dx" :y2="branch.dy"
-                  stroke="#94a3b8" stroke-width="2" stroke-linecap="round"
+                <path
+                  :d="branchTwigD(branch.dir)"
+                  fill="none" stroke="#64748b" stroke-width="1.7"
+                  stroke-linecap="round" stroke-linejoin="round"
                 />
-                <circle :cx="branch.dx" :cy="branch.dy" r="6" fill="#fff" stroke="#64748b" stroke-width="1.5" />
                 <text
-                  :x="branch.dx" :y="branch.dy + 2.5"
-                  text-anchor="middle" font-size="7" font-weight="700" fill="#475569"
+                  class="branch-count"
+                  :y="branchCountY(branch.dir)"
+                  text-anchor="middle" font-size="7" font-weight="700" fill="#334155"
                   font-family="Rubik, sans-serif"
                 >{{ branch.count }}</text>
-                <title>{{ branch.title }} — לחצו לפתיחה</title>
+                <title>{{ branch.title }} ({{ branch.count }}) — לחצו לפתיחה</title>
               </g>
             </g>
             <title>{{ node.fullName }}{{ node.relType === 'spouse' ? ' (בן/בת זוג)' : node.relType === 'parent' ? ' (הורה)' : '' }}</title>
@@ -803,15 +806,35 @@ function buildNodeMap(nodes) {
   return m
 }
 
-/** ענפים שלא מוצגים כרגע — הורים למעלה, אחים שמאלה, בן/בת זוג ימינה, ילדים למטה */
-function computeHiddenBranches(personId, displayedSet, nodeMap) {
+/** האם דמות מוצגת (כולל בן/בת זוג מקופל ליד המרכז) */
+function isRadialShown(id, displayedSet, positions) {
+  if (displayedSet.has(id)) return true
+  if (positions[id]?.centerSpouse) return true
+  return false
+}
+
+/** הורה "מכוסה" אם הוא מוצג או שבן/בת הזוג שלו מוצג/מקופל לידו */
+function isParentCovered(parentId, childId, displayedSet, positions, nodeMap) {
+  if (isRadialShown(parentId, displayedSet, positions)) return true
+  for (const op of (nodeMap[childId]?.rels?.parents || []).map(String)) {
+    if (op === parentId) continue
+    if (!isRadialShown(op, displayedSet, positions)) continue
+    const opSpouses = (nodeMap[op]?.rels?.spouses || []).map(String)
+    if (opSpouses.includes(parentId)) return true
+  }
+  return false
+}
+
+/** ענפים שלא מוצגים — הורים למעלה, אחים שמאלה, בן/בת זוג ימינה, ילדים למטה */
+function computeHiddenBranches(personId, displayedSet, nodeMap, positions = {}) {
   const n = nodeMap[personId]
   if (!n) return []
   const id = String(personId)
   const marriages = n.data?.marriages || {}
   const out = []
 
-  const hiddenParents = (n.rels?.parents || []).map(String).filter(p => !displayedSet.has(p) && nodeMap[p])
+  const hiddenParents = (n.rels?.parents || []).map(String)
+    .filter(p => nodeMap[p] && !isParentCovered(p, id, displayedSet, positions, nodeMap))
   if (hiddenParents.length) {
     out.push({ key: `${id}-up`, dir: 'up', count: hiddenParents.length, targetIds: hiddenParents, title: 'הורים' })
   }
@@ -819,20 +842,21 @@ function computeHiddenBranches(personId, displayedSet, nodeMap) {
   const sibs = new Set()
   for (const pid of (n.rels?.parents || []).map(String)) {
     for (const cid of (nodeMap[pid]?.rels?.children || []).map(String)) {
-      if (cid !== id && !displayedSet.has(cid) && nodeMap[cid]) sibs.add(cid)
+      if (cid !== id && !isRadialShown(cid, displayedSet, positions) && nodeMap[cid]) sibs.add(cid)
     }
   }
   if (sibs.size) {
     out.push({ key: `${id}-sib`, dir: 'side-left', count: sibs.size, targetIds: [...sibs], title: 'אחים/אחיות' })
   }
 
-  const hiddenChildren = (n.rels?.children || []).map(String).filter(c => !displayedSet.has(c) && nodeMap[c])
+  const hiddenChildren = (n.rels?.children || []).map(String)
+    .filter(c => !isRadialShown(c, displayedSet, positions) && nodeMap[c])
   if (hiddenChildren.length) {
     out.push({ key: `${id}-down`, dir: 'down', count: hiddenChildren.length, targetIds: hiddenChildren, title: 'ילדים' })
   }
 
   const hiddenSpouses = (n.rels?.spouses || []).map(String)
-    .filter(s => !displayedSet.has(s) && !marriages[s]?.is_former && nodeMap[s])
+    .filter(s => !isRadialShown(s, displayedSet, positions) && !marriages[s]?.is_former && nodeMap[s])
   if (hiddenSpouses.length) {
     out.push({ key: `${id}-sp`, dir: 'side-right', count: hiddenSpouses.length, targetIds: hiddenSpouses, title: 'בן/בת זוג' })
   }
@@ -841,40 +865,102 @@ function computeHiddenBranches(personId, displayedSet, nodeMap) {
 }
 
 function branchHintOffset(dir, nodeR) {
-  const p = nodeR + 11
-  if (dir === 'up') return { dx: 0, dy: -p, lx: 0, ly: -nodeR - 2 }
-  if (dir === 'down') return { dx: 0, dy: p, lx: 0, ly: nodeR + 2 }
-  if (dir === 'side-left') return { dx: -p, dy: 0, lx: -nodeR - 2, ly: 0 }
-  if (dir === 'side-right') return { dx: p, dy: 0, lx: nodeR + 2, ly: 0 }
-  return { dx: p, dy: 0, lx: nodeR + 2, ly: 0 }
+  const p = nodeR + 9
+  if (dir === 'up') return { dx: 0, dy: -p }
+  if (dir === 'down') return { dx: 0, dy: p }
+  if (dir === 'side-left') return { dx: -p, dy: 0 }
+  if (dir === 'side-right') return { dx: p, dy: 0 }
+  return { dx: p, dy: 0 }
 }
 
-function applyRadialExpansions(positions, links, nodeMap) {
-  const EXP_DIST = 58
+function branchTwigD(dir) {
+  if (dir === 'up') return 'M 0,3 L -2.5,-9 M 0,3 L 1,-10 M 0,1 L 0,-12'
+  if (dir === 'down') return 'M 0,-3 L -2.5,9 M 0,-3 L 1,10 M 0,-1 L 0,12'
+  if (dir === 'side-left') return 'M 3,0 L -9,-2.5 M 3,0 L -10,1 M 1,0 L -12,0'
+  if (dir === 'side-right') return 'M -3,0 L 9,-2.5 M -3,0 L 10,1 M -1,0 L 12,0'
+  return 'M 0,0 L 0,-8'
+}
+
+function branchCountY(dir) {
+  if (dir === 'up') return -14
+  if (dir === 'down') return 16
+  if (dir === 'side-left') return -9
+  if (dir === 'side-right') return -9
+  return -10
+}
+
+function applyRadialExpansions(positions, links) {
+  const GAP = 48
+  const RAD = 78
+
   for (const exp of radialExpansions.value) {
     const anchor = positions[exp.anchorId]
     if (!anchor) continue
-    const { x: ax, y: ay } = anchor
+    const ax = anchor.x, ay = anchor.y
+    const anchorR = Math.hypot(ax, ay)
+    const anchorAng = anchor.angle ?? Math.atan2(ay, ax) + Math.PI / 2
+    const toCenter = anchorR > 2 ? Math.atan2(-ay, -ax) : -Math.PI / 2
+    const tangent = toCenter + Math.PI / 2
     const n = exp.targetIds.length
+
     exp.targetIds.forEach((tid, i) => {
       if (positions[tid]) return
+      const spread = (i - (n - 1) / 2) * GAP
       let x = ax, y = ay
+
       if (exp.dir === 'up') {
-        x = ax + (i - (n - 1) / 2) * 42
-        y = ay - EXP_DIST
+        const r = Math.max(anchorR - RAD, 52)
+        const a = anchorAng + spread / Math.max(r, 60)
+        x = r * Math.cos(a - Math.PI / 2)
+        y = r * Math.sin(a - Math.PI / 2)
       } else if (exp.dir === 'down') {
-        x = ax + (i - (n - 1) / 2) * 42
-        y = ay + EXP_DIST
+        const r = anchorR + RAD
+        const a = anchorAng + spread / Math.max(r, 60)
+        x = r * Math.cos(a - Math.PI / 2)
+        y = r * Math.sin(a - Math.PI / 2)
       } else if (exp.dir === 'side-left') {
-        x = ax - EXP_DIST
-        y = ay + (i - (n - 1) / 2) * 38
+        x = ax + Math.cos(tangent) * spread + Math.cos(toCenter) * RAD * 0.25
+        y = ay + Math.sin(tangent) * spread + Math.sin(toCenter) * RAD * 0.25
       } else if (exp.dir === 'side-right') {
-        x = ax + EXP_DIST
-        y = ay + (i - (n - 1) / 2) * 38
+        x = ax - Math.cos(tangent) * spread + Math.cos(toCenter) * RAD * 0.25
+        y = ay - Math.sin(tangent) * spread + Math.sin(toCenter) * RAD * 0.25
       }
-      positions[tid] = { x, y, level: anchor.level, relType: 'expanded', angle: anchor.angle, arcSpan: 0 }
+
+      positions[tid] = {
+        x, y, level: anchor.level, relType: 'expanded',
+        angle: anchorAng, arcSpan: 0, expanded: true,
+      }
       links.push({ key: `exp-${exp.anchorId}-${tid}`, from: exp.anchorId, to: tid, type: 'expanded' })
     })
+  }
+}
+
+/** דחיפת עיגולים חופפים — מרכז כמעט קבוע, חדשים דוחפים את השאר */
+function resolveRadialCollisions(positions, centerId) {
+  const ids = Object.keys(positions)
+  const MIN = 44
+
+  for (let iter = 0; iter < 20; iter++) {
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const idA = ids[i], idB = ids[j]
+        const a = positions[idA], b = positions[idB]
+        let dx = b.x - a.x, dy = b.y - a.y
+        let dist = Math.hypot(dx, dy)
+        if (dist >= MIN) continue
+        if (dist < 0.5) { dx = 1; dy = 0; dist = 1 }
+        const push = (MIN - dist) / 2
+        const ux = dx / dist, uy = dy / dist
+        const fixed = (id) => id === centerId || positions[id]?.centerSpouse
+        const wa = fixed(idA) ? 0.08 : (a.expanded ? 0.9 : 0.5)
+        const wb = fixed(idB) ? 0.08 : (b.expanded ? 0.9 : 0.5)
+        const sum = wa + wb
+        a.x -= ux * push * (wa / sum)
+        a.y -= uy * push * (wa / sum)
+        b.x += ux * push * (wb / sum)
+        b.y += uy * push * (wb / sum)
+      }
+    }
   }
 }
 
@@ -1041,7 +1127,8 @@ const radialData = computed(() => {
     })
   })
 
-  applyRadialExpansions(positions, links, nodeMap)
+  applyRadialExpansions(positions, links)
+  resolveRadialCollisions(positions, centerId)
   const displayedSet = new Set(Object.keys(positions))
 
   const fullNameOf = (nd) => `${nd?.data?.['first name'] || ''} ${nd?.data?.['last name'] || ''}`.trim()
@@ -1067,7 +1154,7 @@ const radialData = computed(() => {
     let spouse = null
     if (!isRoot && !pos.centerSpouse) {
       const mar = n?.data?.marriages || {}
-      const sid = (n?.rels?.spouses || []).map(String).find(s => !positions[s] && nodeMap[s] && !mar[s]?.is_former)
+      const sid = (n?.rels?.spouses || []).map(String).find(s => !isRadialShown(s, displayedSet, positions) && nodeMap[s] && !mar[s]?.is_former)
       if (sid) {
         const sp = nodeMap[sid]
         spouse = {
@@ -1091,7 +1178,7 @@ const radialData = computed(() => {
       fullName:  fullNameOf(n),
       isDeceased: !!n?.data?.is_deceased,
       isRoot, centerSpouse: !!pos.centerSpouse, spouse,
-      hiddenBranches: computeHiddenBranches(id, displayedSet, nodeMap)
+      hiddenBranches: computeHiddenBranches(id, displayedSet, nodeMap, positions)
         .map(b => ({ ...b, ...branchHintOffset(b.dir, nodeR) })),
     }
   })
@@ -1229,7 +1316,7 @@ function refreshLinearBranchHints() {
   })
   cont.querySelectorAll('[data-person-id]').forEach(cardEl => {
     const personId = cardEl.getAttribute('data-person-id')
-    const branches = computeHiddenBranches(personId, visibleIds, nodeMap)
+    const branches = computeHiddenBranches(personId, visibleIds, nodeMap, {})
     let wrap = cardEl.querySelector('.ft-branch-hints')
     if (!branches.length) {
       wrap?.remove()
@@ -1244,7 +1331,7 @@ function refreshLinearBranchHints() {
       const cls = b.dir === 'up' ? 'ft-branch-up'
         : b.dir === 'down' ? 'ft-branch-down'
           : b.dir === 'side-left' ? 'ft-branch-side-l' : 'ft-branch-side-r'
-      return `<button type="button" class="ft-branch ${cls}" data-key="${b.key}" title="${b.title} (${b.count})">${b.count}</button>`
+      return `<button type="button" class="ft-branch ${cls}" data-key="${b.key}" title="${b.count}"></button>`
     }).join('')
     wrap.querySelectorAll('.ft-branch').forEach((btn, i) => {
       btn.onclick = (e) => onLinearBranchClick(personId, branches[i], e)
@@ -1760,6 +1847,15 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 }
 .radial-back-btn:hover { background: #e8f0ff; }
 .radial-node { cursor: pointer; }
+.radial-node-anim {
+  transition: transform 0.55s cubic-bezier(0.34, 1.45, 0.64, 1);
+}
+.radial-link-anim {
+  transition: x1 0.55s cubic-bezier(0.34, 1.45, 0.64, 1),
+              y1 0.55s cubic-bezier(0.34, 1.45, 0.64, 1),
+              x2 0.55s cubic-bezier(0.34, 1.45, 0.64, 1),
+              y2 0.55s cubic-bezier(0.34, 1.45, 0.64, 1);
+}
 .radial-node circle { transition: r 0.15s, stroke-width 0.15s; }
 .radial-node:hover circle { stroke-width: 3 !important; filter: brightness(1.08); }
 .radial-node.radial-deceased circle:not([fill="none"]) { filter: grayscale(35%); }
@@ -1777,8 +1873,13 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 .radial-mate.revealed .mate-name { opacity: 1; }
 .branch-hints { pointer-events: auto; }
 .branch-hint { cursor: pointer; }
-.branch-hint:hover line { stroke: #475569; stroke-width: 2.5; }
-.branch-hint:hover circle { fill: #f1f5f9; stroke: #334155; }
+.branch-hint path { transition: stroke 0.15s, stroke-width 0.15s; }
+.branch-hint:hover path { stroke: #334155; stroke-width: 2.1; }
+.branch-count {
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.branch-hint:hover .branch-count { opacity: 1; }
 .radial-hint {
   position: absolute;
   bottom: 0.75rem;
@@ -1803,18 +1904,27 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 }
 .ft-branch {
   position: absolute; pointer-events: auto;
-  min-width: 16px; height: 16px; padding: 0 3px;
-  border-radius: 8px; border: 1.5px solid #94a3b8;
-  background: #fff; color: #475569; font-size: 0.55rem; font-weight: 700;
-  font-family: 'Rubik', sans-serif; line-height: 1;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; box-shadow: 0 1px 4px rgba(0,40,100,0.12);
+  width: 14px; height: 14px; padding: 0;
+  border: none; background: none;
+  color: #64748b; font-size: 0; cursor: pointer;
 }
-.ft-branch:hover { background: #f1f5f9; border-color: #64748b; }
-.ft-branch-up { top: -6px; left: 50%; transform: translateX(-50%); }
-.ft-branch-down { bottom: -6px; left: 50%; transform: translateX(-50%); }
-.ft-branch-side-l { left: -8px; top: 50%; transform: translateY(-50%); }
-.ft-branch-side-r { right: -8px; top: 50%; transform: translateY(-50%); }
+.ft-branch::before {
+  content: '';
+  display: block; width: 14px; height: 14px;
+  background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 28 28'%3E%3Cpath fill='none' stroke='%2364748b' stroke-width='1.8' stroke-linecap='round' d='M0 3 L-2.5 -9 M0 3 L1 -10 M0 1 L0 -12'/%3E%3C/svg%3E");
+}
+.ft-branch:hover::after {
+  content: attr(title);
+  position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+  font-size: 0.55rem; font-weight: 700; color: #334155;
+  font-family: 'Rubik', sans-serif; white-space: nowrap;
+}
+.ft-branch:hover { color: #334155; }
+.ft-branch-up { top: -8px; left: 50%; transform: translateX(-50%); }
+.ft-branch-up::before { transform: rotate(0deg); }
+.ft-branch-down { bottom: -8px; left: 50%; transform: translateX(-50%) rotate(180deg); }
+.ft-branch-side-l { left: -10px; top: 50%; transform: translateY(-50%) rotate(-90deg); }
+.ft-branch-side-r { right: -10px; top: 50%; transform: translateY(-50%) rotate(90deg); }
 
 .fold-hint {
   position: absolute;
