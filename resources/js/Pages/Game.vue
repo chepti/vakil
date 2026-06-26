@@ -10,10 +10,21 @@
             {{ showHelp ? '✕' : '❓' }}
           </button>
         </div>
-        <div class="score-box" :class="{ bump: scoreBump }">
+        <div class="header-actions">
+          <button
+            v-if="mainPerson && !loading && !loadError"
+            class="btn-new-round"
+            @click="requestNewRound"
+            :disabled="loading"
+            title="סבב חדש"
+          >
+            🔄 סבב חדש
+          </button>
+          <div class="score-box" :class="{ bump: scoreBump }">
           <span class="score-label">ניקוד</span>
           <span class="score-value">{{ score }}</span>
           <span v-if="scoreDelta" class="score-delta">{{ scoreDelta }}</span>
+          </div>
         </div>
       </header>
 
@@ -21,7 +32,8 @@
         <div v-if="showHelp" class="help-panel">
           מי הדמות בתמונה? בנו את שרשרת המשפחה כלפי מעלה — הורה, סבא/סבתא — עד
           <strong>{{ mainPerson?.full_name }}</strong>.
-          ניחוש שם בלי רמזים שווה <strong>+{{ TARGET_IDENTITY_BONUS[0] }}</strong> נקודות!
+          ניחוש שם מלא בלי רמזים: <strong>+{{ TARGET_IDENTITY_BONUS[0] }}</strong>.
+          אפשר גם לנחש חלק — שם פרטי <strong>+{{ PART_BONUS.first }}</strong>, שם משפחה <strong>+{{ PART_BONUS.last }}</strong> — ואז להשלים לניקוד נוסף!
         </div>
       </Transition>
 
@@ -61,18 +73,19 @@
         <div class="step-badge">
           שלב {{ currentIndex + 1 }} מתוך {{ quizSteps.length }}
           <span v-if="!targetIdentitySolved" class="step-extra">· זיהוי אופציונלי</span>
+          <span v-else-if="identityPartsFound.first || identityPartsFound.last" class="step-extra partial">· זיהוי חלקי</span>
         </div>
 
         <!-- במה מרכזית -->
-        <section class="stage" :class="{ 'stage-revealed': targetRevealed }">
+        <section class="stage" :class="{ 'stage-revealed': targetIdentitySolved, 'stage-partial': !targetIdentitySolved && (identityPartsFound.first || identityPartsFound.last) }">
 
-          <div class="stage-photo-wrap" :class="{ float: !targetRevealed }">
-            <div class="stage-photo" :class="[genderClass(round.target_id), { revealed: targetRevealed }]">
+          <div class="stage-photo-wrap" :class="{ float: !targetIdentitySolved }">
+            <div class="stage-photo" :class="[genderClass(round.target_id), { revealed: targetIdentitySolved, partial: !targetIdentitySolved && (identityPartsFound.first || identityPartsFound.last) }]">
               <img v-if="photo(round.target_id)" :src="photo(round.target_id)" alt="?" />
               <span v-else class="initials-lg">?</span>
             </div>
-            <div v-if="targetRevealed" class="stage-name-reveal name-reveal">
-              {{ name(round.target_id) }}
+            <div v-if="targetDisplayOnStage" class="stage-name-reveal name-reveal" :class="{ partial: !targetIdentitySolved }">
+              {{ targetDisplayOnStage }}
             </div>
             <div v-else class="stage-mystery">מי זה? 🤔</div>
           </div>
@@ -85,22 +98,36 @@
               <button class="mission-head" @click="identityCollapsed = !identityCollapsed">
                 <span class="mission-icon">🎯</span>
                 <span class="mission-title">נחשו מי בדמות</span>
-                <span class="mission-bonus">+{{ TARGET_IDENTITY_BONUS[0] }}</span>
+                <span class="mission-bonus">עד +{{ TARGET_IDENTITY_BONUS[0] }}</span>
                 <span class="mission-chevron">{{ identityCollapsed ? '◀' : '▼' }}</span>
               </button>
 
               <Transition name="expand">
                 <div v-if="!identityCollapsed" class="mission-body">
+                  <div v-if="identityPartsFound.first || identityPartsFound.last" class="identity-progress pop-in">
+                    <span v-if="identityPartsFound.first" class="part-chip done">✓ {{ round.target_first_name }}</span>
+                    <span v-else class="part-chip missing">שם פרטי?</span>
+                    <span v-if="identityPartsFound.last" class="part-chip done">✓ {{ round.target_last_name }}</span>
+                    <span v-else class="part-chip missing">שם משפחה?</span>
+                  </div>
+
+                  <p v-if="identityNextHint" class="identity-next-hint">{{ identityNextHint }}</p>
+
                   <div class="input-row">
                     <input
                       v-model="targetGuess"
                       type="text"
                       class="search-input"
-                      placeholder="שם מלא…"
+                      :placeholder="identityInputPlaceholder"
                       @keydown.enter.prevent="attemptTargetGuess"
                     />
                     <button class="btn-guess" @click="attemptTargetGuess" :disabled="!targetGuess.trim()">זהו!</button>
                   </div>
+                  <p class="identity-bonus-hint">
+                    שם פרטי: <strong>+{{ partBonusFor('first') }}</strong> ·
+                    שם משפחה: <strong>+{{ partBonusFor('last') }}</strong> ·
+                    מלא בבת אחת: <strong>+{{ TARGET_IDENTITY_BONUS[0] }}</strong>
+                  </p>
                   <div v-if="targetHintLines.length" class="hint-box">
                     <p v-for="(line, i) in targetHintLines" :key="i" class="hint-line">💡 {{ line }}</p>
                   </div>
@@ -115,8 +142,6 @@
               <span>✨ {{ name(round.target_id) }}</span>
               <span v-if="targetIdentityBonus > 0" class="pts">+{{ targetIdentityBonus }}</span>
             </div>
-
-            <!-- שאלת הורה -->
             <div class="mission mission-climb">
               <div class="mission-head static">
                 <span class="mission-icon">🧗</span>
@@ -235,6 +260,8 @@ const BASE_POINTS = 150
 const OPTIONS_COST = 60
 const TARGET_HINT_COST = { 1: 40, 2: 30, 3: 20 }
 const TARGET_IDENTITY_BONUS = { 0: 300, 1: 120, 2: 50, 3: 0 }
+const PART_BONUS = { first: 120, last: 100 }
+const PART_HINT_SCALE = { 0: 1, 1: 0.5, 2: 0.25, 3: 0 }
 
 const peopleById = computed(() => {
   const m = {}
@@ -252,6 +279,7 @@ const currentIndex = ref(0)
 const targetHintLevel = ref(0)
 const targetIdentitySolved = ref(false)
 const targetIdentityBonus = ref(0)
+const identityPartsFound = ref({ first: false, last: false })
 const targetGuess = ref('')
 const showOptions = ref([])
 const wrongAttempts = ref([])
@@ -326,6 +354,34 @@ const trailNodes = computed(() => {
 
 const targetRevealed = computed(() => targetIdentitySolved.value || finished.value)
 
+const targetDisplayOnStage = computed(() => {
+  if (targetIdentitySolved.value || finished.value) return name(round.value?.target_id)
+  const fn = round.value?.target_first_name
+  const ln = round.value?.target_last_name
+  if (identityPartsFound.value.first && identityPartsFound.value.last) return name(round.value?.target_id)
+  if (identityPartsFound.value.first && fn) return fn + ' …'
+  if (identityPartsFound.value.last && ln) return '… ' + ln
+  return null
+})
+
+const identityInputPlaceholder = computed(() => {
+  if (identityPartsFound.value.first && !identityPartsFound.value.last) return 'הוסיפו שם משפחה…'
+  if (identityPartsFound.value.last && !identityPartsFound.value.first) return 'הוסיפו שם פרטי…'
+  return 'שם פרטי, משפחה, או מלא…'
+})
+
+const identityNextHint = computed(() => {
+  if (targetIdentitySolved.value) return ''
+  const remaining = remainingIdentityBonus()
+  if (identityPartsFound.value.first && !identityPartsFound.value.last) {
+    return `💡 יפה! הוסיפו שם משפחה לעוד +${remaining} נקודות`
+  }
+  if (identityPartsFound.value.last && !identityPartsFound.value.first) {
+    return `💡 מצוין! הוסיפו שם פרטי לעוד +${remaining} נקודות`
+  }
+  return ''
+})
+
 watch(currentIndex, async () => {
   await nextTick()
   const active = trailEl.value?.querySelector('.trail-node.active')
@@ -368,28 +424,65 @@ const targetHintLabel = computed(() => {
   return 'אין עוד רמזי זהות'
 })
 
-const subjectName = computed(() =>
-  targetHintLevel.value >= 1 || targetIdentitySolved.value
-    ? name(round.value?.target_id)
-    : 'הדמות בתמונה'
-)
+const subjectName = computed(() => {
+  if (targetIdentitySolved.value || identityPartsFound.value.first) {
+    return round.value?.target_first_name || name(round.value?.target_id)
+  }
+  if (targetHintLevel.value >= 1) return round.value?.target_first_name || 'הדמות'
+  return 'הדמות בתמונה'
+})
 
 function name(id)   { return peopleById.value[id]?.full_name ?? '—' }
 function photo(id)  { return peopleById.value[id]?.photo_url ?? null }
 function genderClass(id) { return peopleById.value[id]?.gender === 'female' ? 'female' : 'male' }
 function initials(n) { return (n || '').split(' ').map(w => w[0]).join('').slice(0, 2) }
 
-function normalizeName(s) {
-  return (s || '').trim().toLowerCase().replace(/\s+/g, ' ')
+function partBonusFor(part) {
+  const scale = PART_HINT_SCALE[targetHintLevel.value] ?? 0
+  return Math.round(PART_BONUS[part] * scale)
 }
 
-function isTargetGuessCorrect(guess) {
-  const full = normalizeName(name(round.value?.target_id))
-  const g = normalizeName(guess)
-  if (!g || !full) return false
-  if (g === full) return true
-  const parts = full.split(' ')
-  return parts.length >= 2 && parts.every(p => g.includes(p))
+function remainingIdentityBonus() {
+  const full = TARGET_IDENTITY_BONUS[targetHintLevel.value] ?? 0
+  return Math.max(0, full - targetIdentityBonus.value)
+}
+
+function getTargetParts() {
+  const r = round.value
+  return {
+    first: normalizeName(r?.target_first_name || ''),
+    last: normalizeName(r?.target_last_name || ''),
+    full: normalizeName(name(r?.target_id)),
+  }
+}
+
+function guessMatchesPart(guess, part) {
+  if (!guess || !part) return false
+  if (guess === part) return true
+  const words = guess.split(' ').filter(Boolean)
+  return words.some(w => w === part)
+}
+
+function guessIsFull(guess, parts) {
+  if (!guess) return false
+  if (guess === parts.full) return true
+  if (!parts.first || !parts.last) return guess === parts.full
+  return guessMatchesPart(guess, parts.first) && guessMatchesPart(guess, parts.last)
+}
+
+function completeIdentitySolve(message) {
+  const remaining = remainingIdentityBonus()
+  if (remaining > 0) {
+    targetIdentityBonus.value += remaining
+    awardPoints(remaining, message)
+  } else if (message) {
+    feedback.value = { type: 'ok', text: message }
+  }
+  targetIdentitySolved.value = true
+  identityPartsFound.value = { first: true, last: true }
+  identityCollapsed.value = true
+  targetGuess.value = ''
+  fireConfetti(remaining > 80 ? 100 : 50, window.innerWidth / 2, window.innerHeight * 0.45)
 }
 
 function awardPoints(n, label) {
@@ -401,23 +494,83 @@ function awardPoints(n, label) {
   if (label) feedback.value = { type: 'ok', text: label }
 }
 
+function normalizeName(s) {
+  return (s || '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
 function attemptTargetGuess() {
   if (finished.value || targetIdentitySolved.value || !round.value) return
-  const g = targetGuess.value.trim()
+  const g = normalizeName(targetGuess.value)
   if (!g) return
 
-  if (isTargetGuessCorrect(g)) {
-    targetIdentitySolved.value = true
-    identityCollapsed.value = true
-    const bonus = TARGET_IDENTITY_BONUS[targetHintLevel.value] ?? 0
-    targetIdentityBonus.value = bonus
-    if (bonus > 0) awardPoints(bonus, `מדהים! זיהיתם את ${name(round.value.target_id)}! +${bonus} 🌟`)
-    else feedback.value = { type: 'ok', text: `נכון! זוהי ${name(round.value.target_id)}` }
-    targetGuess.value = ''
-    fireConfetti(100, window.innerWidth / 2, window.innerHeight * 0.45)
-  } else {
-    feedback.value = { type: 'err', text: 'לא בדיוק… נסו שוב או בקשו רמז 💡' }
+  const parts = getTargetParts()
+  const hasPartial = identityPartsFound.value.first || identityPartsFound.value.last
+
+  if (guessIsFull(g, parts)) {
+    if (!hasPartial) {
+      const bonus = TARGET_IDENTITY_BONUS[targetHintLevel.value] ?? 0
+      targetIdentityBonus.value = bonus
+      if (bonus > 0) {
+        awardPoints(bonus, `מדהים! זיהיתם את ${name(round.value.target_id)}! +${bonus} 🌟`)
+      } else {
+        feedback.value = { type: 'ok', text: `נכון! זוהי ${name(round.value.target_id)}` }
+      }
+      targetIdentitySolved.value = true
+      identityPartsFound.value = { first: true, last: true }
+      identityCollapsed.value = true
+      targetGuess.value = ''
+      fireConfetti(100, window.innerWidth / 2, window.innerHeight * 0.45)
+    } else {
+      completeIdentitySolve(`כל הכבוד! השלמתם את ${name(round.value.target_id)}! +${remainingIdentityBonus()} 🌟`)
+    }
+    return
   }
+
+  let foundNew = false
+  let awarded = 0
+  const newParts = []
+
+  if (!identityPartsFound.value.first && parts.first && guessMatchesPart(g, parts.first)) {
+    identityPartsFound.value.first = true
+    awarded += partBonusFor('first')
+    newParts.push(parts.first)
+    foundNew = true
+  }
+  if (!identityPartsFound.value.last && parts.last && guessMatchesPart(g, parts.last)) {
+    identityPartsFound.value.last = true
+    awarded += partBonusFor('last')
+    newParts.push(parts.last)
+    foundNew = true
+  }
+
+  if (identityPartsFound.value.first && identityPartsFound.value.last) {
+    if (awarded > 0) targetIdentityBonus.value += awarded
+    completeIdentitySolve(`כל הכבוד! ${name(round.value.target_id)} — +${targetIdentityBonus.value} סה״כ 🌟`)
+    return
+  }
+
+  if (foundNew && awarded > 0) {
+    targetIdentityBonus.value += awarded
+    awardPoints(awarded, `נכון! ${newParts.join(' ')} — +${awarded}. ${identityNextHint.value || ''}`)
+    targetGuess.value = ''
+    fireConfetti(40, window.innerWidth / 2, window.innerHeight * 0.5)
+    return
+  }
+
+  feedback.value = { type: 'err', text: 'לא בדיוק… נסו שוב, חלק מהשם, או בקשו רמז 💡' }
+}
+
+function requestNewRound() {
+  if (loading.value) return
+  const inProgress = !finished.value && round.value && (
+    currentIndex.value > 0 ||
+    targetIdentityBonus.value > 0 ||
+    identityPartsFound.value.first ||
+    identityPartsFound.value.last ||
+    lastRoundScore.value > 0
+  )
+  if (inProgress && !confirm('לוותר על הסבב הנוכחי ולהתחיל סבב חדש?')) return
+  newRound()
 }
 
 async function newRound() {
@@ -447,6 +600,7 @@ async function newRound() {
     targetHintLevel.value = 0
     targetIdentitySolved.value = false
     targetIdentityBonus.value = 0
+    identityPartsFound.value = { first: false, last: false }
     targetGuess.value = ''
     currentIndex.value = 0
     query.value = ''
@@ -589,6 +743,16 @@ onMounted(() => { if (props.mainPerson) newRound() })
 }
 .help-toggle:hover { background: #edf3ff; transform: scale(1.08); }
 
+.header-actions { display: flex; align-items: flex-start; gap: 0.5rem; flex-shrink: 0; }
+.btn-new-round {
+  padding: 0.4rem 0.7rem; border: 1.5px solid #c7d8f5; border-radius: 10px;
+  background: white; color: #2d6be4; font-family: 'Rubik', sans-serif;
+  font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: all 0.15s;
+}
+.btn-new-round:hover:not(:disabled) { background: #edf3ff; border-color: #2d6be4; }
+.btn-new-round:disabled { opacity: 0.5; cursor: default; }
+
 .score-box {
   display: flex; flex-direction: column; align-items: center; position: relative; flex-shrink: 0;
   background: linear-gradient(135deg, #1a3a6b, #2d5aa0); color: white;
@@ -677,6 +841,7 @@ onMounted(() => { if (props.mainPerson) newRound() })
   margin-bottom: 0.85rem;
 }
 .step-extra { color: #b45309; }
+.step-extra.partial { color: #2d6be4; }
 
 /* ── במה ── */
 .stage {
@@ -686,6 +851,7 @@ onMounted(() => { if (props.mainPerson) newRound() })
   transition: border-color 0.4s;
 }
 .stage-revealed { border-color: #86efac; }
+.stage-partial { border-color: #93c5fd; }
 
 .stage-photo-wrap {
   text-align: center; padding: 1.5rem 1rem 1rem;
@@ -702,6 +868,7 @@ onMounted(() => { if (props.mainPerson) newRound() })
 }
 .stage-photo.female { border-color: #c084fc; background: #fdf4ff; }
 .stage-photo.revealed { border-color: #22c55e; box-shadow: 0 10px 32px rgba(34,197,94,.22); }
+.stage-photo.partial { border-color: #60a5fa; box-shadow: 0 10px 32px rgba(96,165,250,.2); }
 .stage-photo img { width: 100%; height: 100%; object-fit: cover; }
 .initials-lg { font-size: 3rem; font-weight: 800; color: #2d6be4; }
 
@@ -740,7 +907,26 @@ onMounted(() => { if (props.mainPerson) newRound() })
   background: #f0fdf4; border: 1px solid #86efac; border-radius: 12px;
   font-weight: 700; color: #166534; font-size: 1rem;
 }
-.identity-done .pts { color: #22c55e; font-size: 0.9rem; }
+.stage-name-reveal.partial { font-size: 1.45rem; color: #1d4ed8; }
+
+.identity-progress {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center;
+  margin-bottom: 0.6rem;
+}
+.part-chip {
+  font-size: 0.8rem; font-weight: 600; padding: 0.25rem 0.55rem; border-radius: 20px;
+}
+.part-chip.done { background: #dcfce7; color: #166534; }
+.part-chip.missing { background: #f1f5f9; color: #94a3b8; border: 1px dashed #cbd5e1; }
+
+.identity-next-hint {
+  font-size: 0.85rem; color: #1d4ed8; font-weight: 600; text-align: center;
+  margin: 0 0 0.5rem; padding: 0.45rem 0.6rem;
+  background: #eff6ff; border-radius: 8px;
+}
+.identity-bonus-hint {
+  font-size: 0.72rem; color: #92400e; margin: 0.45rem 0 0; text-align: center; line-height: 1.4;
+}
 
 .input-row { display: flex; gap: 0.5rem; }
 .input-row .search-input { flex: 1; }
@@ -883,7 +1069,10 @@ onMounted(() => { if (props.mainPerson) newRound() })
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
+.identity-done .pts { color: #22c55e; font-size: 0.9rem; }
+
 @media (max-width: 480px) {
+  .btn-new-round { font-size: 0.72rem; padding: 0.35rem 0.5rem; }
   .stage-photo { width: 150px; height: 150px; }
   .trail-node { width: 56px; }
   .trail-bubble { width: 42px; height: 42px; }
