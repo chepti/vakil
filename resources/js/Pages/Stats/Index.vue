@@ -86,29 +86,29 @@
           <div class="pyramid-chart">
             <div v-for="row in agePyramid.brackets" :key="row.label" class="pyramid-row">
               <div class="bar-side male-side">
-                <span class="bar-pct" v-if="row.malePct">{{ row.malePct }}%</span>
+                <span class="bar-count" v-if="row.male">{{ row.male }}</span>
                 <div
                   class="bar male-bar"
-                  :style="{ width: barWidth(row.malePct) }"
-                  :title="`${row.male} בנים`"
+                  :style="{ width: barWidth(row.male) }"
+                  :title="`${row.male} בנים (${row.malePct}%)`"
                 ></div>
               </div>
               <div class="age-label">{{ row.label }}</div>
               <div class="bar-side female-side">
                 <div
                   class="bar female-bar"
-                  :style="{ width: barWidth(row.femalePct) }"
-                  :title="`${row.female} בנות`"
+                  :style="{ width: barWidth(row.female) }"
+                  :title="`${row.female} בנות (${row.femalePct}%)`"
                 ></div>
-                <span class="bar-pct" v-if="row.femalePct">{{ row.femalePct }}%</span>
+                <span class="bar-count" v-if="row.female">{{ row.female }}</span>
               </div>
             </div>
           </div>
 
           <div class="pyramid-axis">
-            <span>0%</span>
-            <span>{{ Math.ceil(agePyramid.maxPct / 2) }}%</span>
-            <span>{{ agePyramid.maxPct }}%</span>
+            <span>0</span>
+            <span>{{ Math.ceil(agePyramid.maxCount / 2) }}</span>
+            <span>{{ agePyramid.maxCount }}</span>
           </div>
         </section>
 
@@ -173,14 +173,15 @@ const props = defineProps({
   babies:                { type: Array, default: () => [] },
   birthdayCandidates:    { type: Array, default: () => [] },
   anniversaryCandidates: { type: Array, default: () => [] },
-  agePyramid:            { type: Object, default: () => ({ brackets: [], total: 0, maxPct: 0 }) },
+  agePyramid:            { type: Object, default: () => ({ brackets: [], total: 0, maxCount: 0 }) },
 })
 
 const hebMonth = currentHebrewMonth()
 
-function barWidth(pct) {
-  const max = props.agePyramid.maxPct || 1
-  return `${Math.max((pct / max) * 100, pct > 0 ? 4 : 0)}%`
+function barWidth(count) {
+  const max = props.agePyramid.maxCount || 1
+  const pct = (count / max) * 100
+  return `${Math.max(pct, count > 0 ? 6 : 0)}%`
 }
 
 // ── תינוקות עם תאריך עברי מלא ──
@@ -433,6 +434,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .bar { height: 18px; border-radius: 3px; min-width: 0; transition: width 0.4s ease; }
 .male-bar { background: linear-gradient(270deg, #5b8fd9, #7aa8e8); border-radius: 3px 0 0 3px; }
 .female-bar { background: linear-gradient(90deg, #f08aaa, #f5a8bd); border-radius: 0 3px 3px 0; }
+.bar-count { font-size: 0.72rem; color: #4a5f85; font-weight: 600; padding: 0 0.35rem; white-space: nowrap; min-width: 1.2rem; text-align: center; }
 .bar-pct { font-size: 0.62rem; color: #9aa7c0; padding: 0 0.3rem; white-space: nowrap; }
 .age-label {
   text-align: center; font-size: 0.7rem; color: #6b7a99; font-weight: 500;

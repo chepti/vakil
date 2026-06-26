@@ -142,7 +142,7 @@ class StatsController extends Controller
         $total  = $living->count();
 
         if ($total === 0) {
-            return ['brackets' => [], 'total' => 0, 'maxPct' => 0];
+            return ['brackets' => [], 'total' => 0, 'maxCount' => 0];
         }
 
         $counts = [];
@@ -178,12 +178,12 @@ class StatsController extends Controller
             ->values()
             ->all();
 
-        $maxPct = collect($brackets)->max(fn ($b) => max($b['malePct'], $b['femalePct'])) ?: 0;
+        $maxCount = collect($brackets)->max(fn ($b) => max($b['male'], $b['female'])) ?: 0;
 
         return [
             'brackets' => $brackets,
             'total'    => $total,
-            'maxPct'   => ceil($maxPct),
+            'maxCount' => $maxCount,
         ];
     }
 

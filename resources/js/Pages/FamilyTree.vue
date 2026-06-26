@@ -116,7 +116,7 @@
             v-for="node in radialData.nodes" :key="node.id"
             :transform="`translate(${node.x},${node.y})`"
             class="radial-node"
-            :class="{ 'radial-spouse': node.relType === 'spouse' }"
+            :class="{ 'radial-spouse': node.relType === 'spouse', 'radial-deceased': node.isDeceased }"
             @pointerdown.stop
             @click.stop="onRadialNodeClick(node.id)"
             @mouseenter="node.spouse && (hoveredNodeId = node.id)"
@@ -130,7 +130,8 @@
             >
               <clipPath :id="`mclip-${node.id}`"><circle :r="node.nodeR" cx="0" cy="0"/></clipPath>
               <circle :r="node.nodeR" :fill="radialNodeColor(node.spouse.gender)"
-                      :stroke="radialNodeStroke(node.spouse.gender)" stroke-width="1.5"/>
+                      :stroke="node.spouse.isDeceased ? '#9ca3af' : radialNodeStroke(node.spouse.gender)"
+                      :stroke-width="node.spouse.isDeceased ? 2.5 : 1.5"/>
               <image v-if="node.spouse.avatar" :href="node.spouse.avatar"
                      :x="-node.nodeR" :y="-node.nodeR" :width="node.nodeR * 2" :height="node.nodeR * 2"
                      :clip-path="`url(#mclip-${node.id})`" preserveAspectRatio="xMidYMid slice"/>
@@ -141,6 +142,11 @@
                     stroke="rgba(240,246,255,0.85)" stroke-width="3" paint-order="stroke"
               >{{ node.spouse.firstName }}</text>
             </g>
+            <!-- מעגל אפור לנפטרים -->
+            <circle
+              v-if="node.isDeceased"
+              :r="node.nodeR + 5" fill="none" stroke="#9ca3af" stroke-width="2.5" opacity="0.9"
+            />
             <!-- Relationship ring indicators (not for the center spouse — it sits flush with the center) -->
             <circle
               v-if="node.relType === 'spouse' && !node.isRoot && !node.centerSpouse"
@@ -157,8 +163,9 @@
             <circle
               :r="node.nodeR"
               :fill="radialNodeColor(node.gender)"
-              :stroke="radialNodeStroke(node.gender)"
-              :stroke-width="node.isRoot || node.centerSpouse ? 3 : 1.5"
+              :stroke="node.isDeceased ? '#9ca3af' : radialNodeStroke(node.gender)"
+              :stroke-width="node.isDeceased ? 2.5 : (node.isRoot || node.centerSpouse ? 3 : 1.5)"
+              :opacity="node.isDeceased ? 0.82 : 1"
             />
             <image
               v-if="node.avatar"
@@ -953,6 +960,7 @@ const radialData = computed(() => {
           avatar: sp?.data?.avatar || null,
           firstName: sp?.data?.['first name'] || '',
           fullName: fullNameOf(sp),
+          isDeceased: !!sp?.data?.is_deceased,
         }
       }
     }
@@ -966,6 +974,7 @@ const radialData = computed(() => {
       firstName: n?.data?.['first name'] || '',
       lastName:  n?.data?.['last name']  || '',
       fullName:  fullNameOf(n),
+      isDeceased: !!n?.data?.is_deceased,
       isRoot, centerSpouse: !!pos.centerSpouse, spouse,
     }
   })
@@ -1567,6 +1576,7 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 .radial-node { cursor: pointer; }
 .radial-node circle { transition: r 0.15s, stroke-width 0.15s; }
 .radial-node:hover circle { stroke-width: 3 !important; filter: brightness(1.08); }
+.radial-node.radial-deceased circle:not([fill="none"]) { filter: grayscale(35%); }
 .radial-node:hover text { font-weight: 600; }
 /* Married-in spouse: semi-transparent photo peeking behind at rest; slides out + fades to
    full on hover. Drawn before the main node so the person stays on top. */

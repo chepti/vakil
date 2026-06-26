@@ -411,7 +411,7 @@
     ]
   },
   "resources/js/Pages/FamilyTree.vue": {
-    "file": "assets/FamilyTree-CYNg6tVW.js",
+    "file": "assets/FamilyTree-NslbJCbt.js",
     "name": "FamilyTree",
     "src": "resources/js/Pages/FamilyTree.vue",
     "isDynamicEntry": true,
@@ -423,7 +423,7 @@
       "_AppLayout-RNVb8ksf.js"
     ],
     "css": [
-      "assets/FamilyTree-XzZH68G5.css"
+      "assets/FamilyTree-CKkYmFdx.css"
     ]
   },
   "resources/js/Pages/Game.vue": {
@@ -695,7 +695,7 @@
     ]
   },
   "resources/js/Pages/Stats/Index.vue": {
-    "file": "assets/Index-llIudbM_.js",
+    "file": "assets/Index-DQkGK5xx.js",
     "name": "Index",
     "src": "resources/js/Pages/Stats/Index.vue",
     "isDynamicEntry": true,
@@ -712,7 +712,7 @@
       "node_modules/leaflet/dist/leaflet-src.js"
     ],
     "css": [
-      "assets/Index-DeQZInlz.css"
+      "assets/Index-CB7qoXOG.css"
     ],
     "assets": [
       "assets/layers-BWBAp2CZ.png",
@@ -735,7 +735,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-C7jYuuGb.js",
+    "file": "assets/app-DB2dQGEy.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
