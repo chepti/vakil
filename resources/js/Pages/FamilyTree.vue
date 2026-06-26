@@ -76,6 +76,7 @@
       <!-- Tree container — v-show keeps the chart instance alive when toggling radial -->
       <div v-show="localNodes.length > 0 && !radialMode" class="tree-wrap">
         <div v-if="hideMode" class="fold-hint">👁 לחצו על דמות כדי לקפל / לפתוח את ענף הצאצאים שלה</div>
+        <div v-else class="fold-hint fold-hint-sub">ענף קטן על כרטיס = קרובים נסתרים — לחצו לפתיחה</div>
         <div ref="chartContainer" id="FamilyChart" class="f3"></div>
       </div>
 
@@ -106,9 +107,9 @@
           <line
             v-for="link in radialData.links" :key="link.key"
             :x1="link.x1" :y1="link.y1" :x2="link.x2" :y2="link.y2"
-            :stroke="link.type === 'spouse' ? '#f0abfc' : link.type === 'parent' ? '#fcd34d' : '#b0c8e4'"
-            :stroke-width="link.type === 'spouse' || link.type === 'parent' ? 1.5 : 1.2"
-            :stroke-dasharray="link.type === 'spouse' ? '4 3' : link.type === 'parent' ? '5 3' : 'none'"
+            :stroke="link.type === 'expanded' ? '#94a3b8' : link.type === 'spouse' ? '#f0abfc' : link.type === 'parent' ? '#fcd34d' : '#b0c8e4'"
+            :stroke-width="link.type === 'expanded' ? 1.2 : link.type === 'spouse' || link.type === 'parent' ? 1.5 : 1.2"
+            :stroke-dasharray="link.type === 'expanded' ? '3 2' : link.type === 'spouse' ? '4 3' : link.type === 'parent' ? '5 3' : 'none'"
             stroke-linecap="round"
           />
           <!-- Nodes -->
@@ -193,10 +194,31 @@
             >
               <textPath :href="`#lpath-${node.id}`" startOffset="50%" text-anchor="middle">{{ node.isRoot ? node.fullName : node.firstName }}</textPath>
             </text>
+            <!-- רמזי ענפים נסתרים -->
+            <g v-if="node.hiddenBranches?.length" class="branch-hints">
+              <g
+                v-for="branch in node.hiddenBranches" :key="branch.key"
+                class="branch-hint"
+                @pointerdown.stop
+                @click.stop="onBranchExpand(node.id, branch)"
+              >
+                <line
+                  :x1="branch.lx" :y1="branch.ly" :x2="branch.dx" :y2="branch.dy"
+                  stroke="#94a3b8" stroke-width="2" stroke-linecap="round"
+                />
+                <circle :cx="branch.dx" :cy="branch.dy" r="6" fill="#fff" stroke="#64748b" stroke-width="1.5" />
+                <text
+                  :x="branch.dx" :y="branch.dy + 2.5"
+                  text-anchor="middle" font-size="7" font-weight="700" fill="#475569"
+                  font-family="Rubik, sans-serif"
+                >{{ branch.count }}</text>
+                <title>{{ branch.title }} — לחצו לפתיחה</title>
+              </g>
+            </g>
             <title>{{ node.fullName }}{{ node.relType === 'spouse' ? ' (בן/בת זוג)' : node.relType === 'parent' ? ' (הורה)' : '' }}</title>
           </g>
         </svg>
-        <div class="radial-hint">גלגל לזום · גרירה להזזה · לחיצה להצגת מעגלי הקשר</div>
+        <div class="radial-hint">גלגל לזום · גרירה להזזה · לחיצה על דמות למרכז · על ענף קטן לפתיחת קרובים נסתרים</div>
       </div>
 
       <!-- Side panel -->
@@ -579,6 +601,11 @@ function initChart() {
       addRelType.value = null
       chartInstance.updateMainId(d.data.id)
     })
+    .setOnCardUpdate(function (d) {
+      const card = this.querySelector('.card')
+      if (!card || !d.data?.id || d.data.to_add || d.data._new_rel_data) return
+      card.setAttribute('data-person-id', String(d.data.id))
+    })
 
   // ── כפתורי + ועריכה inline ────────────────────────────────────
   chartInstance.editTree()
@@ -644,6 +671,10 @@ function initChart() {
       })
     })
     .updateTree({ initial: true })
+
+  chartInstance.setOnUpdate(() => {
+    if (!radialMode.value) nextTick(() => refreshLinearBranchHints())
+  })
 }
 
 // Re-fit the tree to the container. MUST run only when the container is visible —
@@ -752,6 +783,7 @@ function toggleCompactMode() {
 // ── Radial view ──────────────────────────────────────────────
 const radialMode     = ref(true)   // default: radial on entry
 const radialCenterId = ref(null)   // null = use defaultMainPersonId
+const radialExpansions = ref([])   // ענפים שנפתחו במקביל: { key, anchorId, dir, targetIds }
 const radialVB       = ref({ x: -550, y: -550, w: 1100, h: 1100 })
 const hoveredNodeId  = ref(null)   // node whose married-in spouse is revealed on hover
 
@@ -765,12 +797,92 @@ function _pinchDist() {
   return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y)
 }
 
+function buildNodeMap(nodes) {
+  const m = {}
+  nodes.forEach(n => { m[String(n.id)] = n })
+  return m
+}
+
+/** ענפים שלא מוצגים כרגע — הורים למעלה, אחים שמאלה, בן/בת זוג ימינה, ילדים למטה */
+function computeHiddenBranches(personId, displayedSet, nodeMap) {
+  const n = nodeMap[personId]
+  if (!n) return []
+  const id = String(personId)
+  const marriages = n.data?.marriages || {}
+  const out = []
+
+  const hiddenParents = (n.rels?.parents || []).map(String).filter(p => !displayedSet.has(p) && nodeMap[p])
+  if (hiddenParents.length) {
+    out.push({ key: `${id}-up`, dir: 'up', count: hiddenParents.length, targetIds: hiddenParents, title: 'הורים' })
+  }
+
+  const sibs = new Set()
+  for (const pid of (n.rels?.parents || []).map(String)) {
+    for (const cid of (nodeMap[pid]?.rels?.children || []).map(String)) {
+      if (cid !== id && !displayedSet.has(cid) && nodeMap[cid]) sibs.add(cid)
+    }
+  }
+  if (sibs.size) {
+    out.push({ key: `${id}-sib`, dir: 'side-left', count: sibs.size, targetIds: [...sibs], title: 'אחים/אחיות' })
+  }
+
+  const hiddenChildren = (n.rels?.children || []).map(String).filter(c => !displayedSet.has(c) && nodeMap[c])
+  if (hiddenChildren.length) {
+    out.push({ key: `${id}-down`, dir: 'down', count: hiddenChildren.length, targetIds: hiddenChildren, title: 'ילדים' })
+  }
+
+  const hiddenSpouses = (n.rels?.spouses || []).map(String)
+    .filter(s => !displayedSet.has(s) && !marriages[s]?.is_former && nodeMap[s])
+  if (hiddenSpouses.length) {
+    out.push({ key: `${id}-sp`, dir: 'side-right', count: hiddenSpouses.length, targetIds: hiddenSpouses, title: 'בן/בת זוג' })
+  }
+
+  return out
+}
+
+function branchHintOffset(dir, nodeR) {
+  const p = nodeR + 11
+  if (dir === 'up') return { dx: 0, dy: -p, lx: 0, ly: -nodeR - 2 }
+  if (dir === 'down') return { dx: 0, dy: p, lx: 0, ly: nodeR + 2 }
+  if (dir === 'side-left') return { dx: -p, dy: 0, lx: -nodeR - 2, ly: 0 }
+  if (dir === 'side-right') return { dx: p, dy: 0, lx: nodeR + 2, ly: 0 }
+  return { dx: p, dy: 0, lx: nodeR + 2, ly: 0 }
+}
+
+function applyRadialExpansions(positions, links, nodeMap) {
+  const EXP_DIST = 58
+  for (const exp of radialExpansions.value) {
+    const anchor = positions[exp.anchorId]
+    if (!anchor) continue
+    const { x: ax, y: ay } = anchor
+    const n = exp.targetIds.length
+    exp.targetIds.forEach((tid, i) => {
+      if (positions[tid]) return
+      let x = ax, y = ay
+      if (exp.dir === 'up') {
+        x = ax + (i - (n - 1) / 2) * 42
+        y = ay - EXP_DIST
+      } else if (exp.dir === 'down') {
+        x = ax + (i - (n - 1) / 2) * 42
+        y = ay + EXP_DIST
+      } else if (exp.dir === 'side-left') {
+        x = ax - EXP_DIST
+        y = ay + (i - (n - 1) / 2) * 38
+      } else if (exp.dir === 'side-right') {
+        x = ax + EXP_DIST
+        y = ay + (i - (n - 1) / 2) * 38
+      }
+      positions[tid] = { x, y, level: anchor.level, relType: 'expanded', angle: anchor.angle, arcSpan: 0 }
+      links.push({ key: `exp-${exp.anchorId}-${tid}`, from: exp.anchorId, to: tid, type: 'expanded' })
+    })
+  }
+}
+
 const radialData = computed(() => {
   if (!radialMode.value || !localNodes.value.length) return { nodes: [], links: [] }
 
   const centerId = String(radialCenterId.value || props.defaultMainPersonId || props.rootPersonId || localNodes.value[0]?.id)
-  const nodeMap = {}
-  localNodes.value.forEach(n => { nodeMap[String(n.id)] = n })
+  const nodeMap = buildNodeMap(localNodes.value)
 
   // Number of leaf (childless) descendants — drives how much angular room a subtree needs
   function leafCount(id, seen) {
@@ -929,6 +1041,9 @@ const radialData = computed(() => {
     })
   })
 
+  applyRadialExpansions(positions, links, nodeMap)
+  const displayedSet = new Set(Object.keys(positions))
+
   const fullNameOf = (nd) => `${nd?.data?.['first name'] || ''} ${nd?.data?.['last name'] || ''}`.trim()
 
   const nodes = Object.keys(positions).map(id => {
@@ -976,6 +1091,8 @@ const radialData = computed(() => {
       fullName:  fullNameOf(n),
       isDeceased: !!n?.data?.is_deceased,
       isRoot, centerSpouse: !!pos.centerSpouse, spouse,
+      hiddenBranches: computeHiddenBranches(id, displayedSet, nodeMap)
+        .map(b => ({ ...b, ...branchHintOffset(b.dir, nodeR) })),
     }
   })
 
@@ -1070,9 +1187,75 @@ function fitRadialView() {
   })
 }
 
+function onBranchExpand(anchorId, branch) {
+  const idx = radialExpansions.value.findIndex(e => e.key === branch.key)
+  if (idx >= 0) {
+    radialExpansions.value = radialExpansions.value.filter((_, i) => i !== idx)
+  } else {
+    radialExpansions.value = [
+      ...radialExpansions.value,
+      { key: branch.key, anchorId: String(anchorId), dir: branch.dir, targetIds: branch.targetIds },
+    ]
+  }
+}
+
+function onLinearBranchClick(personId, branch, e) {
+  e.preventDefault()
+  e.stopPropagation()
+  if (!chartInstance) return
+  if (branch.dir === 'up') {
+    depth.value = Math.min(7, depth.value + 1)
+    chartInstance.setAncestryDepth(depth.value).updateTree({})
+  } else if (branch.dir === 'side-left') {
+    showSiblings.value = true
+    chartInstance.setShowSiblingsOfMain(true).updateTree({})
+  } else if (branch.dir === 'down') {
+    const s = new Set(collapsedIds.value)
+    s.delete(String(personId))
+    collapsedIds.value = s
+    chartInstance.updateTree({})
+  } else if (branch.dir === 'side-right' && branch.targetIds[0]) {
+    chartInstance.updateMainId(branch.targetIds[0]).updateTree({})
+  }
+}
+
+function refreshLinearBranchHints() {
+  const cont = chartContainer.value
+  if (!cont || radialMode.value) return
+  const nodeMap = buildNodeMap(localNodes.value)
+  const visibleIds = new Set()
+  cont.querySelectorAll('[data-person-id]').forEach(el => {
+    visibleIds.add(el.getAttribute('data-person-id'))
+  })
+  cont.querySelectorAll('[data-person-id]').forEach(cardEl => {
+    const personId = cardEl.getAttribute('data-person-id')
+    const branches = computeHiddenBranches(personId, visibleIds, nodeMap)
+    let wrap = cardEl.querySelector('.ft-branch-hints')
+    if (!branches.length) {
+      wrap?.remove()
+      return
+    }
+    if (!wrap) {
+      wrap = document.createElement('div')
+      wrap.className = 'ft-branch-hints'
+      cardEl.appendChild(wrap)
+    }
+    wrap.innerHTML = branches.map(b => {
+      const cls = b.dir === 'up' ? 'ft-branch-up'
+        : b.dir === 'down' ? 'ft-branch-down'
+          : b.dir === 'side-left' ? 'ft-branch-side-l' : 'ft-branch-side-r'
+      return `<button type="button" class="ft-branch ${cls}" data-key="${b.key}" title="${b.title} (${b.count})">${b.count}</button>`
+    }).join('')
+    wrap.querySelectorAll('.ft-branch').forEach((btn, i) => {
+      btn.onclick = (e) => onLinearBranchClick(personId, branches[i], e)
+    })
+  })
+}
+
 function onRadialNodeClick(id) {
   // Ignore if this ended a drag
   if (radialDrag?.moved) return
+  radialExpansions.value = []
   // Single click: make this person the center + open side panel
   radialCenterId.value = String(id)
   const node = localNodes.value.find(n => String(n.id) === String(id))
@@ -1084,6 +1267,7 @@ function onRadialNodeClick(id) {
 
 function resetRadialToRoot() {
   radialCenterId.value = null
+  radialExpansions.value = []
   fitRadialView()
 }
 
@@ -1106,8 +1290,10 @@ function toggleRadialMode() {
     // (nextTick + rAF). Fitting while still display:none gives scale(0)/NaN and
     // breaks pan+zoom.
     fitTreeView()
+    nextTick(() => refreshLinearBranchHints())
   } else {
     radialCenterId.value = null
+    radialExpansions.value = []
     fitRadialView()
   }
 }
@@ -1589,6 +1775,10 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 .radial-mate.revealed { opacity: 1; transform: translate(30px, 30px); }
 .radial-mate .mate-name { opacity: 0; transition: opacity 0.2s ease; }
 .radial-mate.revealed .mate-name { opacity: 1; }
+.branch-hints { pointer-events: auto; }
+.branch-hint { cursor: pointer; }
+.branch-hint:hover line { stroke: #475569; stroke-width: 2.5; }
+.branch-hint:hover circle { fill: #f1f5f9; stroke: #334155; }
 .radial-hint {
   position: absolute;
   bottom: 0.75rem;
@@ -1604,6 +1794,28 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 }
 
 /* Fold-branch hint banner — top center of the tree view */
+.fold-hint-sub { color: #8a9ab5; font-size: 0.78rem; }
+
+/* ענפים נסתרים על כרטיסי העץ הרגיל */
+#FamilyChart .card { position: relative; overflow: visible !important; }
+.ft-branch-hints {
+  position: absolute; inset: 0; pointer-events: none; z-index: 5;
+}
+.ft-branch {
+  position: absolute; pointer-events: auto;
+  min-width: 16px; height: 16px; padding: 0 3px;
+  border-radius: 8px; border: 1.5px solid #94a3b8;
+  background: #fff; color: #475569; font-size: 0.55rem; font-weight: 700;
+  font-family: 'Rubik', sans-serif; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 1px 4px rgba(0,40,100,0.12);
+}
+.ft-branch:hover { background: #f1f5f9; border-color: #64748b; }
+.ft-branch-up { top: -6px; left: 50%; transform: translateX(-50%); }
+.ft-branch-down { bottom: -6px; left: 50%; transform: translateX(-50%); }
+.ft-branch-side-l { left: -8px; top: 50%; transform: translateY(-50%); }
+.ft-branch-side-r { right: -8px; top: 50%; transform: translateY(-50%); }
+
 .fold-hint {
   position: absolute;
   top: 0.75rem;
