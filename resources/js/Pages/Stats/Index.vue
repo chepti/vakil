@@ -76,7 +76,7 @@
         <!-- פירמידת גילאים -->
         <section class="panel pyramid-panel" v-if="agePyramid.brackets?.length">
           <h2>📈 פירמידת גילאים</h2>
-          <p class="pyramid-sub">{{ agePyramid.total }} בני משפחה בחיים עם תאריך לידה</p>
+          <p class="pyramid-sub">{{ agePyramid.total }} בני משפחה בחיים עם תאריך לידה · לחצו על פס לראות שמות</p>
 
           <div class="pyramid-legend">
             <span class="leg male"><i></i> בנים</span>
@@ -84,23 +84,52 @@
           </div>
 
           <div class="pyramid-chart">
-            <div v-for="row in agePyramid.brackets" :key="row.label" class="pyramid-row">
-              <div class="bar-side male-side">
-                <span class="bar-count" v-if="row.male">{{ row.male }}</span>
-                <div
-                  class="bar male-bar"
-                  :style="{ width: barWidth(row.male) }"
-                  :title="`${row.male} בנים (${row.malePct}%)`"
-                ></div>
+            <div v-for="row in agePyramid.brackets" :key="row.label" class="pyramid-block">
+              <div class="pyramid-row">
+                <div class="bar-side male-side">
+                  <span class="bar-count" v-if="row.male">{{ row.male }}</span>
+                  <button
+                    v-if="row.male"
+                    type="button"
+                    class="bar male-bar"
+                    :class="{ active: isBarSelected(row.label, 'male') }"
+                    :style="{ width: barWidth(row.male) }"
+                    :title="`${row.male} בנים — לחצו לשמות`"
+                    @click="toggleBar(row.label, 'male')"
+                  ></button>
+                </div>
+                <div class="age-label">{{ row.label }}</div>
+                <div class="bar-side female-side">
+                  <button
+                    v-if="row.female"
+                    type="button"
+                    class="bar female-bar"
+                    :class="{ active: isBarSelected(row.label, 'female') }"
+                    :style="{ width: barWidth(row.female) }"
+                    :title="`${row.female} בנות — לחצו לשמות`"
+                    @click="toggleBar(row.label, 'female')"
+                  ></button>
+                  <span class="bar-count" v-if="row.female">{{ row.female }}</span>
+                </div>
               </div>
-              <div class="age-label">{{ row.label }}</div>
-              <div class="bar-side female-side">
-                <div
-                  class="bar female-bar"
-                  :style="{ width: barWidth(row.female) }"
-                  :title="`${row.female} בנות (${row.femalePct}%)`"
-                ></div>
-                <span class="bar-count" v-if="row.female">{{ row.female }}</span>
+
+              <div
+                v-if="selectedBar && selectedBar.label === row.label"
+                class="pyramid-detail"
+                :class="selectedBar.gender"
+              >
+                <div class="pyramid-detail-head">
+                  <span>{{ selectedBar.gender === 'male' ? '👦 בנים' : '👧 בנות' }} · גילאי {{ row.label }}</span>
+                  <button type="button" class="pyramid-detail-close" @click="selectedBar = null">×</button>
+                </div>
+                <div class="pyramid-names">
+                  <Link
+                    v-for="person in selectedPeople(row)"
+                    :key="person.id"
+                    :href="`/people/${person.id}`"
+                    class="pyramid-name-chip"
+                  >{{ person.name }}</Link>
+                </div>
               </div>
             </div>
           </div>
@@ -177,6 +206,21 @@ const props = defineProps({
 })
 
 const hebMonth = currentHebrewMonth()
+const selectedBar = ref(null) // { label, gender }
+
+function isBarSelected(label, gender) {
+  return selectedBar.value?.label === label && selectedBar.value?.gender === gender
+}
+
+function toggleBar(label, gender) {
+  if (isBarSelected(label, gender)) selectedBar.value = null
+  else selectedBar.value = { label, gender }
+}
+
+function selectedPeople(row) {
+  if (!selectedBar.value || selectedBar.value.label !== row.label) return []
+  return selectedBar.value.gender === 'male' ? row.malePeople : row.femalePeople
+}
 
 function barWidth(count) {
   const max = props.agePyramid.maxCount || 1
@@ -427,15 +471,41 @@ ul { list-style: none; margin: 0; padding: 0; }
   background: #f8faff; border-radius: 12px; padding: 0.75rem 0.5rem;
   border: 1px solid #e6eefb;
 }
+.pyramid-block { display: flex; flex-direction: column; }
 .pyramid-row { display: grid; grid-template-columns: 1fr 52px 1fr; align-items: center; gap: 0.35rem; min-height: 22px; }
 .bar-side { display: flex; align-items: center; height: 20px; }
 .male-side { justify-content: flex-end; }
 .female-side { justify-content: flex-start; }
-.bar { height: 18px; border-radius: 3px; min-width: 0; transition: width 0.4s ease; }
+.bar { height: 18px; border-radius: 3px; min-width: 0; transition: width 0.4s ease, filter 0.15s; border: none; padding: 0; cursor: pointer; font: inherit; }
+.bar:hover { filter: brightness(1.08); }
+.bar.active { outline: 2px solid #1a3a6b; outline-offset: 1px; }
 .male-bar { background: linear-gradient(270deg, #5b8fd9, #7aa8e8); border-radius: 3px 0 0 3px; }
 .female-bar { background: linear-gradient(90deg, #f08aaa, #f5a8bd); border-radius: 0 3px 3px 0; }
 .bar-count { font-size: 0.72rem; color: #4a5f85; font-weight: 600; padding: 0 0.35rem; white-space: nowrap; min-width: 1.2rem; text-align: center; }
-.bar-pct { font-size: 0.62rem; color: #9aa7c0; padding: 0 0.3rem; white-space: nowrap; }
+.pyramid-detail {
+  background: white;
+  border: 1px solid #dce6f8;
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+  margin: 0.15rem 0.25rem 0.35rem;
+}
+.pyramid-detail.male { border-color: #b8d0f5; background: #f4f8ff; }
+.pyramid-detail.female { border-color: #f5c4d4; background: #fff5f8; }
+.pyramid-detail-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 0.8rem; color: #4a5f85; font-weight: 600; margin-bottom: 0.45rem;
+}
+.pyramid-detail-close {
+  background: none; border: none; color: #9aa7c0; font-size: 1.1rem;
+  cursor: pointer; line-height: 1; padding: 0 0.2rem;
+}
+.pyramid-names { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.pyramid-name-chip {
+  background: white; border: 1px solid #e0eaf8; color: #2d4a7a;
+  border-radius: 16px; padding: 0.2rem 0.65rem; font-size: 0.8rem;
+  text-decoration: none; transition: background 0.15s;
+}
+.pyramid-name-chip:hover { background: #edf3ff; color: #2d6be4; }
 .age-label {
   text-align: center; font-size: 0.7rem; color: #6b7a99; font-weight: 500;
   background: white; border-radius: 6px; padding: 0.1rem 0; line-height: 1.3;

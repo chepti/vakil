@@ -154,9 +154,21 @@ class StatsController extends Controller
             $gender = $p->gender === 'female' ? 'female' : 'male';
 
             if (! isset($counts[$label])) {
-                $counts[$label] = ['label' => $label, 'male' => 0, 'female' => 0, 'sort' => $age >= 100 ? 100 : (int) (floor($age / 5) * 5)];
+                $counts[$label] = [
+                    'label'        => $label,
+                    'male'         => 0,
+                    'female'       => 0,
+                    'malePeople'   => [],
+                    'femalePeople' => [],
+                    'sort'         => $age >= 100 ? 100 : (int) (floor($age / 5) * 5),
+                ];
             }
+            $peopleKey = $gender === 'female' ? 'femalePeople' : 'malePeople';
             $counts[$label][$gender]++;
+            $counts[$label][$peopleKey][] = [
+                'id'   => $p->id,
+                'name' => $p->first_name,
+            ];
         }
 
         $brackets = collect($counts)
@@ -165,13 +177,16 @@ class StatsController extends Controller
             ->map(function ($b) use ($total) {
                 $malePct   = round($b['male'] / $total * 100, 1);
                 $femalePct = round($b['female'] / $total * 100, 1);
+                $sortNames = fn ($list) => collect($list)->sortBy('name', SORT_NATURAL)->values()->all();
 
                 return [
-                    'label'     => $b['label'],
-                    'male'      => $b['male'],
-                    'female'    => $b['female'],
-                    'malePct'   => $malePct,
-                    'femalePct' => $femalePct,
+                    'label'        => $b['label'],
+                    'male'         => $b['male'],
+                    'female'       => $b['female'],
+                    'malePct'      => $malePct,
+                    'femalePct'    => $femalePct,
+                    'malePeople'   => $sortNames($b['malePeople']),
+                    'femalePeople' => $sortNames($b['femalePeople']),
                 ];
             })
             ->reverse()
