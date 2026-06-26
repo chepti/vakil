@@ -1,0 +1,33 @@
+---
+description: פריסה מלאה ל-vakil.chepti.com — חובה אחרי שינויי קוד
+alwaysApply: true
+---
+
+# פריסה מלאה — משפחת ואקיל
+
+## מיקום הפרויקט
+
+- קוד מקור: `T:\laragon\www\vakil`
+- שרת: `https://vakil.chepti.com` (Hostinger, SSH פורט 65002)
+- **דחיפה ל-GitHub לבדה אינה מפריסה לאתר**
+
+## חובה בסיום כל משימה עם שינויי קוד
+
+אם שינית קבצים ב-`app/`, `resources/`, `public/build`, `package.json`, `composer.json` או migrations — הרץ **פריסה מלאה**:
+
+```powershell
+cd T:\laragon\www\vakil
+.\deploy.ps1 "תיאור קצר של השינוי"
+```
+
+הסקריפט מבצע: `npm run build` → commit + push → SSH (`git pull` + סנכרון `public_html` + migrations + ניקוי cache).
+
+## אסור
+
+- לסיים משימה רק עם `git push` בלי `deploy.ps1`
+- לפרוס רק `public/build` ב-SCP בנפרד (ה-build עוקב ב-git; הפריסה היא `git pull` בשרת)
+- לערוך קבצים ב-`T:\CURSOR2\VAKIL` — זו עותק ישן; עבוד תמיד ב-`T:\laragon\www\vakil`
+
+## אימות
+
+אחרי פריסה: Ctrl+F5 באתר, או בדוק ש-`.cursor/last-deployed` שווה ל-`git rev-parse HEAD`.

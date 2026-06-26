@@ -19,3 +19,4 @@ yarn-error.log
 # סקריפטי פריסה אישיים — מכילים פרטי שרת. מעתיקי הפרויקט מגדירים את שלהם.
 deploy.ps1
 ssh-server.bat
+.cursor/last-deployed
