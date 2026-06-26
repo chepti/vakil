@@ -39,8 +39,8 @@
                 </span>
                 <span class="baby-text">
                   <strong>{{ b.name }}</strong>
-                  <span class="baby-chain" v-if="b.chain.length">
-                    {{ b.gender === 'female' ? 'בתה' : 'בנה' }} של {{ b.chain.join(', של ') }}
+                  <span class="baby-chain" v-if="b.context">
+                    {{ b.gender === 'female' ? 'בת' : 'בן' }}{{ b.context }}
                   </span>
                   <span class="baby-date">
                     <b>{{ b.hebFull }}</b>
@@ -62,12 +62,54 @@
                   <b>{{ b.hebDM }}</b>
                   <span class="greg">{{ b.greg }}</span>
                 </span>
-                <span class="event-name">{{ b.full_name }}</span>
+                <span class="event-name">
+                  {{ b.name }}
+                  <span v-if="b.context" class="event-context">{{ b.gender === 'female' ? 'בת' : 'בן' }}{{ b.context }}</span>
+                </span>
                 <span class="event-extra">{{ b.turning }} 🎉</span>
               </Link>
             </li>
           </ul>
           <p v-else class="empty">אין ימי הולדת החודש</p>
+        </section>
+
+        <!-- פירמידת גילאים -->
+        <section class="panel pyramid-panel" v-if="agePyramid.brackets?.length">
+          <h2>📈 פירמידת גילאים</h2>
+          <p class="pyramid-sub">{{ agePyramid.total }} בני משפחה בחיים עם תאריך לידה</p>
+
+          <div class="pyramid-legend">
+            <span class="leg male"><i></i> בנים</span>
+            <span class="leg female"><i></i> בנות</span>
+          </div>
+
+          <div class="pyramid-chart">
+            <div v-for="row in agePyramid.brackets" :key="row.label" class="pyramid-row">
+              <div class="bar-side male-side">
+                <span class="bar-pct" v-if="row.malePct">{{ row.malePct }}%</span>
+                <div
+                  class="bar male-bar"
+                  :style="{ width: barWidth(row.malePct) }"
+                  :title="`${row.male} בנים`"
+                ></div>
+              </div>
+              <div class="age-label">{{ row.label }}</div>
+              <div class="bar-side female-side">
+                <div
+                  class="bar female-bar"
+                  :style="{ width: barWidth(row.femalePct) }"
+                  :title="`${row.female} בנות`"
+                ></div>
+                <span class="bar-pct" v-if="row.femalePct">{{ row.femalePct }}%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pyramid-axis">
+            <span>0%</span>
+            <span>{{ Math.ceil(agePyramid.maxPct / 2) }}%</span>
+            <span>{{ agePyramid.maxPct }}%</span>
+          </div>
         </section>
 
         <!-- ימי נישואין החודש -->
@@ -131,9 +173,15 @@ const props = defineProps({
   babies:                { type: Array, default: () => [] },
   birthdayCandidates:    { type: Array, default: () => [] },
   anniversaryCandidates: { type: Array, default: () => [] },
+  agePyramid:            { type: Object, default: () => ({ brackets: [], total: 0, maxPct: 0 }) },
 })
 
 const hebMonth = currentHebrewMonth()
+
+function barWidth(pct) {
+  const max = props.agePyramid.maxPct || 1
+  return `${Math.max((pct / max) * 100, pct > 0 ? 4 : 0)}%`
+}
 
 // ── תינוקות עם תאריך עברי מלא ──
 const babies = computed(() =>
@@ -290,6 +338,7 @@ onBeforeUnmount(() => { if (map) { map.remove(); map = null } })
 
 .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
 .map-panel { grid-column: 1 / -1; }
+.pyramid-panel { grid-column: 1 / -1; }
 
 .panel {
   background: white; border-radius: 14px; padding: 1.25rem 1.5rem;
@@ -328,7 +377,8 @@ ul { list-style: none; margin: 0; padding: 0; }
 }
 .event-date b { color: #2d6be4; font-size: 0.82rem; }
 .event-date .greg { color: #9aa7c0; font-size: 0.68rem; }
-.event-name { flex: 1; color: #2d4a7a; }
+.event-name { flex: 1; color: #2d4a7a; line-height: 1.35; }
+.event-context { display: block; font-size: 0.78rem; color: #9aa7c0; font-weight: 400; }
 .event-extra { font-size: 0.85rem; color: #6b7a99; white-space: nowrap; }
 
 .empty { color: #9aa7c0; font-size: 0.9rem; }
@@ -362,6 +412,37 @@ ul { list-style: none; margin: 0; padding: 0; }
   cursor: pointer; font-family: 'Rubik', sans-serif;
 }
 .place-chip:hover { background: #ffe9cc; }
+
+/* פירמידת גילאים */
+.pyramid-sub { font-size: 0.82rem; color: #9aa7c0; margin: -0.5rem 0 1rem; }
+.pyramid-legend { display: flex; gap: 1.25rem; justify-content: center; margin-bottom: 0.85rem; font-size: 0.85rem; color: #6b7a99; }
+.pyramid-legend .leg { display: flex; align-items: center; gap: 0.35rem; }
+.pyramid-legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
+.leg.male i { background: linear-gradient(90deg, #5b8fd9, #3d6fbe); }
+.leg.female i { background: linear-gradient(90deg, #f08aaa, #e06b8f); }
+
+.pyramid-chart {
+  display: flex; flex-direction: column; gap: 2px;
+  background: #f8faff; border-radius: 12px; padding: 0.75rem 0.5rem;
+  border: 1px solid #e6eefb;
+}
+.pyramid-row { display: grid; grid-template-columns: 1fr 52px 1fr; align-items: center; gap: 0.35rem; min-height: 22px; }
+.bar-side { display: flex; align-items: center; height: 20px; }
+.male-side { justify-content: flex-end; }
+.female-side { justify-content: flex-start; }
+.bar { height: 18px; border-radius: 3px; min-width: 0; transition: width 0.4s ease; }
+.male-bar { background: linear-gradient(270deg, #5b8fd9, #7aa8e8); border-radius: 3px 0 0 3px; }
+.female-bar { background: linear-gradient(90deg, #f08aaa, #f5a8bd); border-radius: 0 3px 3px 0; }
+.bar-pct { font-size: 0.62rem; color: #9aa7c0; padding: 0 0.3rem; white-space: nowrap; }
+.age-label {
+  text-align: center; font-size: 0.7rem; color: #6b7a99; font-weight: 500;
+  background: white; border-radius: 6px; padding: 0.1rem 0; line-height: 1.3;
+  border: 1px solid #e6eefb;
+}
+.pyramid-axis {
+  display: flex; justify-content: space-between; max-width: calc(100% - 52px);
+  margin: 0.45rem auto 0; font-size: 0.65rem; color: #b8c4d9; padding: 0 0.5rem;
+}
 
 @media (max-width: 720px) {
   .stat-cards { grid-template-columns: repeat(2, 1fr); }

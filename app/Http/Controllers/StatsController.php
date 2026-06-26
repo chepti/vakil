@@ -36,6 +36,7 @@ class StatsController extends Controller
             'babies'                => $this->recentBabies($people),
             'birthdayCandidates'    => $this->birthdayCandidates($people),
             'anniversaryCandidates' => $this->anniversaryCandidates(),
+            'agePyramid'            => $this->agePyramid($people),
         ]);
     }
 
@@ -86,32 +87,11 @@ class StatsController extends Controller
                 'gender'    => $p->gender,
                 'iso'       => $p->birth_date_gregorian->format('Y-m-d'),
                 'greg'      => $p->birth_date_gregorian->format('d/m/Y'),
-                'chain'     => $this->maternalChain($p),
+                'context'   => $p->ancestralContext(3),
                 'photo_url' => $p->profile_photo_url,
             ])
             ->values()
             ->all();
-    }
-
-    /**
-     * שרשרת הורים (אימהית כברירת מחדל) עד 2 דורות מעלה.
-     * מחזיר רשימת שמות פרטיים, למשל ['רינה', 'ניצה'] עבור "יוסי של רינה של ניצה".
-     */
-    private function maternalChain(Person $person, int $depth = 2): array
-    {
-        $chain = [];
-        $current = $person;
-
-        for ($i = 0; $i < $depth; $i++) {
-            $parents = $current->parents()->get();
-            if ($parents->isEmpty()) break;
-
-            $parent = $parents->firstWhere('gender', 'female') ?? $parents->first();
-            $chain[] = $parent->first_name;
-            $current = $parent;
-        }
-
-        return $chain;
     }
 
     /** מועמדים לימי הולדת — כל החיים עם תאריך לידה. הסינון לחודש העברי בלקוח. */
@@ -121,10 +101,12 @@ class StatsController extends Controller
             ->filter(fn($p) => ! $p->is_deceased && $p->birth_date_gregorian)
             ->map(fn($p) => [
                 'id'        => $p->id,
+                'name'      => $p->first_name,
                 'full_name' => $p->full_name,
                 'gender'    => $p->gender,
                 'iso'       => $p->birth_date_gregorian->format('Y-m-d'),
                 'greg'      => $p->birth_date_gregorian->format('d/m'),
+                'context'   => $p->ancestralContext(3),
                 'photo_url' => $p->profile_photo_url,
             ])
             ->values()
@@ -149,5 +131,66 @@ class StatsController extends Controller
             ->filter()
             ->values()
             ->all();
+    }
+
+    /**
+     * פירמידת גילאים — קבוצות של 5 שנים, מחולק לבנים ובנות (אחוז מסך הנתונים).
+     */
+    private function agePyramid($people): array
+    {
+        $living = $people->filter(fn ($p) => ! $p->is_deceased && $p->birth_date_gregorian);
+        $total  = $living->count();
+
+        if ($total === 0) {
+            return ['brackets' => [], 'total' => 0, 'maxPct' => 0];
+        }
+
+        $counts = [];
+        $today  = Carbon::today();
+
+        foreach ($living as $p) {
+            $age    = (int) $p->birth_date_gregorian->diffInYears($today);
+            $label  = $age >= 100 ? '100+' : $this->ageBracketLabel($age);
+            $gender = $p->gender === 'female' ? 'female' : 'male';
+
+            if (! isset($counts[$label])) {
+                $counts[$label] = ['label' => $label, 'male' => 0, 'female' => 0, 'sort' => $age >= 100 ? 100 : (int) (floor($age / 5) * 5)];
+            }
+            $counts[$label][$gender]++;
+        }
+
+        $brackets = collect($counts)
+            ->sortBy('sort')
+            ->values()
+            ->map(function ($b) use ($total) {
+                $malePct   = round($b['male'] / $total * 100, 1);
+                $femalePct = round($b['female'] / $total * 100, 1);
+
+                return [
+                    'label'     => $b['label'],
+                    'male'      => $b['male'],
+                    'female'    => $b['female'],
+                    'malePct'   => $malePct,
+                    'femalePct' => $femalePct,
+                ];
+            })
+            ->reverse()
+            ->values()
+            ->all();
+
+        $maxPct = collect($brackets)->max(fn ($b) => max($b['malePct'], $b['femalePct'])) ?: 0;
+
+        return [
+            'brackets' => $brackets,
+            'total'    => $total,
+            'maxPct'   => ceil($maxPct),
+        ];
+    }
+
+    private function ageBracketLabel(int $age): string
+    {
+        $start = (int) (floor($age / 5) * 5);
+
+        return $start . '-' . ($start + 4);
     }
 }
