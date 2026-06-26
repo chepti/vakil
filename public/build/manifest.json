@@ -411,7 +411,7 @@
     ]
   },
   "resources/js/Pages/FamilyTree.vue": {
-    "file": "assets/FamilyTree-BZazpu67.js",
+    "file": "assets/FamilyTree-CXGgQXt_.js",
     "name": "FamilyTree",
     "src": "resources/js/Pages/FamilyTree.vue",
     "isDynamicEntry": true,
@@ -423,7 +423,7 @@
       "_AppLayout-RNVb8ksf.js"
     ],
     "css": [
-      "assets/FamilyTree-CK6ysVIK.css"
+      "assets/FamilyTree-B8aIWrEL.css"
     ]
   },
   "resources/js/Pages/Game.vue": {
@@ -735,7 +735,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-iruGHDYU.js",
+    "file": "assets/app-dU13zF5V.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -786,7 +786,7 @@
       "resources/js/Pages/Welcome.vue"
     ],
     "css": [
-      "assets/app-CBD8jinv.css"
+      "assets/app-DY0QcOI8.css"
     ]
   }
 }

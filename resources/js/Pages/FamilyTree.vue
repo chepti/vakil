@@ -158,25 +158,15 @@
               v-if="node.relType === 'parent' && !node.isRoot"
               :r="node.nodeR + 4" fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.85"
             />
-            <!-- Avatar clip — בן/בת זוג במרכז: חצי ירח הפונה אל המרכז -->
+            <!-- Avatar clip -->
             <clipPath :id="`rclip-${node.id}`">
-              <path v-if="node.centerSpouse" :d="node.halfMoonD"/>
-              <circle v-else :r="node.nodeR" cx="0" cy="0"/>
+              <circle :r="node.nodeR" cx="0" cy="0"/>
             </clipPath>
-            <path
-              v-if="node.centerSpouse"
-              :d="node.halfMoonD"
-              :fill="radialNodeColor(node.gender)"
-              :stroke="node.isDeceased ? '#9ca3af' : radialNodeStroke(node.gender)"
-              :stroke-width="node.isDeceased ? 2.5 : 3"
-              :opacity="node.isDeceased ? 0.82 : 1"
-            />
             <circle
-              v-else
               :r="node.nodeR"
               :fill="radialNodeColor(node.gender)"
               :stroke="node.isDeceased ? '#9ca3af' : radialNodeStroke(node.gender)"
-              :stroke-width="node.isDeceased ? 2.5 : (node.isRoot ? 3 : 1.5)"
+              :stroke-width="node.isDeceased ? 2.5 : (node.isRoot || node.centerSpouse ? 3 : 1.5)"
               :opacity="node.isDeceased ? 0.82 : 1"
             />
             <image
@@ -205,6 +195,21 @@
             >
               <textPath :href="`#lpath-${node.id}`" startOffset="50%" text-anchor="middle">{{ node.isRoot ? node.fullName : node.firstName }}</textPath>
             </text>
+            <!-- קיפול ענפים שכבר נפתחו -->
+            <g v-if="node.openBranches?.length" class="branch-collapses">
+              <g
+                v-for="ob in node.openBranches" :key="ob.key"
+                class="branch-collapse"
+                :transform="`translate(${ob.dx}, ${ob.dy})`"
+                @pointerdown.stop
+                @click.stop="onBranchCollapse(ob.key)"
+              >
+                <circle r="7" fill="#f8fafc" stroke="#475569" stroke-width="1.3"/>
+                <text y="1.2" text-anchor="middle" dominant-baseline="middle"
+                      font-size="10" font-weight="700" fill="#334155" font-family="Rubik, sans-serif">−</text>
+                <title>קפל {{ ob.title }} ({{ ob.count }})</title>
+              </g>
+            </g>
             <!-- רמזי ענפים נסתרים — ענף SVG, מספר בריחוף בלבד -->
             <g v-if="node.hiddenBranches?.length" class="branch-hints">
               <g
@@ -854,7 +859,7 @@ function isParentCovered(parentId, childId, displayedSet, positions, nodeMap) {
   return false
 }
 
-/** ענפים שלא מוצגים — הורים למעלה, אחים לצד, ילדים למטה (בן/בת זוג — חצי ירח, ללא ענף) */
+/** ענפים שלא מוצגים — הורים למעלה, אחים לצד, ילדים למטה (בן/בת זוג — ללא ענף) */
 function computeHiddenBranches(personId, displayedSet, nodeMap, positions = {}, centerId = '') {
   const n = nodeMap[personId]
   if (!n) return []
@@ -875,7 +880,7 @@ function computeHiddenBranches(personId, displayedSet, nodeMap, positions = {}, 
   }
   if (sibs.size) {
     const ap = positions[id] || { x: 0, y: 0 }
-    const sibDir = pickSiblingSide(ap.x, ap.y, positions, centerId)
+    const sibDir = pickSiblingSide(ap.x, ap.y, positions, centerId, id, nodeMap)
     out.push({ key: `${id}-sib`, dir: sibDir, count: sibs.size, targetIds: [...sibs], title: 'אחים/אחיות' })
   }
 
@@ -888,31 +893,59 @@ function computeHiddenBranches(personId, displayedSet, nodeMap, positions = {}, 
   return out
 }
 
-/** בוחר צד פחות צפוף לפתיחת אחים */
-function pickSiblingSide(ax, ay, positions, centerId) {
+/** בוחר צד לפתיחת אחים — הצד הפחות עמוס (הילדים יידחפו לצד הנגדי) */
+function pickSiblingSide(ax, ay, positions, centerId, anchorId, nodeMap) {
   let leftW = 0, rightW = 0
+  const descendants = anchorId ? collectDescendantIds(anchorId, positions, nodeMap) : new Set()
   for (const [id, pos] of Object.entries(positions)) {
     if (id === centerId || pos.centerSpouse) continue
-    const w = pos.expanded ? 2.5 : 1
-    if (pos.x < ax - 12) leftW += w
-    else if (pos.x > ax + 12) rightW += w
+    const w = descendants.has(id) ? 0 : (pos.expanded ? 2.5 : 1)
+    if (!w) continue
+    if (pos.x < ax - 15) leftW += w
+    else if (pos.x > ax + 15) rightW += w
   }
   return leftW <= rightW ? 'side-left' : 'side-right'
 }
 
-/** דוחף עיגולים קיימים לצד הנגדי כשפותחים אחים */
-function pushAsideForExpansion(positions, anchor, side, centerId, count) {
-  const ax = anchor.x
-  const shove = 42 + count * 9
+/** כל צאצאי העוגן (ילדים ומטה) */
+function collectDescendantIds(anchorId, positions, nodeMap) {
+  const out = new Set()
+  const q = [...(nodeMap[anchorId]?.rels?.children || []).map(String)]
+  while (q.length) {
+    const id = q.shift()
+    if (!positions[id] || out.has(id)) continue
+    out.add(id)
+    for (const c of (nodeMap[id]?.rels?.children || []).map(String)) {
+      if (positions[c]) q.push(c)
+    }
+  }
+  return out
+}
+
+/** דוחף וצופף את כל הילדים לצד הנגדי כשפותחים אחים */
+function pushChildrenForSiblings(positions, anchorId, side, centerId, nodeMap, count) {
+  const anchor = positions[anchorId]
+  if (!anchor) return
+  const ax = anchor.x, ay = anchor.y
   const openLeft = side === 'side-left'
-  for (const [id, pos] of Object.entries(positions)) {
-    if (id === centerId || pos.centerSpouse) continue
+  const descendants = collectDescendantIds(anchorId, positions, nodeMap)
+  const shove = 70 + count * 12
+  const squeeze = 0.58
+
+  for (const id of descendants) {
+    const pos = positions[id]
+    if (!pos || pos.siblingSlot) continue
+    const dx = pos.x - ax
+    const dy = pos.y - ay
+
     if (openLeft) {
-      if (pos.x <= ax + 10) pos.x -= shove
-      else pos.x += shove * 0.45
+      if (dx <= 30) pos.x = ax + Math.max(40, Math.abs(dx) * squeeze + shove * 0.55)
+      else pos.x = ax + (pos.x - ax) * squeeze + shove * 0.4
+      pos.y = ay + dy * squeeze
     } else {
-      if (pos.x >= ax - 10) pos.x += shove
-      else pos.x -= shove * 0.45
+      if (dx >= -30) pos.x = ax - Math.max(40, Math.abs(dx) * squeeze + shove * 0.55)
+      else pos.x = ax + (pos.x - ax) * squeeze - shove * 0.4
+      pos.y = ay + dy * squeeze
     }
   }
 }
@@ -956,11 +989,20 @@ function branchCountY(dir) {
   return -10
 }
 
-function applyRadialExpansions(positions, links, centerId) {
-  const GAP = 54
+function expansionTitle(key) {
+  if (key.endsWith('-up')) return 'הורים'
+  if (key.endsWith('-sib')) return 'אחים/אחיות'
+  if (key.endsWith('-down')) return 'ילדים'
+  return 'קרובים'
+}
+
+function applyRadialExpansions(positions, links, centerId, nodeMap) {
+  const GAP = 50
   const RAD_UP = 88
-  const RAD_SIDE = 76
+  const RAD_SIDE = 82
   const RAD_DOWN = 82
+  const PER_COL = 5
+  const COL_STEP = 46
 
   for (const exp of radialExpansions.value) {
     const anchor = positions[exp.anchorId]
@@ -968,9 +1010,14 @@ function applyRadialExpansions(positions, links, centerId) {
     const ax = anchor.x, ay = anchor.y
     const n = exp.targetIds.length
     const isSib = exp.key.endsWith('-sib')
-    const side = isSib ? pickSiblingSide(ax, ay, positions, centerId) : exp.dir
-
-    if (isSib) pushAsideForExpansion(positions, anchor, side, centerId, n)
+    let side = exp.dir
+    if (isSib) {
+      if (!exp.side) {
+        exp.side = pickSiblingSide(ax, ay, positions, centerId, exp.anchorId, nodeMap)
+      }
+      side = exp.side
+      pushChildrenForSiblings(positions, exp.anchorId, side, centerId, nodeMap, n)
+    }
     if (exp.dir === 'up') pushUpwardClearance(positions, anchor, centerId, n)
 
     exp.targetIds.forEach((tid, i) => {
@@ -979,23 +1026,24 @@ function applyRadialExpansions(positions, links, centerId) {
       let x = ax, y = ay
 
       if (exp.dir === 'up') {
-        // הורים תמיד נפתחים כלפי מעלה (ציר Y שלילי), ללא תלות בזווית העוגן
         x = ax + spread
         y = ay - RAD_UP - (n > 4 ? Math.floor(i / 4) * 42 : 0)
       } else if (exp.dir === 'down') {
         x = ax + spread
         y = ay + RAD_DOWN + (n > 4 ? Math.floor(i / 4) * 40 : 0)
-      } else if (side === 'side-left') {
-        x = ax - RAD_SIDE
-        y = ay + spread
-      } else if (side === 'side-right') {
-        x = ax + RAD_SIDE
-        y = ay + spread
+      } else if (isSib && (side === 'side-left' || side === 'side-right')) {
+        const sign = side === 'side-left' ? -1 : 1
+        const col = Math.floor(i / PER_COL)
+        const row = i % PER_COL
+        const rowsInCol = Math.min(PER_COL, n - col * PER_COL)
+        x = ax + sign * (RAD_SIDE + col * COL_STEP)
+        y = ay + (row - (rowsInCol - 1) / 2) * GAP
       }
 
       positions[tid] = {
         x, y, level: anchor.level, relType: 'expanded',
         angle: anchor.angle ?? 0, arcSpan: 0, expanded: true,
+        siblingSlot: isSib, siblingSide: side,
       }
       links.push({ key: `exp-${exp.anchorId}-${tid}`, from: exp.anchorId, to: tid, type: 'expanded' })
     })
@@ -1019,8 +1067,17 @@ function resolveRadialCollisions(positions, centerId) {
         const push = (MIN - dist) / 2
         const ux = dx / dist, uy = dy / dist
         const fixed = (id) => id === centerId || positions[id]?.centerSpouse
-        const wa = fixed(idA) ? 0.08 : (a.expanded ? 0.9 : 0.5)
-        const wb = fixed(idB) ? 0.08 : (b.expanded ? 0.9 : 0.5)
+        const wa = fixed(idA) ? 0.08 : (a.siblingSlot ? 0.75 : (a.expanded ? 0.9 : 0.5))
+        const wb = fixed(idB) ? 0.08 : (b.siblingSlot ? 0.75 : (b.expanded ? 0.9 : 0.5))
+        // אחים נשארים בצד — דוחפים אחרים הרחק מהעמודה
+        if (a.siblingSlot && !b.siblingSlot && !fixed(idB)) {
+          const sign = a.siblingSide === 'side-left' ? 1 : -1
+          b.x += sign * push * 1.15
+        }
+        if (b.siblingSlot && !a.siblingSlot && !fixed(idA)) {
+          const sign = b.siblingSide === 'side-left' ? 1 : -1
+          a.x += sign * push * 1.15
+        }
         const sum = wa + wb
         a.x -= ux * push * (wa / sum)
         a.y -= uy * push * (wa / sum)
@@ -1195,7 +1252,7 @@ const radialData = computed(() => {
     })
   })
 
-  applyRadialExpansions(positions, links, centerId)
+  applyRadialExpansions(positions, links, centerId, nodeMap)
   resolveRadialCollisions(positions, centerId)
   const displayedSet = new Set(Object.keys(positions))
 
@@ -1212,13 +1269,6 @@ const radialData = computed(() => {
     // (glued, but never over the face). Glyphs extend inward from the baseline, so the arc
     // radius must clear the node by at least the font height. Path left→bottom→right keeps
     // the text upright; Hebrew bidi places the letters right-to-left for us.
-    const onRight = pos.x >= 0
-    const halfMoonD = pos.centerSpouse
-      ? (onRight
-        ? `M 0 ${-nodeR} A ${nodeR} ${nodeR} 0 0 1 0 ${nodeR} Z`
-        : `M 0 ${-nodeR} A ${nodeR} ${nodeR} 0 0 0 0 ${nodeR} Z`)
-      : null
-
     const Rl = nodeR + 6
     const aL = 155 * Math.PI / 180, aR = 25 * Math.PI / 180
     const pLx = (Rl * Math.cos(aL)).toFixed(1), pLy = (Rl * Math.sin(aL)).toFixed(1)
@@ -1252,7 +1302,18 @@ const radialData = computed(() => {
       lastName:  n?.data?.['last name']  || '',
       fullName:  fullNameOf(n),
       isDeceased: !!n?.data?.is_deceased,
-      isRoot, centerSpouse: !!pos.centerSpouse, halfMoonD, spouse,
+      isRoot, centerSpouse: !!pos.centerSpouse, spouse,
+      openBranches: radialExpansions.value
+        .filter(e => String(e.anchorId) === id)
+        .map(e => {
+          const dir = e.side || e.dir
+          return {
+            key: e.key, dir,
+            title: expansionTitle(e.key),
+            count: e.targetIds.length,
+            ...branchHintOffset(dir, nodeR),
+          }
+        }),
       hiddenBranches: computeHiddenBranches(id, displayedSet, nodeMap, positions, centerId)
         .map(b => ({ ...b, ...branchHintOffset(b.dir, nodeR) })),
     }
@@ -1361,15 +1422,18 @@ function openRadialPersonPanel(id) {
   addRelType.value = null
 }
 
+function onBranchCollapse(key) {
+  radialExpansions.value = radialExpansions.value.filter(e => e.key !== key)
+}
+
 function onBranchExpand(anchorId, branch) {
   const idx = radialExpansions.value.findIndex(e => e.key === branch.key)
   if (idx >= 0) {
     radialExpansions.value = radialExpansions.value.filter((_, i) => i !== idx)
   } else {
-    radialExpansions.value = [
-      ...radialExpansions.value,
-      { key: branch.key, anchorId: String(anchorId), dir: branch.dir, targetIds: branch.targetIds },
-    ]
+    const entry = { key: branch.key, anchorId: String(anchorId), dir: branch.dir, targetIds: branch.targetIds }
+    if (branch.key.endsWith('-sib')) entry.side = branch.dir
+    radialExpansions.value = [...radialExpansions.value, entry]
   }
 }
 
@@ -1959,12 +2023,12 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 /* Married-in spouse: semi-transparent photo peeking behind at rest; slides out + fades to
    full on hover. Drawn before the main node so the person stays on top. */
 .radial-mate {
-  opacity: 0.4;
-  transform: translate(11px, 11px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  opacity: 0.42;
+  transform: translate(15px, 2px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
   pointer-events: none;
 }
-.radial-mate.revealed { opacity: 1; transform: translate(30px, 30px); }
+.radial-mate.revealed { opacity: 1; transform: translate(32px, 4px); }
 .radial-mate .mate-name { opacity: 0; transition: opacity 0.2s ease; }
 .radial-mate.revealed .mate-name { opacity: 1; }
 .branch-hints { pointer-events: auto; }
@@ -1976,6 +2040,10 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   transition: opacity 0.15s ease;
 }
 .branch-hint:hover .branch-count { opacity: 1; }
+.branch-collapses { pointer-events: auto; }
+.branch-collapse { cursor: pointer; }
+.branch-collapse circle { transition: fill 0.15s, stroke 0.15s; }
+.branch-collapse:hover circle { fill: #e2e8f0; stroke: #334155; }
 .radial-hint {
   position: absolute;
   bottom: 0.75rem;
