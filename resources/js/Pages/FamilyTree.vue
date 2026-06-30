@@ -1187,14 +1187,17 @@ const radialData = computed(() => {
 
   // Lay out a parent's children: equal fair minimum per child + extra for big subtrees,
   // centered on `arcMid`, using only as much of `arcAvail` as needed (compact when sparse).
+  // A small angular fence on each side leaves visual whitespace between adjacent families.
   function fanChildren(parentId, level, arcMid, arcAvail) {
     const kids = sortedChildren(parentId)
     if (!kids.length) return
     const needs = kids.map(c => Math.max(minStepAt(level + 1), leafCount(c, new Set(visited)) * LEAF_ARC))
     const total = needs.reduce((a, b) => a + b, 0)
-    const used  = Math.min(total, arcAvail)
-    const scale = total > 0 ? used / total : 1
-    let cur = arcMid - used / 2
+    const FENCE = level >= 1 ? minStepAt(level + 1) * 0.45 : 0
+    const totalF = total + 2 * FENCE
+    const used   = Math.min(totalF, arcAvail)
+    const scale  = totalF > 0 ? used / totalF : 1
+    let cur = arcMid - used / 2 + FENCE * scale
     kids.forEach((c, i) => {
       const arc = needs[i] * scale
       links.push({ key: `${parentId}-${c}`, from: parentId, to: c, type: 'child' })
@@ -1283,7 +1286,7 @@ const radialData = computed(() => {
   const sortedLevels = Object.keys(levelR).map(Number).sort((a, b) => a - b)
   for (let i = 1; i < sortedLevels.length; i++) {
     const l = sortedLevels[i], lPrev = sortedLevels[i - 1]
-    levelR[l] = Math.max(levelR[l], levelR[lPrev] + 170)
+    levelR[l] = Math.max(levelR[l], levelR[lPrev] + 210)
   }
 
   // Assign final positions with a GLOBAL greedy multi-row per generation: walking all
@@ -1332,7 +1335,7 @@ const radialData = computed(() => {
     // (glued, but never over the face). Glyphs extend inward from the baseline, so the arc
     // radius must clear the node by at least the font height. Path left→bottom→right keeps
     // the text upright; Hebrew bidi places the letters right-to-left for us.
-    const Rl = nodeR + 6
+    const Rl = nodeR + 3
     const aL = 155 * Math.PI / 180, aR = 25 * Math.PI / 180
     const pLx = (Rl * Math.cos(aL)).toFixed(1), pLy = (Rl * Math.sin(aL)).toFixed(1)
     const pRx = (Rl * Math.cos(aR)).toFixed(1), pRy = (Rl * Math.sin(aR)).toFixed(1)
