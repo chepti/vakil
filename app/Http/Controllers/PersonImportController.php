@@ -37,6 +37,27 @@ class PersonImportController extends Controller
         return Inertia::render('People/Import/Upload');
     }
 
+    public function template()
+    {
+        $example = [
+            'root1', 'root_of_branch', '', 'ישראל', 'ישראלי', '', 'male', '050-1234567',
+            'תל אביב', 'מהנדס', '1970-01-01', 'תיאור קצר', 'עמוד לדוגמה',
+        ];
+        $example2 = [
+            'root1_c1', 'child', 'root1', 'דנה', 'ישראלי', '', 'female', '',
+            'תל אביב', 'סטודנטית', '2000-01-01', '', 'עמוד לדוגמה',
+        ];
+
+        return response()->streamDownload(function () use ($example, $example2) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, self::COLUMNS);
+            fputcsv($out, $example);
+            fputcsv($out, $example2);
+            fclose($out);
+        }, 'תבנית-ייבוא-דמויות.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
     public function preview(Request $request)
     {
         $request->validate([

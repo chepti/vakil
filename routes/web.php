@@ -44,6 +44,7 @@ Route::get('/dashboard', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('people', PersonController::class);
     Route::get('/people-import', [PersonImportController::class, 'create'])->name('people.import.create');
+    Route::get('/people-import/template', [PersonImportController::class, 'template'])->name('people.import.template');
     Route::post('/people-import/preview', [PersonImportController::class, 'preview'])->name('people.import.preview');
     Route::post('/people-import/commit', [PersonImportController::class, 'commit'])->name('people.import.commit');
     Route::post('/people/{person}/spouse', [PersonController::class, 'addSpouse'])->name('people.spouse');

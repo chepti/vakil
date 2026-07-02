@@ -6,10 +6,11 @@
         <h1>תצוגה מקדימה לייבוא</h1>
       </div>
 
-      <p class="hint">
-        {{ totalRows }} שורות, מקובצות ל-{{ groups.length }} ענפים. לכל שורה עם הצעת התאמה לדמות קיימת
-        אפשר לבחור "שיוך לדמות קיימת" או להשאיר "דמות חדשה". שורות עם כמה מועמדים מסומנות ומחייבות בחירה.
-      </p>
+      <div class="summary-bar">
+        <span class="summary-item"><span class="dot dot-new"></span>{{ newCount }} דמויות חדשות</span>
+        <span class="summary-item"><span class="dot dot-match"></span>{{ matchCount }} עם התאמה אפשרית</span>
+        <span class="summary-item" v-if="ambiguousCount"><span class="dot dot-ambig"></span>{{ ambiguousCount }} עם כמה מועמדים</span>
+      </div>
 
       <form @submit.prevent="submit">
         <div v-for="(groupIds, gi) in groups" :key="gi" class="branch-card">
@@ -17,67 +18,74 @@
             ענף {{ gi + 1 }}: {{ rowsMap[groupIds[0]].first_name }} {{ rowsMap[groupIds[0]].last_name }}
           </h2>
 
-          <div v-for="rowId in groupIds" :key="rowId" class="row-card" :class="{ ambiguous: isAmbiguous(rowId) }">
-            <div class="row-top">
-              <span class="relation-tag" :class="rowsMap[rowId].relation">{{ relationLabel(rowsMap[rowId]) }}</span>
-              <span v-if="rowsMap[rowId].ref_row_id" class="ref-note">
-                ← {{ rowsMap[rowId].relation === 'spouse' ? 'בן/בת זוג של' : 'ילד/ה של' }}
-                {{ rowsMap[rowsMap[rowId].ref_row_id]?.first_name }}
-              </span>
-              <span class="source-note">{{ rowsMap[rowId].source_page }}</span>
-            </div>
+          <div class="table-list">
+            <div v-for="rowId in groupIds" :key="rowId" class="row-block">
+              <div class="row-compact" :class="rowColorClass(rowId)" @click="toggleExpand(rowId)">
+                <button type="button" class="chevron">{{ expanded[rowId] ? '▾' : '▸' }}</button>
 
-            <div class="row-fields">
-              <div class="f-group f-name">
-                <label>שם פרטי</label>
-                <input v-model="rowsMap[rowId].first_name" type="text" />
+                <span class="r-name">{{ rowsMap[rowId].first_name }} {{ rowsMap[rowId].last_name }}</span>
+
+                <span class="relation-tag" :class="rowsMap[rowId].relation">{{ relationLabel(rowsMap[rowId]) }}</span>
+
+                <select v-model="rowsMap[rowId].decision" @click.stop class="decision-select">
+                  <option value="new">דמות חדשה</option>
+                  <option v-for="c in rowsMap[rowId].candidates" :key="c.id" :value="`match:${c.id}`">
+                    שיוך: {{ c.full_name }} ({{ c.city || '—' }}) · {{ c.score }}
+                  </option>
+                </select>
+
+                <span class="match-hint" :class="rowColorClass(rowId)">
+                  {{ rowsMap[rowId].candidates.length ? `נמצאה התאמה (${rowsMap[rowId].candidates.length})` : 'לא נמצאה בעץ' }}
+                </span>
               </div>
-              <div class="f-group f-name">
-                <label>שם משפחה</label>
-                <input v-model="rowsMap[rowId].last_name" type="text" />
-              </div>
-              <div class="f-group f-name" v-if="rowsMap[rowId].gender === 'female'">
-                <label>שם נעורים</label>
-                <input v-model="rowsMap[rowId].maiden_name" type="text" />
-              </div>
-              <div class="f-group f-gender">
-                <label>מגדר</label>
-                <div class="gender-toggle">
-                  <button type="button" :class="{ active: rowsMap[rowId].gender === 'male' }" @click="rowsMap[rowId].gender = 'male'">ז</button>
-                  <button type="button" :class="{ active: rowsMap[rowId].gender === 'female' }" @click="rowsMap[rowId].gender = 'female'">נ</button>
+
+              <div v-if="expanded[rowId]" class="row-details">
+                <div class="row-fields">
+                  <div class="f-group f-name">
+                    <label>שם פרטי</label>
+                    <input v-model="rowsMap[rowId].first_name" type="text" />
+                  </div>
+                  <div class="f-group f-name">
+                    <label>שם משפחה</label>
+                    <input v-model="rowsMap[rowId].last_name" type="text" />
+                  </div>
+                  <div class="f-group f-name" v-if="rowsMap[rowId].gender === 'female'">
+                    <label>שם נעורים</label>
+                    <input v-model="rowsMap[rowId].maiden_name" type="text" />
+                  </div>
+                  <div class="f-group f-gender">
+                    <label>מגדר</label>
+                    <div class="gender-toggle">
+                      <button type="button" :class="{ active: rowsMap[rowId].gender === 'male' }" @click="rowsMap[rowId].gender = 'male'">ז</button>
+                      <button type="button" :class="{ active: rowsMap[rowId].gender === 'female' }" @click="rowsMap[rowId].gender = 'female'">נ</button>
+                    </div>
+                  </div>
+                  <div class="f-group">
+                    <label>טלפון</label>
+                    <input v-model="rowsMap[rowId].phone" type="text" />
+                  </div>
+                  <div class="f-group">
+                    <label>כתובת/עיר</label>
+                    <input v-model="rowsMap[rowId].city" type="text" />
+                  </div>
+                  <div class="f-group">
+                    <label>תאריך לידה (הערכה)</label>
+                    <input v-model="rowsMap[rowId].birth_date_estimate" type="date" />
+                  </div>
+                  <div class="f-group f-wide">
+                    <label>עיסוק</label>
+                    <input v-model="rowsMap[rowId].current_occupation" type="text" />
+                  </div>
+                  <div class="f-group f-wide">
+                    <label>ביו קצר</label>
+                    <textarea v-model="rowsMap[rowId].bio" rows="2"></textarea>
+                  </div>
+                </div>
+                <div class="ref-line" v-if="rowsMap[rowId].ref_row_id">
+                  {{ rowsMap[rowId].relation === 'spouse' ? 'בן/בת זוג של' : 'ילד/ה של' }}
+                  {{ rowsMap[rowsMap[rowId].ref_row_id]?.first_name }} · מקור: {{ rowsMap[rowId].source_page }}
                 </div>
               </div>
-              <div class="f-group">
-                <label>טלפון</label>
-                <input v-model="rowsMap[rowId].phone" type="text" />
-              </div>
-              <div class="f-group">
-                <label>כתובת/עיר</label>
-                <input v-model="rowsMap[rowId].city" type="text" />
-              </div>
-              <div class="f-group">
-                <label>תאריך לידה (הערכה)</label>
-                <input v-model="rowsMap[rowId].birth_date_estimate" type="date" />
-              </div>
-              <div class="f-group f-wide">
-                <label>עיסוק</label>
-                <input v-model="rowsMap[rowId].current_occupation" type="text" />
-              </div>
-              <div class="f-group f-wide">
-                <label>ביו קצר</label>
-                <textarea v-model="rowsMap[rowId].bio" rows="2"></textarea>
-              </div>
-            </div>
-
-            <div class="decision-row">
-              <label>שיוך בעץ המשפחה</label>
-              <select v-model="rowsMap[rowId].decision">
-                <option value="new">דמות חדשה</option>
-                <option v-for="c in rowsMap[rowId].candidates" :key="c.id" :value="`match:${c.id}`">
-                  שיוך לדמות קיימת: {{ c.full_name }} ({{ c.city || '—' }}, {{ c.phone || '—' }}) · ניקוד {{ c.score }}
-                </option>
-              </select>
-              <span v-if="isAmbiguous(rowId)" class="ambiguous-note">כמה מועמדים אפשריים — בדקו לפני ייבוא</span>
             </div>
           </div>
         </div>
@@ -104,6 +112,7 @@ const props = defineProps({
 })
 
 const submitting = ref(false)
+const expanded = reactive({})
 
 const rowsMap = reactive({})
 const groups = props.grouped.map(group => group.map(row => {
@@ -112,13 +121,23 @@ const groups = props.grouped.map(group => group.map(row => {
 }))
 
 const totalRows = computed(() => Object.keys(rowsMap).length)
+const newCount = computed(() => Object.values(rowsMap).filter(r => r.candidates.length === 0).length)
+const matchCount = computed(() => Object.values(rowsMap).filter(r => r.candidates.length > 0).length)
+const ambiguousCount = computed(() => Object.values(rowsMap).filter(r => r.candidates.length > 1).length)
 
-function isAmbiguous(rowId) {
-  return (rowsMap[rowId].candidates?.length ?? 0) > 1
+function toggleExpand(rowId) {
+  expanded[rowId] = !expanded[rowId]
+}
+
+function rowColorClass(rowId) {
+  const n = rowsMap[rowId].candidates.length
+  if (n > 1) return 'c-ambiguous'
+  if (n === 1) return 'c-match'
+  return 'c-new'
 }
 
 function relationLabel(row) {
-  if (row.relation === 'root_of_branch') return 'שורש ענף (ללא הורה עדיין)'
+  if (row.relation === 'root_of_branch') return 'שורש ענף'
   if (row.relation === 'spouse') return 'בן/בת זוג'
   return 'ילד/ה'
 }
@@ -169,12 +188,21 @@ h1 { font-size: 1.5rem; color: #1a3a6b; margin: 0; }
   white-space: nowrap;
 }
 
-.hint {
+.summary-bar {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+  font-size: 0.88rem;
   color: #4a5568;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  margin: 0 0 1.5rem;
 }
+
+.summary-item { display: flex; align-items: center; gap: 0.4rem; }
+
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.dot-new   { background: #f0b429; }
+.dot-match { background: #38a169; }
+.dot-ambig { background: #e74c3c; }
 
 .branch-card {
   background: white;
@@ -190,42 +218,81 @@ h1 { font-size: 1.5rem; color: #1a3a6b; margin: 0; }
   margin: 0 0 1rem;
 }
 
-.row-card {
-  border: 1.5px solid #e2e8f4;
-  border-radius: 12px;
-  padding: 1rem;
-  margin-bottom: 0.75rem;
-  background: #f8faff;
-}
+.table-list { display: flex; flex-direction: column; gap: 0.4rem; }
 
-.row-card.ambiguous {
-  border-color: #f0b429;
-  background: #fffaf0;
-}
-
-.row-top {
+.row-compact {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  margin-bottom: 0.6rem;
-  flex-wrap: wrap;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+}
+
+.row-compact.c-new     { background: #fffaf0; border-color: #f0b429; }
+.row-compact.c-match   { background: #f0fff4; border-color: #38a169; }
+.row-compact.c-ambiguous { background: #fff5f5; border-color: #e74c3c; }
+
+.chevron {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #6b7a99;
+  width: 1.2rem;
+  flex-shrink: 0;
+}
+
+.r-name {
+  font-weight: 600;
+  color: #1a3a6b;
+  min-width: 130px;
+  flex-shrink: 0;
 }
 
 .relation-tag {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  padding: 0.2rem 0.6rem;
+  padding: 0.15rem 0.5rem;
   border-radius: 20px;
   background: #e8f0fe;
   color: #1a3a6b;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .relation-tag.root_of_branch { background: #e8f7ee; color: #1a6b3a; }
 .relation-tag.spouse { background: #fdeef6; color: #a01a6b; }
 
-.ref-note, .source-note {
+.decision-select {
+  flex: 1;
+  min-width: 160px;
+  padding: 0.35rem 0.5rem;
+  border: 1.5px solid #d1dce8;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-family: 'Rubik', sans-serif;
+  direction: rtl;
+  background: white;
+}
+
+.match-hint {
   font-size: 0.78rem;
-  color: #8a9ab5;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.match-hint.c-new { color: #b7791f; }
+.match-hint.c-match { color: #2f855a; }
+.match-hint.c-ambiguous { color: #c0392b; }
+
+.row-details {
+  padding: 0.85rem 1rem 1rem 2.2rem;
+  background: #f8faff;
+  border-radius: 0 0 10px 10px;
+  margin-top: -0.3rem;
 }
 
 .row-fields {
@@ -252,7 +319,7 @@ label {
   font-weight: 500;
 }
 
-input[type="text"], input[type="date"], textarea, select {
+input[type="text"], input[type="date"], textarea {
   padding: 0.45rem 0.6rem;
   border: 1.5px solid #d1dce8;
   border-radius: 8px;
@@ -262,7 +329,7 @@ input[type="text"], input[type="date"], textarea, select {
   background: white;
 }
 
-input:focus, textarea:focus, select:focus { outline: none; border-color: #2d6be4; }
+input:focus, textarea:focus { outline: none; border-color: #2d6be4; }
 
 textarea { resize: vertical; }
 
@@ -273,21 +340,10 @@ textarea { resize: vertical; }
 }
 .gender-toggle button.active { background: #2d6be4; color: white; }
 
-.decision-row {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px dashed #d1dce8;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.decision-row select { width: 100%; }
-
-.ambiguous-note {
-  color: #b7791f;
-  font-size: 0.8rem;
-  font-weight: 600;
+.ref-line {
+  margin-top: 0.6rem;
+  font-size: 0.78rem;
+  color: #8a9ab5;
 }
 
 .form-actions {

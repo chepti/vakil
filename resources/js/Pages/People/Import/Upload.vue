@@ -12,6 +12,8 @@
           עם הצעות התאמה לדמויות קיימות בעץ — ואפשרות לבחור "דמות חדשה" או להתאים לדמות קיימת, לפני שהייבוא בפועל מתבצע.
         </p>
 
+        <a href="/people-import/template" class="btn-template">⬇ הורדת תבנית CSV למילוי</a>
+
         <form @submit.prevent="submit">
           <div class="form-group">
             <label>קובץ CSV</label>
@@ -92,6 +94,22 @@ h1 {
   line-height: 1.6;
   margin: 0 0 1.5rem;
 }
+
+.btn-template {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #2d6be4;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border: 1.5px dashed #2d6be4;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.btn-template:hover { background: #edf3ff; }
 
 .form-group {
   display: flex;
