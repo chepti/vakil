@@ -510,6 +510,36 @@
       "assets/Edit-B48ocYpz.css"
     ]
   },
+  "resources/js/Pages/People/Import/Review.vue": {
+    "file": "assets/Review-CeOJ8aQa.js",
+    "name": "Review",
+    "src": "resources/js/Pages/People/Import/Review.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "__plugin-vue_export-helper-BDNMzG2s.js",
+      "_index.esm-DvVMFmNV.js",
+      "_runtime-core.esm-bundler-CNqyEwW_.js",
+      "_AppLayout-RNVb8ksf.js"
+    ],
+    "css": [
+      "assets/Review-B5_pB3h1.css"
+    ]
+  },
+  "resources/js/Pages/People/Import/Upload.vue": {
+    "file": "assets/Upload-C1W2SVzS.js",
+    "name": "Upload",
+    "src": "resources/js/Pages/People/Import/Upload.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "__plugin-vue_export-helper-BDNMzG2s.js",
+      "_index.esm-DvVMFmNV.js",
+      "_runtime-core.esm-bundler-CNqyEwW_.js",
+      "_AppLayout-RNVb8ksf.js"
+    ],
+    "css": [
+      "assets/Upload-DqItosLV.css"
+    ]
+  },
   "resources/js/Pages/People/Index.vue": {
     "file": "assets/Index-D1o3cR-V.js",
     "name": "Index",
@@ -735,7 +765,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-DEGB2nBt.js",
+    "file": "assets/app-C-p6ktVv.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -767,6 +797,8 @@
       "resources/js/Pages/Onboarding.vue",
       "resources/js/Pages/People/Create.vue",
       "resources/js/Pages/People/Edit.vue",
+      "resources/js/Pages/People/Import/Review.vue",
+      "resources/js/Pages/People/Import/Upload.vue",
       "resources/js/Pages/People/Index.vue",
       "resources/js/Pages/People/Show.vue",
       "_AncestorNode-BRwpB8WE.js",

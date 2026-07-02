@@ -9,6 +9,7 @@ use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PersonController;
+use App\Http\Controllers\PersonImportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\InvitationController;
 use Illuminate\Foundation\Application;
@@ -42,6 +43,9 @@ Route::get('/dashboard', function () {
 // People CRUD + Family Tree
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('people', PersonController::class);
+    Route::get('/people-import', [PersonImportController::class, 'create'])->name('people.import.create');
+    Route::post('/people-import/preview', [PersonImportController::class, 'preview'])->name('people.import.preview');
+    Route::post('/people-import/commit', [PersonImportController::class, 'commit'])->name('people.import.commit');
     Route::post('/people/{person}/spouse', [PersonController::class, 'addSpouse'])->name('people.spouse');
     Route::post('/people/{person}/photo', [PersonController::class, 'uploadPhoto'])->name('people.photo');
     Route::post('/people/{person}/photos/{photo}/crop', [PersonController::class, 'cropProfilePhoto'])->name('people.photo.crop');
