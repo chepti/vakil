@@ -36,7 +36,7 @@ class PersonMatcher
         })->get();
 
         return $candidates
-            ->map(function (Person $person) use ($firstName, $lastName, $maidenName, $phone) {
+            ->map(function (Person $person) use ($firstName, $firstWord, $lastName, $maidenName, $phone) {
                 $score = 0;
 
                 if (mb_strtolower($person->first_name) === mb_strtolower($firstName)) {
