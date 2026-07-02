@@ -27,6 +27,15 @@
         </div>
       </section>
 
+      <!-- ייבוא דמויות מ-CSV -->
+      <section class="panel">
+        <h2>📤 ייבוא דמויות מ-CSV</h2>
+        <p class="hint">העלאת קובץ CSV עם דמויות וקשרי משפחה, עם תצוגה מקדימה והתאמה לדמויות קיימות לפני ייבוא בפועל.</p>
+        <div class="download-row">
+          <Link href="/people-import" class="dl-btn">📤 ייבוא דמויות</Link>
+        </div>
+      </section>
+
       <!-- שליחת עדכון חודשי -->
       <section class="panel">
         <h2>📬 עדכון חודשי במייל</h2>
