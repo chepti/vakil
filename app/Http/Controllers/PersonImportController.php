@@ -70,8 +70,28 @@ class PersonImportController extends Controller
             return back()->withErrors(['csv_file' => 'לא נמצאו שורות תקינות בקובץ']);
         }
 
+        $known = array_column($rows, null, 'row_id');
+
+        // ילדים רווקים (בלי שורת spouse משלהם בקובץ) יורשים את הכתובת של ההורה שאליו הם מקושרים
+        $marriedRowIds = [];
+        foreach ($rows as $r) {
+            if ($r['relation'] === 'spouse' && $r['ref_row_id'] !== '') {
+                $marriedRowIds[$r['ref_row_id']] = true;
+            }
+        }
+        foreach ($rows as &$row) {
+            if ($row['relation'] === 'child' && trim($row['city']) === '' && ! isset($marriedRowIds[$row['row_id']])) {
+                $parent = $known[$row['ref_row_id']] ?? null;
+                if ($parent && trim($parent['city']) !== '') {
+                    $row['city']            = $parent['city'];
+                    $row['city_inherited']  = true;
+                }
+            }
+        }
+        unset($row);
+        $known = array_column($rows, null, 'row_id'); // רענון עם הכתובות שהושלמו
+
         $matcher = new PersonMatcher();
-        $known   = array_column($rows, null, 'row_id');
 
         foreach ($rows as &$row) {
             $candidates = $matcher->findCandidates($row);

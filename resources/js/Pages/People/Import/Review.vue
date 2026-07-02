@@ -65,7 +65,10 @@
                     <input v-model="rowsMap[rowId].phone" type="text" />
                   </div>
                   <div class="f-group">
-                    <label>כתובת/עיר</label>
+                    <label>
+                      כתובת/עיר
+                      <span v-if="rowsMap[rowId].city_inherited" class="inherited-note">(ירשה מההורה)</span>
+                    </label>
                     <input v-model="rowsMap[rowId].city" type="text" />
                   </div>
                   <div class="f-group">
@@ -317,6 +320,12 @@ label {
   font-size: 0.78rem;
   color: #4a5568;
   font-weight: 500;
+}
+
+.inherited-note {
+  color: #2d6be4;
+  font-weight: 400;
+  font-size: 0.72rem;
 }
 
 input[type="text"], input[type="date"], textarea {
