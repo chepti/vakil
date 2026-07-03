@@ -20,25 +20,42 @@
 
           <div class="table-list">
             <div v-for="rowId in groupIds" :key="rowId" class="row-block">
-              <div class="row-compact" :class="rowColorClass(rowId)" @click="toggleExpand(rowId)">
-                <button type="button" class="chevron">{{ expanded[rowId] ? '▾' : '▸' }}</button>
+              <div class="row-compact" :class="rowColorClass(rowId)">
+                <button type="button" class="chevron" @click="toggleExpand(rowId)">{{ expanded[rowId] ? '▾' : '▸' }}</button>
 
-                <span class="r-name">{{ rowsMap[rowId].first_name }} {{ rowsMap[rowId].last_name }}</span>
+                <span class="r-name" @click="toggleExpand(rowId)">{{ rowsMap[rowId].first_name }} {{ rowsMap[rowId].last_name }}</span>
 
                 <span class="relation-tag" :class="rowsMap[rowId].relation">{{ relationLabel(rowsMap[rowId]) }}</span>
 
-                <select v-model="rowsMap[rowId].decision" @click.stop class="decision-select">
-                  <option value="new">דמות חדשה</option>
-                  <option v-for="c in rowsMap[rowId].candidates" :key="c.id" :value="`match:${c.id}`">
-                    שיוך: {{ c.full_name }}{{ c.parent_names ? ` (של ${c.parent_names})` : '' }} · {{ c.city || '—' }} · {{ c.score }}
-                  </option>
-                  <option value="skip">אל תייבא (דלג על השורה)</option>
-                </select>
+                <div class="match-picker" @click.stop>
+                  <input
+                    type="text"
+                    class="picker-input"
+                    v-model="searchQuery[rowId]"
+                    :placeholder="pickerLabel(rowId)"
+                    @focus="openDropdown = rowId"
+                    @blur="onPickerBlur(rowId)"
+                  />
+                  <div v-if="openDropdown === rowId" class="picker-dropdown">
+                    <div class="picker-option picker-new" @mousedown.prevent="choose(rowId, 'new')">➕ דמות חדשה</div>
+                    <div class="picker-option picker-skip" @mousedown.prevent="choose(rowId, 'skip')">🚫 אל תייבא (דלג על השורה)</div>
+                    <div class="picker-divider"></div>
+                    <div
+                      v-for="c in pickerOptions(rowId)"
+                      :key="c.id"
+                      class="picker-option"
+                      @mousedown.prevent="choose(rowId, `match:${c.id}`, c)"
+                    >
+                      {{ c.full_name }}
+                      <span v-if="c.parent_names" class="sr-parent">של {{ c.parent_names }}</span>
+                      <span class="sr-meta">{{ c.city || '—' }}{{ c.score ? ` · ניקוד ${c.score}` : '' }}</span>
+                    </div>
+                    <div v-if="searchQuery[rowId] && pickerOptions(rowId).length === 0" class="search-empty">אין תוצאות נוספות</div>
+                  </div>
+                </div>
 
                 <span class="match-hint" :class="rowColorClass(rowId)">
-                  {{ rowsMap[rowId].decision === 'skip'
-                      ? 'לא ייובא'
-                      : (rowsMap[rowId].candidates.length ? `נמצאה התאמה (${rowsMap[rowId].candidates.length})` : 'לא נמצאה בעץ') }}
+                  {{ pickerLabel(rowId) }}
                 </span>
               </div>
 
@@ -91,29 +108,6 @@
                   {{ rowsMap[rowId].relation === 'spouse' ? 'בן/בת זוג של' : 'ילד/ה של' }}
                   {{ rowsMap[rowsMap[rowId].ref_row_id]?.first_name }} · מקור: {{ rowsMap[rowId].source_page }}
                 </div>
-
-                <div class="manual-search">
-                  <label>לא מצאת את ההתאמה הנכונה למעלה? חפשו כל דמות קיימת בעץ:</label>
-                  <input
-                    type="text"
-                    v-model="searchQuery[rowId]"
-                    placeholder="הקלידו שם לחיפוש..."
-                    @focus="activeSearch = rowId"
-                  />
-                  <div v-if="activeSearch === rowId && searchQuery[rowId]" class="search-results">
-                    <div
-                      v-for="p in searchResults(rowId)"
-                      :key="p.id"
-                      class="search-result"
-                      @click="pickManualMatch(rowId, p)"
-                    >
-                      {{ p.full_name }}
-                      <span v-if="p.parent_names" class="sr-parent">של {{ p.parent_names }}</span>
-                      <span class="sr-meta">{{ p.city || '—' }} · {{ p.phone || '—' }}</span>
-                    </div>
-                    <div v-if="searchResults(rowId).length === 0" class="search-empty">אין תוצאות</div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -144,7 +138,7 @@ const props = defineProps({
 const submitting = ref(false)
 const expanded = reactive({})
 const searchQuery = reactive({})
-const activeSearch = ref(null)
+const openDropdown = ref(null)
 
 const rowsMap = reactive({})
 const groups = props.grouped.map(group => group.map(row => {
@@ -152,23 +146,45 @@ const groups = props.grouped.map(group => group.map(row => {
   return row.row_id
 }))
 
-function searchResults(rowId) {
+// מציע קודם את ההצעות האוטומטיות, ואם מקלידים - מוסיף גם תוצאות חיפוש מכל העץ
+function pickerOptions(rowId) {
+  const row = rowsMap[rowId]
   const q = (searchQuery[rowId] || '').trim()
-  if (!q) return []
-  return props.allPeople.filter(p => p.full_name.includes(q)).slice(0, 8)
+
+  if (!q) return row.candidates
+
+  const extra = props.allPeople
+    .filter(p => p.full_name.includes(q) && !row.candidates.some(c => c.id === p.id))
+    .slice(0, 8)
+    .map(p => ({ ...p, score: 0 }))
+
+  return [...row.candidates, ...extra]
 }
 
-function pickManualMatch(rowId, person) {
+function choose(rowId, decision, person) {
   const row = rowsMap[rowId]
-  if (!row.candidates.some(c => c.id === person.id)) {
-    row.candidates.push({
-      id: person.id, full_name: person.full_name, city: person.city,
-      phone: person.phone, score: 0, parent_names: person.parent_names,
-    })
+  if (person && !row.candidates.some(c => c.id === person.id)) {
+    row.candidates.push(person)
   }
-  row.decision = `match:${person.id}`
+  row.decision = decision
   searchQuery[rowId] = ''
-  activeSearch.value = null
+  openDropdown.value = null
+}
+
+function onPickerBlur(rowId) {
+  // דיליי קצר כדי לתת ל-mousedown על אופציה להספיק להירשם לפני סגירת הרשימה
+  setTimeout(() => {
+    if (openDropdown.value === rowId) openDropdown.value = null
+  }, 150)
+}
+
+function pickerLabel(rowId) {
+  const row = rowsMap[rowId]
+  if (row.decision === 'skip') return '🚫 לא ייובא (דלג)'
+  if (row.decision === 'new') return '➕ דמות חדשה'
+  const id = Number(row.decision.split(':')[1])
+  const match = row.candidates.find(c => c.id === id)
+  return match ? `✓ שיוך: ${match.full_name}` : 'בחר/י שיוך...'
 }
 
 const totalRows = computed(() => Object.keys(rowsMap).length)
@@ -181,10 +197,10 @@ function toggleExpand(rowId) {
 }
 
 function rowColorClass(rowId) {
-  if (rowsMap[rowId].decision === 'skip') return 'c-skip'
-  const n = rowsMap[rowId].candidates.length
-  if (n > 1) return 'c-ambiguous'
-  if (n === 1) return 'c-match'
+  const row = rowsMap[rowId]
+  if (row.decision === 'skip') return 'c-skip'
+  if (row.decision.startsWith('match:')) return 'c-match'
+  if (row.candidates.length > 1) return 'c-ambiguous'
   return 'c-new'
 }
 
@@ -272,13 +288,14 @@ h1 { font-size: 1.5rem; color: #1a3a6b; margin: 0; }
 
 .table-list { display: flex; flex-direction: column; gap: 0.4rem; }
 
+.chevron, .r-name { cursor: pointer; }
+
 .row-compact {
   display: flex;
   align-items: center;
   gap: 0.6rem;
   padding: 0.5rem 0.75rem;
   border-radius: 10px;
-  cursor: pointer;
   border: 1.5px solid transparent;
 }
 
@@ -318,9 +335,14 @@ h1 { font-size: 1.5rem; color: #1a3a6b; margin: 0; }
 .relation-tag.root_of_branch { background: #e8f7ee; color: #1a6b3a; }
 .relation-tag.spouse { background: #fdeef6; color: #a01a6b; }
 
-.decision-select {
+.match-picker {
+  position: relative;
   flex: 1;
-  min-width: 160px;
+  min-width: 180px;
+}
+
+.picker-input {
+  width: 100%;
   padding: 0.35rem 0.5rem;
   border: 1.5px solid #d1dce8;
   border-radius: 8px;
@@ -328,6 +350,40 @@ h1 { font-size: 1.5rem; color: #1a3a6b; margin: 0; }
   font-family: 'Rubik', sans-serif;
   direction: rtl;
   background: white;
+}
+
+.picker-input:focus { outline: none; border-color: #2d6be4; }
+
+.picker-dropdown {
+  position: absolute;
+  z-index: 8;
+  left: 0;
+  right: 0;
+  top: 100%;
+  background: white;
+  border: 1.5px solid #d1dce8;
+  border-radius: 8px;
+  margin-top: 0.25rem;
+  max-height: 260px;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0,50,150,0.15);
+}
+
+.picker-option {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.83rem;
+  color: #1a3a6b;
+  border-bottom: 1px solid #f0f2f8;
+}
+
+.picker-option:hover { background: #edf3ff; }
+.picker-option.picker-new { color: #2f855a; font-weight: 600; }
+.picker-option.picker-skip { color: #6b7a99; font-weight: 600; }
+
+.picker-divider {
+  border-bottom: 1px solid #e2e8f4;
+  margin: 0.1rem 0;
 }
 
 .match-hint {
@@ -405,47 +461,6 @@ textarea { resize: vertical; }
   font-size: 0.78rem;
   color: #8a9ab5;
 }
-
-.manual-search {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px dashed #d1dce8;
-  position: relative;
-}
-
-.manual-search label {
-  display: block;
-  margin-bottom: 0.4rem;
-}
-
-.manual-search input[type="text"] {
-  width: 100%;
-}
-
-.search-results {
-  position: absolute;
-  z-index: 5;
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1.5px solid #d1dce8;
-  border-radius: 8px;
-  margin-top: 0.3rem;
-  max-height: 220px;
-  overflow-y: auto;
-  box-shadow: 0 4px 16px rgba(0,50,150,0.12);
-}
-
-.search-result {
-  padding: 0.5rem 0.75rem;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: #1a3a6b;
-  border-bottom: 1px solid #f0f2f8;
-}
-
-.search-result:last-child { border-bottom: none; }
-.search-result:hover { background: #edf3ff; }
 
 .sr-parent {
   color: #2d6be4;
