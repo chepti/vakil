@@ -59,7 +59,8 @@
               {{ compactMode ? '⊠ מצב רגיל' : '⊟ קומפקטי' }}
             </button>
           </template>
-          <button class="ctrl-btn" :class="{ active: !radialMode }" @click="toggleRadialMode" title="תצוגה עגולה / עץ רגיל">
+          <button class="ctrl-btn" :class="{ active: !radialMode }" @click="toggleRadialMode" :disabled="radialMode"
+            :title="radialMode ? 'תצוגת עץ רגיל מושבתת זמנית — עם משפחה בגודל הזה היא תוקעת את הדף' : 'תצוגה עגולה'">
             {{ radialMode ? '🌳 עץ רגיל' : '◎ עגול' }}
           </button>
         </div>
