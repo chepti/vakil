@@ -96,7 +96,7 @@ class PersonImportController extends Controller
         foreach ($rows as &$row) {
             $candidates = $matcher->findCandidates($row);
 
-            $row['candidates'] = $candidates->map(fn($c) => [
+            $row['candidates'] = $candidates->take(5)->map(fn($c) => [
                 'id'         => $c['person']->id,
                 'full_name'  => $c['person']->full_name,
                 'city'       => $c['person']->city,
@@ -121,9 +121,21 @@ class PersonImportController extends Controller
             $grouped[$row['branch_root']][] = $row;
         }
 
+        // רשימת כל הדמויות הקיימות — לחיפוש/שיוך ידני שאינו מוגבל להצעות האוטומטיות
+        $allPeople = Person::select('id', 'first_name', 'last_name', 'city', 'phone')
+            ->orderBy('first_name')
+            ->get()
+            ->map(fn($p) => [
+                'id'        => $p->id,
+                'full_name' => $p->full_name,
+                'city'      => $p->city,
+                'phone'     => $p->phone,
+            ]);
+
         return Inertia::render('People/Import/Review', [
-            'token'   => $token,
-            'grouped' => array_values($grouped),
+            'token'      => $token,
+            'grouped'    => array_values($grouped),
+            'allPeople'  => $allPeople,
         ]);
     }
 
@@ -154,10 +166,12 @@ class PersonImportController extends Controller
         $editedByRowId     = array_column($data['rows'], null, 'row_id');
 
         $personIdByRowId = [];
+        $resolvedRowIds  = []; // כולל שורות שדולגו (skip) — כדי לא לחכות להן לנצח
         $created = 0;
         $matched = 0;
+        $skipped = 0;
 
-        DB::transaction(function () use ($structureByRowId, $editedByRowId, &$personIdByRowId, &$created, &$matched) {
+        DB::transaction(function () use ($structureByRowId, $editedByRowId, &$personIdByRowId, &$resolvedRowIds, &$created, &$matched, &$skipped) {
             // שלב 1: יצירת/זיהוי דמות לכל שורה, בסדר תלות (הורים לפני ילדים)
             $pending = array_keys($structureByRowId);
             $guard   = 0;
@@ -166,34 +180,46 @@ class PersonImportController extends Controller
                     $structure = $structureByRowId[$rowId];
                     $refId     = $structure['ref_row_id'] ?: null;
 
-                    if ($refId && ! array_key_exists($refId, $personIdByRowId)) {
+                    if ($refId && ! array_key_exists($refId, $resolvedRowIds)) {
                         continue; // מחכים שההורה/בן-הזוג יעובד קודם
                     }
 
                     $edited   = $editedByRowId[$rowId] ?? $structure;
                     $decision = $edited['decision'] ?? 'new';
 
+                    if ($decision === 'skip') {
+                        $skipped++;
+                        $resolvedRowIds[$rowId] = true;
+                        unset($pending[$i]);
+                        continue;
+                    }
+
                     if (str_starts_with($decision, 'match:')) {
                         $personId = (int) substr($decision, 6);
                         $person   = Person::find($personId);
-                        if ($person) {
-                            // השלמת שדות ריקים בלבד — לא דורסים מידע קיים בדמות
-                            $fillIfEmpty = [
-                                'phone' => $edited['phone'] ?? null,
-                                'city'  => $edited['city'] ?? null,
-                                'current_occupation' => $edited['current_occupation'] ?? null,
-                                'bio'   => $edited['bio'] ?? null,
-                            ];
-                            foreach ($fillIfEmpty as $field => $value) {
-                                if (empty($person->$field) && ! empty($value)) {
-                                    $person->$field = $value;
-                                }
-                            }
-                            if ($person->isDirty()) {
-                                $person->save();
-                            }
-                            $matched++;
+                        if (! $person) {
+                            // הדמות שנבחרה לא נמצאה (נמחקה בינתיים) — מדלגים על השורה במקום לקרוס
+                            $skipped++;
+                            $resolvedRowIds[$rowId] = true;
+                            unset($pending[$i]);
+                            continue;
                         }
+                        // השלמת שדות ריקים בלבד — לא דורסים מידע קיים בדמות
+                        $fillIfEmpty = [
+                            'phone' => $edited['phone'] ?? null,
+                            'city'  => $edited['city'] ?? null,
+                            'current_occupation' => $edited['current_occupation'] ?? null,
+                            'bio'   => $edited['bio'] ?? null,
+                        ];
+                        foreach ($fillIfEmpty as $field => $value) {
+                            if (empty($person->$field) && ! empty($value)) {
+                                $person->$field = $value;
+                            }
+                        }
+                        if ($person->isDirty()) {
+                            $person->save();
+                        }
+                        $matched++;
                     } else {
                         $birthDate = $edited['birth_date_estimate'] ?? null;
                         $person = Person::create([
@@ -213,6 +239,7 @@ class PersonImportController extends Controller
                     }
 
                     $personIdByRowId[$rowId] = $person->id;
+                    $resolvedRowIds[$rowId]  = true;
                     unset($pending[$i]);
                 }
             }
@@ -260,7 +287,7 @@ class PersonImportController extends Controller
         session()->forget(self::SESSION_PREFIX . $data['token']);
 
         return redirect()->route('people.index')
-            ->with('success', "הייבוא הושלם: {$created} דמויות נוצרו, {$matched} שויכו לדמויות קיימות");
+            ->with('success', "הייבוא הושלם: {$created} דמויות נוצרו, {$matched} שויכו לדמויות קיימות, {$skipped} דולגו");
     }
 
     /** @return array<int, array<string,mixed>> */

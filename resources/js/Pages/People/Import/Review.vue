@@ -32,10 +32,13 @@
                   <option v-for="c in rowsMap[rowId].candidates" :key="c.id" :value="`match:${c.id}`">
                     שיוך: {{ c.full_name }} ({{ c.city || '—' }}) · {{ c.score }}
                   </option>
+                  <option value="skip">אל תייבא (דלג על השורה)</option>
                 </select>
 
                 <span class="match-hint" :class="rowColorClass(rowId)">
-                  {{ rowsMap[rowId].candidates.length ? `נמצאה התאמה (${rowsMap[rowId].candidates.length})` : 'לא נמצאה בעץ' }}
+                  {{ rowsMap[rowId].decision === 'skip'
+                      ? 'לא ייובא'
+                      : (rowsMap[rowId].candidates.length ? `נמצאה התאמה (${rowsMap[rowId].candidates.length})` : 'לא נמצאה בעץ') }}
                 </span>
               </div>
 
@@ -88,6 +91,27 @@
                   {{ rowsMap[rowId].relation === 'spouse' ? 'בן/בת זוג של' : 'ילד/ה של' }}
                   {{ rowsMap[rowsMap[rowId].ref_row_id]?.first_name }} · מקור: {{ rowsMap[rowId].source_page }}
                 </div>
+
+                <div class="manual-search">
+                  <label>לא מצאת את ההתאמה הנכונה למעלה? חפשו כל דמות קיימת בעץ:</label>
+                  <input
+                    type="text"
+                    v-model="searchQuery[rowId]"
+                    placeholder="הקלידו שם לחיפוש..."
+                    @focus="activeSearch = rowId"
+                  />
+                  <div v-if="activeSearch === rowId && searchQuery[rowId]" class="search-results">
+                    <div
+                      v-for="p in searchResults(rowId)"
+                      :key="p.id"
+                      class="search-result"
+                      @click="pickManualMatch(rowId, p)"
+                    >
+                      {{ p.full_name }} <span class="sr-meta">{{ p.city || '—' }} · {{ p.phone || '—' }}</span>
+                    </div>
+                    <div v-if="searchResults(rowId).length === 0" class="search-empty">אין תוצאות</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -110,18 +134,37 @@ import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 const props = defineProps({
-  token:   { type: String, required: true },
-  grouped: { type: Array, required: true }, // array of arrays of row objects
+  token:     { type: String, required: true },
+  grouped:   { type: Array, required: true }, // array of arrays of row objects
+  allPeople: { type: Array, default: () => [] },
 })
 
 const submitting = ref(false)
 const expanded = reactive({})
+const searchQuery = reactive({})
+const activeSearch = ref(null)
 
 const rowsMap = reactive({})
 const groups = props.grouped.map(group => group.map(row => {
   rowsMap[row.row_id] = { ...row, decision: row.suggested_decision }
   return row.row_id
 }))
+
+function searchResults(rowId) {
+  const q = (searchQuery[rowId] || '').trim()
+  if (!q) return []
+  return props.allPeople.filter(p => p.full_name.includes(q)).slice(0, 8)
+}
+
+function pickManualMatch(rowId, person) {
+  const row = rowsMap[rowId]
+  if (!row.candidates.some(c => c.id === person.id)) {
+    row.candidates.push({ id: person.id, full_name: person.full_name, city: person.city, phone: person.phone, score: 0 })
+  }
+  row.decision = `match:${person.id}`
+  searchQuery[rowId] = ''
+  activeSearch.value = null
+}
 
 const totalRows = computed(() => Object.keys(rowsMap).length)
 const newCount = computed(() => Object.values(rowsMap).filter(r => r.candidates.length === 0).length)
@@ -133,6 +176,7 @@ function toggleExpand(rowId) {
 }
 
 function rowColorClass(rowId) {
+  if (rowsMap[rowId].decision === 'skip') return 'c-skip'
   const n = rowsMap[rowId].candidates.length
   if (n > 1) return 'c-ambiguous'
   if (n === 1) return 'c-match'
@@ -236,6 +280,7 @@ h1 { font-size: 1.5rem; color: #1a3a6b; margin: 0; }
 .row-compact.c-new     { background: #fffaf0; border-color: #f0b429; }
 .row-compact.c-match   { background: #f0fff4; border-color: #38a169; }
 .row-compact.c-ambiguous { background: #fff5f5; border-color: #e74c3c; }
+.row-compact.c-skip    { background: #f2f2f2; border-color: #aab; opacity: 0.7; }
 
 .chevron {
   background: none;
@@ -290,6 +335,7 @@ h1 { font-size: 1.5rem; color: #1a3a6b; margin: 0; }
 .match-hint.c-new { color: #b7791f; }
 .match-hint.c-match { color: #2f855a; }
 .match-hint.c-ambiguous { color: #c0392b; }
+.match-hint.c-skip { color: #6b7a99; }
 
 .row-details {
   padding: 0.85rem 1rem 1rem 2.2rem;
@@ -352,6 +398,59 @@ textarea { resize: vertical; }
 .ref-line {
   margin-top: 0.6rem;
   font-size: 0.78rem;
+  color: #8a9ab5;
+}
+
+.manual-search {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #d1dce8;
+  position: relative;
+}
+
+.manual-search label {
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.manual-search input[type="text"] {
+  width: 100%;
+}
+
+.search-results {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1.5px solid #d1dce8;
+  border-radius: 8px;
+  margin-top: 0.3rem;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0,50,150,0.12);
+}
+
+.search-result {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #1a3a6b;
+  border-bottom: 1px solid #f0f2f8;
+}
+
+.search-result:last-child { border-bottom: none; }
+.search-result:hover { background: #edf3ff; }
+
+.sr-meta {
+  color: #8a9ab5;
+  font-size: 0.78rem;
+  margin-right: 0.5rem;
+}
+
+.search-empty {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
   color: #8a9ab5;
 }
 
