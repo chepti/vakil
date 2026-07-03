@@ -159,7 +159,10 @@
 
         <!-- פיזור גאוגרפי — מפה -->
         <section class="panel map-panel" v-if="cities.length">
-          <h2>🗺️ פיזור גאוגרפי</h2>
+          <div class="map-head">
+            <h2>🗺️ פיזור גאוגרפי</h2>
+            <button class="dl-loc-btn" @click="downloadLocations">⬇️ הורד את כל המיקומים (CSV)</button>
+          </div>
 
           <div v-if="placing" class="placing-banner">
             👆 לחצו על המפה כדי למקם את <b>{{ placing }}</b>
@@ -353,6 +356,34 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => { if (map) { map.remove(); map = null } })
+
+// ── הורדת כל המיקומים ל-CSV: שם, כתובת כפי שהוזנה, מקום מזוהה, קואורדינטות ──
+function csvCell(v) {
+  const s = String(v ?? '')
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
+}
+
+function downloadLocations() {
+  const rows = [['שם', 'כתובת כפי שהוזנה', 'מקום מזוהה', 'קו רוחב', 'קו אורך']]
+  for (const c of props.cities) {
+    const g = resolve(c.city)
+    const people = (c.people && c.people.length) ? c.people : ['—']
+    for (const name of people) {
+      rows.push([name, c.city, g ? g.name : '', g ? g.lat : '', g ? g.lng : ''])
+    }
+  }
+  const bom = String.fromCharCode(0xFEFF)
+  const csv = rows.map(r => r.map(csvCell).join(',')).join('\r\n')
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'vakil-locations.csv'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
 </script>
 
 <style scoped>
@@ -429,6 +460,14 @@ ul { list-style: none; margin: 0; padding: 0; }
 .empty { color: #9aa7c0; font-size: 0.9rem; }
 
 /* מפה */
+.map-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.map-head h2 { margin: 0; }
+.dl-loc-btn {
+  background: #edf3ff; color: #2d6be4; border: none; border-radius: 9px;
+  padding: 0.5rem 0.9rem; font-size: 0.85rem; font-weight: 500; cursor: pointer;
+  font-family: 'Rubik', sans-serif;
+}
+.dl-loc-btn:hover { background: #dde9ff; }
 .map { height: 380px; border-radius: 12px; overflow: hidden; border: 1px solid #e6eefb; }
 .map.placing { cursor: crosshair; outline: 3px solid #f0b65a; }
 .map.placing :deep(.leaflet-container) { cursor: crosshair; }
