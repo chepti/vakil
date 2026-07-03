@@ -30,7 +30,7 @@
                 <select v-model="rowsMap[rowId].decision" @click.stop class="decision-select">
                   <option value="new">דמות חדשה</option>
                   <option v-for="c in rowsMap[rowId].candidates" :key="c.id" :value="`match:${c.id}`">
-                    שיוך: {{ c.full_name }} ({{ c.city || '—' }}) · {{ c.score }}
+                    שיוך: {{ c.full_name }}{{ c.parent_names ? ` (של ${c.parent_names})` : '' }} · {{ c.city || '—' }} · {{ c.score }}
                   </option>
                   <option value="skip">אל תייבא (דלג על השורה)</option>
                 </select>
@@ -107,7 +107,9 @@
                       class="search-result"
                       @click="pickManualMatch(rowId, p)"
                     >
-                      {{ p.full_name }} <span class="sr-meta">{{ p.city || '—' }} · {{ p.phone || '—' }}</span>
+                      {{ p.full_name }}
+                      <span v-if="p.parent_names" class="sr-parent">של {{ p.parent_names }}</span>
+                      <span class="sr-meta">{{ p.city || '—' }} · {{ p.phone || '—' }}</span>
                     </div>
                     <div v-if="searchResults(rowId).length === 0" class="search-empty">אין תוצאות</div>
                   </div>
@@ -159,7 +161,10 @@ function searchResults(rowId) {
 function pickManualMatch(rowId, person) {
   const row = rowsMap[rowId]
   if (!row.candidates.some(c => c.id === person.id)) {
-    row.candidates.push({ id: person.id, full_name: person.full_name, city: person.city, phone: person.phone, score: 0 })
+    row.candidates.push({
+      id: person.id, full_name: person.full_name, city: person.city,
+      phone: person.phone, score: 0, parent_names: person.parent_names,
+    })
   }
   row.decision = `match:${person.id}`
   searchQuery[rowId] = ''
@@ -441,6 +446,13 @@ textarea { resize: vertical; }
 
 .search-result:last-child { border-bottom: none; }
 .search-result:hover { background: #edf3ff; }
+
+.sr-parent {
+  color: #2d6be4;
+  font-size: 0.78rem;
+  margin-right: 0.5rem;
+  font-weight: 500;
+}
 
 .sr-meta {
   color: #8a9ab5;

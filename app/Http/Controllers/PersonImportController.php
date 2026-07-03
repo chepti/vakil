@@ -91,17 +91,26 @@ class PersonImportController extends Controller
         unset($row);
         $known = array_column($rows, null, 'row_id'); // רענון עם הכתובות שהושלמו
 
+        // שמות הורים לכל דמות קיימת — כדי להבדיל בין דמויות עם אותו שם (למשל כמה "נסים זעפרני")
+        $parentNamesByChildId = Relationship::where('type', 'parent_child')
+            ->join('people', 'people.id', '=', 'relationships.person1_id')
+            ->select('relationships.person2_id as child_id', 'people.first_name', 'people.last_name')
+            ->get()
+            ->groupBy('child_id')
+            ->map(fn($group) => $group->map(fn($r) => trim("{$r->first_name} {$r->last_name}"))->implode(' ו'));
+
         $matcher = new PersonMatcher();
 
         foreach ($rows as &$row) {
             $candidates = $matcher->findCandidates($row);
 
             $row['candidates'] = $candidates->take(5)->map(fn($c) => [
-                'id'         => $c['person']->id,
-                'full_name'  => $c['person']->full_name,
-                'city'       => $c['person']->city,
-                'phone'      => $c['person']->phone,
-                'score'      => $c['score'],
+                'id'           => $c['person']->id,
+                'full_name'    => $c['person']->full_name,
+                'city'         => $c['person']->city,
+                'phone'        => $c['person']->phone,
+                'score'        => $c['score'],
+                'parent_names' => $parentNamesByChildId[$c['person']->id] ?? null,
             ])->all();
 
             $row['suggested_decision'] = $matcher->isConfidentMatch($candidates)
@@ -126,10 +135,11 @@ class PersonImportController extends Controller
             ->orderBy('first_name')
             ->get()
             ->map(fn($p) => [
-                'id'        => $p->id,
-                'full_name' => $p->full_name,
-                'city'      => $p->city,
-                'phone'     => $p->phone,
+                'id'           => $p->id,
+                'full_name'    => $p->full_name,
+                'city'         => $p->city,
+                'phone'        => $p->phone,
+                'parent_names' => $parentNamesByChildId[$p->id] ?? null,
             ]);
 
         return Inertia::render('People/Import/Review', [

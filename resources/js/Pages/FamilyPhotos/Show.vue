@@ -25,6 +25,12 @@
           <button class="btn-title-cancel" @click="editingTitle = false">ביטול</button>
         </div>
 
+        <a
+          :href="photo.url"
+          :download="photo.title || 'family-photo'"
+          class="btn-download"
+          title="הורד תמונה"
+        >⬇ הורד</a>
         <button v-if="canEdit && !editingTitle" class="btn-delete" @click="deletePhoto">🗑 מחק תמונה</button>
       </div>
 
@@ -457,6 +463,20 @@ function initials(name) {
 h1 { font-size: 1.4rem; color: #1a3a6b; margin: 0; flex: 1; }
 h3 { font-size: 1rem; color: #1a3a6b; margin: 0 0 0.8rem; }
 .btn-back { color: #2d6be4; text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
+.btn-download {
+  background: #eef4ff;
+  border: 1.5px solid #c7dbf7;
+  color: #2d6be4;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-family: 'Rubik', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.btn-download:hover { background: #dbeafe; }
 .btn-delete {
   background: #dc2626;
   color: white;
