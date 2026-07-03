@@ -537,7 +537,7 @@ onMounted(() => {
   radialMobileMq = window.matchMedia(RADIAL_MOBILE_MQ)
   syncRadialMobile()
   radialMobileMq.addEventListener('change', syncRadialMobile)
-  if (radialMode.value) fitRadialView()   // radial is the default view — fit on entry
+  if (radialMode.value) { fitRadialView(); return }   // radial is the default view — fit on entry, skip the (expensive) linear chart build entirely
   if (!chartContainer.value || props.nodes.length === 0) return
   initChart()
 })
@@ -1587,6 +1587,12 @@ function resetRadialToRoot() {
 function toggleRadialMode() {
   radialMode.value = !radialMode.value
   if (!radialMode.value) {
+    // First time leaving radial view — the linear chart build was deferred on mount, do it now
+    if (!chartInstance && chartContainer.value && props.nodes.length > 0) {
+      initChart()
+      nextTick(() => refreshLinearBranchHints())
+      return
+    }
     // Returning to tree view — reset compact state if needed and refresh chart
     if (compactMode.value) {
       compactMode.value = false
