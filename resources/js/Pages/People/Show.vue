@@ -61,13 +61,16 @@
             <button v-if="parents.length < 2" class="btn-add-inline" @click="openAddParent">+ הוסף הורה</button>
           </div>
           <div class="family-cards">
-            <Link v-for="p in parents" :key="p.id" :href="`/people/${p.id}`" class="mini-card" :class="p.gender">
-              <div class="mini-avatar">
-                <img v-if="p.photo_url" :src="p.photo_url" :alt="p.full_name" />
-                <div v-else class="mini-initials">{{ initials(p.full_name) }}</div>
-              </div>
-              <span>{{ p.full_name }}</span>
-            </Link>
+            <div v-for="p in parents" :key="p.id" class="mini-card-wrap">
+              <Link :href="`/people/${p.id}`" class="mini-card" :class="p.gender">
+                <div class="mini-avatar">
+                  <img v-if="p.photo_url" :src="p.photo_url" :alt="p.full_name" />
+                  <div v-else class="mini-initials">{{ initials(p.full_name) }}</div>
+                </div>
+                <span>{{ p.full_name }}</span>
+              </Link>
+              <button class="btn-unlink" @click.prevent.stop="removeParent(p)" title="נתק קשר הורות (לא מוחק את הדמות)">✕</button>
+            </div>
             <div v-if="parents.length === 0" class="empty-family">לא הוגדרו הורים</div>
           </div>
         </div>
@@ -79,16 +82,19 @@
             <button class="btn-add-inline" @click="showAddSpouse = true">+ הוסף/י</button>
           </div>
           <div class="family-cards">
-            <Link v-for="p in spouses" :key="p.id" :href="`/people/${p.id}`" class="mini-card">
-              <div class="mini-avatar">
-                <img v-if="p.photo_url" :src="p.photo_url" :alt="p.full_name" />
-                <div v-else class="mini-initials">{{ initials(p.full_name) }}</div>
-              </div>
-              <span>{{ p.full_name }}</span>
-              <span v-if="p.marriage_date_gregorian || p.marriage_date_hebrew" class="mini-marriage">
-                💍 {{ p.marriage_date_gregorian ? formatDate(p.marriage_date_gregorian) : '' }}{{ p.marriage_date_hebrew ? ' / ' + p.marriage_date_hebrew : '' }}
-              </span>
-            </Link>
+            <div v-for="p in spouses" :key="p.id" class="mini-card-wrap">
+              <Link :href="`/people/${p.id}`" class="mini-card">
+                <div class="mini-avatar">
+                  <img v-if="p.photo_url" :src="p.photo_url" :alt="p.full_name" />
+                  <div v-else class="mini-initials">{{ initials(p.full_name) }}</div>
+                </div>
+                <span>{{ p.full_name }}</span>
+                <span v-if="p.marriage_date_gregorian || p.marriage_date_hebrew" class="mini-marriage">
+                  💍 {{ p.marriage_date_gregorian ? formatDate(p.marriage_date_gregorian) : '' }}{{ p.marriage_date_hebrew ? ' / ' + p.marriage_date_hebrew : '' }}
+                </span>
+              </Link>
+              <button class="btn-unlink" @click.prevent.stop="removeSpouse(p)" title="נתק קשר זוגיות (לא מוחק את הדמות)">✕</button>
+            </div>
             <div v-if="spouses.length === 0" class="empty-family">לא הוגדר</div>
           </div>
         </div>
@@ -99,6 +105,10 @@
             <h2>אחים ואחיות {{ siblings.length ? `(${siblings.length})` : '' }}</h2>
             <button v-if="parents.length > 0" class="btn-add-inline" @click="openAddSibling">+ הוסף אח/אחות</button>
           </div>
+          <p v-if="siblings.length" class="hint-small">
+            הרשימה מחושבת אוטומטית ממי שחולק הורה עם {{ person.full_name }}. אח/אחות שגוי/ה כאן פירושו הורה משותף שגוי —
+            נתקו אותו בכרטיס "הורים" למעלה (בדף הזה או בדף של האח/אחות השגוי/ה).
+          </p>
           <div class="family-cards">
             <Link v-for="p in siblings" :key="p.id" :href="`/people/${p.id}`" class="mini-card" :class="p.gender">
               <div class="mini-avatar">
@@ -158,6 +168,7 @@
                   @click.prevent.stop="openChildParent(p)"
                   title="הגדר מי ההורה השני של הילד/ה"
                 >👪</button>
+                <button class="btn-unlink" @click.prevent.stop="removeChild(p)" title="נתק קשר הורות (לא מוחק את הדמות)">✕</button>
               </div>
             </template>
             <div v-if="children.length === 0" class="empty-family">אין ילדים רשומים</div>
@@ -1010,6 +1021,22 @@ function submitParent() {
   })
 }
 
+// ─── Remove parent / spouse / child (fix wrong relationships) ────
+function removeParent(parent) {
+  if (!confirm(`לנתק את ${parent.full_name} כהורה של ${props.person.full_name}? הדמות עצמה לא תימחק.`)) return
+  router.delete(`/people/${props.person.id}/parent/${parent.id}`, { preserveScroll: true })
+}
+
+function removeSpouse(spouse) {
+  if (!confirm(`לנתק את ${spouse.full_name} כבן/בת זוג של ${props.person.full_name}? הדמות עצמה לא תימחק.`)) return
+  router.delete(`/people/${props.person.id}/spouse/${spouse.id}`, { preserveScroll: true })
+}
+
+function removeChild(child) {
+  if (!confirm(`לנתק את ${child.full_name} כילד/ה של ${props.person.full_name}? הדמות עצמה לא תימחק.`)) return
+  router.delete(`/people/${props.person.id}/child/${child.id}`, { preserveScroll: true })
+}
+
 // ─── Add spouse ──────────────────────────────────────────
 const showAddSpouse = ref(false)
 const spouseTab     = ref('new')
@@ -1400,6 +1427,17 @@ h2 { font-size: 1rem; color: #2d4a7a; margin: 0; font-weight: 600; }
   box-shadow: 0 1px 4px rgba(0,50,150,0.12); opacity: 0.75; transition: opacity 0.15s, transform 0.15s;
 }
 .btn-coparent:hover { opacity: 1; transform: scale(1.12); }
+
+.btn-unlink {
+  position: absolute; top: 4px; right: 4px;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid #f8d7da; background: #fff; cursor: pointer;
+  font-size: 0.72rem; line-height: 1; padding: 0; color: #c0392b;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,50,150,0.12); opacity: 0.6; transition: opacity 0.15s, transform 0.15s;
+}
+.btn-unlink:hover { opacity: 1; transform: scale(1.12); background: #fdecea; }
+
 .hint-small { font-size: 0.78rem; color: #6b7c93; margin: 0.25rem 0 0.5rem; line-height: 1.4; }
 .rel-select {
   width: 100%; padding: 0.5rem 0.6rem; border: 1px solid #d4e2f5; border-radius: 8px;

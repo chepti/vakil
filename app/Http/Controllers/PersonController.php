@@ -265,6 +265,39 @@ class PersonController extends Controller
         return redirect()->route('people.show', $person)->with('success', 'ההורה נוסף');
     }
 
+    /**
+     * ניתוק קשר הורה-ילד שגוי (למשל משיוך לא מדויק בייבוא) — לא מוחק את הדמויות עצמן, רק את הקשר.
+     */
+    public function removeParent(Person $person, Person $parent)
+    {
+        Relationship::where('person1_id', $parent->id)
+            ->where('person2_id', $person->id)
+            ->where('type', 'parent_child')
+            ->delete();
+
+        return redirect()->route('people.show', $person)->with('success', 'הקשר להורה נותק');
+    }
+
+    public function removeChild(Person $person, Person $child)
+    {
+        Relationship::where('person1_id', $person->id)
+            ->where('person2_id', $child->id)
+            ->where('type', 'parent_child')
+            ->delete();
+
+        return redirect()->route('people.show', $person)->with('success', 'הקשר לילד/ה נותק');
+    }
+
+    public function removeSpouse(Person $person, Person $spouse)
+    {
+        Relationship::where('type', 'spouse')
+            ->where(fn($q) => $q->where('person1_id', min($person->id, $spouse->id))
+                                 ->where('person2_id', max($person->id, $spouse->id)))
+            ->delete();
+
+        return redirect()->route('people.show', $person)->with('success', 'הקשר לבן/בת הזוג נותק');
+    }
+
     public function addSibling(Request $request, Person $person)
     {
         $data = $request->validate([
