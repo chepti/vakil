@@ -59,8 +59,7 @@
               {{ compactMode ? '⊠ מצב רגיל' : '⊟ קומפקטי' }}
             </button>
           </template>
-          <button class="ctrl-btn" :class="{ active: !radialMode }" @click="toggleRadialMode" :disabled="radialMode"
-            :title="radialMode ? 'תצוגת עץ רגיל מושבתת זמנית — עם משפחה בגודל הזה היא תוקעת את הדף' : 'תצוגה עגולה'">
+          <button class="ctrl-btn" :class="{ active: !radialMode }" @click="toggleRadialMode" title="תצוגה עגולה / עץ רגיל">
             {{ radialMode ? '🌳 עץ רגיל' : '◎ עגול' }}
           </button>
         </div>
@@ -379,6 +378,7 @@ const hideMode         = ref(false)         // "fold branch" mode — click a ca
 const collapsedIds     = ref(new Set())     // ids whose descendant branch is hidden
 let chartInstance      = null
 let cardHtml           = null
+const chartCenterId    = ref(null)          // id the LINEAR chart's loaded data window is anchored to
 
 // ─── Search ────────────────────────────────────────────────────
 const searchQuery = ref('')
@@ -403,10 +403,15 @@ const searchResults = computed(() => {
 function goToPerson(id) {
   searchQuery.value = ''
   searchOpen.value  = false
-  if (!chartInstance) return
-  chartInstance.updateMainId(id)
   const node = localNodes.value.find(n => n.id === id)
   if (node) selectedPerson.value = { id: node.id, ...node.data }
+  if (radialMode.value) {
+    radialCenterId.value = id
+    radialExpansions.value = []
+    fitRadialView()
+  } else {
+    setLinearMain(id, { render: false })
+  }
 }
 
 // ─── Add relative ─────────────────────────────────────────────
@@ -528,7 +533,7 @@ async function submitAddRel() {
 // עדכון הגרף בנפרד מהשמירה — כשל ברינדור לא אמור להיראות ככשל שמירה
 function refreshChart(freshNodes) {
   try {
-    chartInstance?.updateData(chartFeed(freshNodes)).updateTree({ tree_position: 'inherit' })
+    chartInstance?.updateData(windowedChartFeed(freshNodes)).updateTree({ tree_position: 'inherit' })
   } catch (err) {
     console.error('chart refresh failed (data already saved):', err)
   }
@@ -587,6 +592,72 @@ function chartFeed(nodes) {
   }))
 }
 
+// Generations to preload up/down from the anchor — comfortably covers the depth slider's max (7).
+const LINEAR_TREE_WINDOW = 8
+
+// family-chart's own ancestry/progeny hierarchy has no depth limit during construction (it only
+// trims for display afterward), so handing it the full family blows up combinatorially on deep
+// lineages and/or cousin-marriage "diamonds" (a shared ancestor reached via two paths doubles
+// its own branch every time). Bounding the dataset itself to a fixed generation window keeps the
+// library's own traversal small and safe regardless of how deep or intermarried the real tree is.
+function computeLinearTreeSubset(nodes, anchorId) {
+  const byId = new Map(nodes.map(n => [n.id, n]))
+  if (!byId.has(anchorId)) return nodes // unknown anchor — fail open rather than render an empty tree
+
+  const include = new Set()
+  function addWithSpouses(id) {
+    if (!byId.has(id) || include.has(id)) return
+    include.add(id)
+    ;(byId.get(id).rels?.spouses || []).forEach(s => { if (byId.has(s)) include.add(s) })
+  }
+  function walkUp(id, depthLeft) {
+    addWithSpouses(id)
+    if (depthLeft <= 0) return
+    ;(byId.get(id)?.rels?.parents || []).forEach(p => walkUp(p, depthLeft - 1))
+  }
+  function walkDown(id, depthLeft) {
+    addWithSpouses(id)
+    if (depthLeft <= 0) return
+    ;(byId.get(id)?.rels?.children || []).forEach(c => walkDown(c, depthLeft - 1))
+  }
+
+  walkUp(anchorId, LINEAR_TREE_WINDOW)
+  walkDown(anchorId, LINEAR_TREE_WINDOW)
+  // Siblings of the anchor (share a parent) — one sideways hop, not a depth step
+  ;(byId.get(anchorId)?.rels?.parents || []).forEach(p => {
+    (byId.get(p)?.rels?.children || []).forEach(c => addWithSpouses(c))
+  })
+
+  return nodes
+    .filter(n => include.has(n.id))
+    .map(n => ({
+      ...n,
+      rels: {
+        parents:  (n.rels?.parents  || []).filter(id => include.has(id)),
+        spouses:  (n.rels?.spouses  || []).filter(id => include.has(id)),
+        children: (n.rels?.children || []).filter(id => include.has(id)),
+      },
+    }))
+}
+
+// chartFeed() over the windowed subset, anchored to the chart's current center by default
+function windowedChartFeed(nodes, anchorId = chartCenterId.value) {
+  const anchor = anchorId && nodes.some(n => n.id === anchorId)
+    ? anchorId
+    : (props.defaultMainPersonId || props.rootPersonId || nodes[0]?.id)
+  return chartFeed(computeLinearTreeSubset(nodes, anchor))
+}
+
+// Re-centers the linear chart on `id`, reloading a fresh generation-window anchored there —
+// re-anchoring on navigation keeps arbitrarily-distant clicks from silently showing a partial tree.
+function setLinearMain(id, { render = true, treeOpts = { tree_position: 'inherit' } } = {}) {
+  if (!chartInstance) return
+  chartCenterId.value = id
+  chartInstance.updateData(windowedChartFeed(localNodes.value, id))
+  chartInstance.updateMainId(id)
+  if (render) chartInstance.updateTree(treeOpts)
+}
+
 // Sort children by birthday descending → youngest leftmost, oldest rightmost.
 // In RTL display, rightmost = "first read" = oldest. Nulls go to the left (last).
 function sortByBirthday(a, b) {
@@ -598,9 +669,11 @@ function sortByBirthday(a, b) {
   return aDate > bDate ? -1 : aDate < bDate ? 1 : 0
 }
 
-function initChart() {
+function initChart(anchorId) {
   const cont = chartContainer.value
-  chartInstance = createChart(cont, chartFeed(props.nodes))
+  const initialMainId = anchorId || props.defaultMainPersonId || props.rootPersonId || props.nodes[0]?.id
+  chartCenterId.value = initialMainId
+  chartInstance = createChart(cont, windowedChartFeed(props.nodes, initialMainId))
   chartInstance.setSortChildrenFunction(sortByBirthday)
 
   // setCardHtml() returns a CardHtml instance (not chartInstance) — store it for reuse
@@ -625,7 +698,7 @@ function initChart() {
       }
       selectedPerson.value = { id: d.data.id, ...d.data.data }
       addRelType.value = null
-      chartInstance.updateMainId(d.data.id)
+      setLinearMain(d.data.id, { render: false })
     })
     .setOnCardUpdate(function (d) {
       const card = this.querySelector('.card')
@@ -653,7 +726,7 @@ function initChart() {
       try {
         const freshNodes = await apiPost('/api/family-tree/person', datum)
         localNodes.value = freshNodes
-        chartInstance.updateData(chartFeed(freshNodes)).updateTree({ tree_position: 'inherit' })
+        chartInstance.updateData(windowedChartFeed(freshNodes)).updateTree({ tree_position: 'inherit' })
         postSubmit()
       } catch (err) {
         alert('שגיאה בשמירה')
@@ -666,7 +739,7 @@ function initChart() {
       try {
         const freshNodes = await apiDelete(`/api/family-tree/person/${datum.id}`)
         localNodes.value = freshNodes
-        chartInstance.updateData(chartFeed(freshNodes)).updateTree({ tree_position: 'inherit' })
+        chartInstance.updateData(windowedChartFeed(freshNodes)).updateTree({ tree_position: 'inherit' })
         postSubmit({})
       } catch (err) {
         if (err.message === '403') alert('רק מנהל יכול למחוק')
@@ -675,9 +748,9 @@ function initChart() {
     })
 
   // ── הגדרות תצוגה ─────────────────────────────────────────────
-  if (props.defaultMainPersonId) {
-    chartInstance.updateMainId(props.defaultMainPersonId)
-  }
+  // Must match the id the data window above was anchored to (initialMainId), not always
+  // props.defaultMainPersonId — those differ when arriving here from the radial view's center.
+  chartInstance.updateMainId(initialMainId)
 
   chartInstance
     .setTransitionTime(500)
@@ -718,7 +791,7 @@ function centerTree() {
 
 function goToRoot() {
   if (chartInstance && props.rootPersonId) {
-    chartInstance.updateMainId(props.rootPersonId)
+    setLinearMain(props.rootPersonId, { render: false })
     selectedPerson.value = null
     fitTreeView()
   }
@@ -1590,7 +1663,7 @@ function toggleRadialMode() {
   if (!radialMode.value) {
     // First time leaving radial view — the linear chart build was deferred on mount, do it now
     if (!chartInstance && chartContainer.value && props.nodes.length > 0) {
-      initChart()
+      initChart(radialActiveCenterId())
       nextTick(() => refreshLinearBranchHints())
       return
     }
