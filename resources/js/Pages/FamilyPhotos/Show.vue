@@ -135,9 +135,14 @@
             </div>
           </div>
 
-          <!-- Upload status -->
-          <div v-if="uploadStatus" class="upload-status" :class="uploadStatus.ok ? 'ok' : 'err'">
-            {{ uploadStatus.msg }}
+          <!-- העלאות ברקע -->
+          <div v-if="bgUploads.length" class="bg-uploads">
+            <div v-for="(u, i) in bgUploads" :key="i" class="bg-upload-item" :class="u.status">
+              <span class="bg-upload-icon">
+                {{ u.status === 'uploading' ? '⏳' : u.status === 'ok' ? '✓' : '✗' }}
+              </span>
+              <span class="bg-upload-name">{{ u.name }}</span>
+            </div>
           </div>
 
         </div>
@@ -203,6 +208,7 @@ const photoImg       = ref(null)
 const photoContainer = ref(null)
 const searchInput    = ref(null)
 const imgLoaded      = ref(false)
+const bgUploads      = ref([])  // { name, status: 'uploading'|'ok'|'err' }
 
 // ── זום בשלב התיוג ──
 const zoom = ref(1)
@@ -358,6 +364,7 @@ async function saveTag(person) {
   const rect = { ...pendingTag.value }
 
   try {
+    // שמירת התיוג ב-DB — מהיר
     const res = await fetch(`/family-photos/${props.photo.id}/tags`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
@@ -366,33 +373,48 @@ async function saveTag(person) {
     if (!res.ok) throw new Error('HTTP ' + res.status)
     const tag = await res.json()
     localTags.value.push(tag)
-    pendingTag.value  = null
-    personSearch.value = ''
 
-    // Crop face and set as profile photo
-    const blob = await cropFace(rect)
-    if (blob) {
-      const fd = new FormData()
-      fd.append('profile_photo', blob, 'face.jpg')
-      // שומרים את תמונת הגלריה כמקור — כדי לאפשר עריכת חיתוך מאוחר יותר בכרטיס
-      if (props.photo.path) fd.append('source_path', props.photo.path)
-      fd.append('crop_x', rect.x_percent)
-      fd.append('crop_y', rect.y_percent)
-      fd.append('crop_w', rect.w_percent)
-      fd.append('crop_h', rect.h_percent)
-      const upRes = await fetch(`/people/${person.id}/photo`, {
-        method:  'POST',
-        headers: { 'X-CSRF-TOKEN': csrfToken() },
-        body:    fd,
-      })
-      uploadStatus.value = upRes.ok || upRes.redirected
-        ? { ok: true,  msg: `תמונת פרופיל של ${person.label} עודכנה` }
-        : { ok: false, msg: 'התיוג נשמר, אך העלאת תמונת הפרופיל נכשלה' }
-    }
+    // שחרור ה-UI מיד — אפשר כבר לתייג את הבא
+    pendingTag.value   = null
+    personSearch.value = ''
+    savingTag.value    = false
+
+    // העלאת תמונת פרופיל ברקע — לא חוסמת
+    uploadFaceBackground(rect, person)
+
   } catch {
     alert('שגיאה בשמירת התיוג')
-  } finally {
     savingTag.value = false
+  }
+}
+
+async function uploadFaceBackground(rect, person) {
+  const entry = { name: person.label, status: 'uploading' }
+  bgUploads.value.push(entry)
+  try {
+    const blob = await cropFace(rect)
+    if (!blob) { bgUploads.value = bgUploads.value.filter(e => e !== entry); return }
+
+    const fd = new FormData()
+    fd.append('profile_photo', blob, 'face.jpg')
+    if (props.photo.path) fd.append('source_path', props.photo.path)
+    fd.append('crop_x', rect.x_percent)
+    fd.append('crop_y', rect.y_percent)
+    fd.append('crop_w', rect.w_percent)
+    fd.append('crop_h', rect.h_percent)
+
+    const upRes = await fetch(`/people/${person.id}/photo`, {
+      method:  'POST',
+      headers: { 'X-CSRF-TOKEN': csrfToken() },
+      body:    fd,
+    })
+    entry.status = (upRes.ok || upRes.redirected) ? 'ok' : 'err'
+  } catch {
+    entry.status = 'err'
+  }
+  // הסרה אוטומטית אחרי 4 שניות אם הצליח
+  if (entry.status === 'ok') {
+    setTimeout(() => { bgUploads.value = bgUploads.value.filter(e => e !== entry) }, 4000)
   }
 }
 
@@ -836,14 +858,26 @@ h3 { font-size: 1rem; color: #1a3a6b; margin: 0 0 0.8rem; }
 }
 .tag-remove-list:hover { color: #e74c3c; }
 
-.upload-status {
-  padding: 0.65rem 1rem;
-  border-radius: 10px;
-  font-size: 0.85rem;
-  text-align: center;
+.bg-uploads {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
-.upload-status.ok  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-.upload-status.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.bg-upload-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  background: #f8faff;
+  border: 1px solid #d1dce8;
+  color: #2d4a7a;
+}
+.bg-upload-item.ok  { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.bg-upload-item.err { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.bg-upload-icon { flex-shrink: 0; font-size: 0.85rem; }
+.bg-upload-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 @media (max-width: 640px) {
   .photo-layout { flex-direction: column; }

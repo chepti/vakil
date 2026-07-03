@@ -18,8 +18,12 @@
             <label>כותרת (אופציונלי)</label>
             <input v-model="uploadTitle" type="text" placeholder="למשל: חתונת הוריי 1985" />
           </div>
+          <div v-if="uploading" class="upload-progress">
+            <div class="upload-progress-bar" :style="{ width: uploadProgress + '%' }"></div>
+            <span class="upload-progress-label">{{ uploadProgress }}%</span>
+          </div>
           <div class="upload-actions">
-            <button class="btn-cancel" @click="cancelUpload">ביטול</button>
+            <button class="btn-cancel" @click="cancelUpload" :disabled="uploading">ביטול</button>
             <button class="btn-primary" @click="submitUpload" :disabled="uploading">
               {{ uploading ? 'מעלה...' : 'העלה תמונה' }}
             </button>
@@ -84,10 +88,11 @@ function deletePhoto(photo) {
   router.delete(`/family-photos/${photo.id}`)
 }
 
-const uploadFile    = ref(null)
-const uploadPreview = ref(null)
-const uploadTitle   = ref('')
-const uploading     = ref(false)
+const uploadFile     = ref(null)
+const uploadPreview  = ref(null)
+const uploadTitle    = ref('')
+const uploading      = ref(false)
+const uploadProgress = ref(0)
 
 function handleFileSelect(e) {
   const file = e.target.files[0]
@@ -102,18 +107,43 @@ function cancelUpload() {
   uploadFile.value    = null
   uploadPreview.value = null
   uploadTitle.value   = ''
+  uploadProgress.value = 0
 }
 
 function submitUpload() {
-  if (!uploadFile.value) return
+  if (!uploadFile.value || uploading.value) return
   uploading.value = true
+  uploadProgress.value = 0
+
   const data = new FormData()
   data.append('photo', uploadFile.value)
   if (uploadTitle.value) data.append('title', uploadTitle.value)
-  router.post('/family-photos', data, {
-    forceFormData: true,
-    onFinish: () => { uploading.value = false },
-  })
+
+  const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
+  const xhr = new XMLHttpRequest()
+  xhr.open('POST', '/family-photos')
+  xhr.setRequestHeader('X-CSRF-TOKEN', token)
+  xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest')
+
+  xhr.upload.onprogress = (e) => {
+    if (e.lengthComputable) uploadProgress.value = Math.round((e.loaded / e.total) * 100)
+  }
+
+  xhr.onload = () => {
+    if (xhr.status < 400) {
+      router.visit(xhr.responseURL || '/family-photos')
+    } else {
+      alert('שגיאה בהעלאת התמונה')
+      uploading.value = false
+    }
+  }
+
+  xhr.onerror = () => {
+    alert('שגיאת רשת בהעלאת התמונה')
+    uploading.value = false
+  }
+
+  xhr.send(data)
 }
 </script>
 
@@ -169,6 +199,26 @@ input[type="text"]:focus { outline: none; border-color: #2d6be4; }
   font-family: 'Rubik', sans-serif; font-weight: 600;
 }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.upload-progress {
+  position: relative;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.upload-progress-bar {
+  height: 100%;
+  background: #2d6be4;
+  border-radius: 4px;
+  transition: width 0.2s ease;
+}
+.upload-progress-label {
+  position: absolute;
+  right: 0; top: -18px;
+  font-size: 0.75rem;
+  color: #4a5568;
+}
 
 .empty-state {
   text-align: center; padding: 4rem 2rem; color: #8a9ab5;
