@@ -120,6 +120,53 @@ const PLACES = {
   'תל ציון': [31.8880, 35.2640],
 }
 
+// ─── המרה מ-WGS84 (lat/lng) לרשת ישראל החדשה ITM / EPSG:2039 ──────
+// מחזיר { east, north } בשלמים (6 ספרות). הדיוק ~מטרים בודדים (מתעלמים
+// מהיסט הדאטום הזעיר בין WGS84 ל-Israel 1993) — מספיק למפת משפחה.
+export function wgs84ToITM(lat, lng) {
+  const a = 6378137.0                 // GRS80
+  const f = 1 / 298.257222101
+  const k0 = 1.0000067
+  const lat0 = 31.734393611 * Math.PI / 180
+  const lon0 = 35.204516944 * Math.PI / 180
+  const FE = 219529.584
+  const FN = 626907.390
+
+  const e2 = f * (2 - f)
+  const ep2 = e2 / (1 - e2)
+  const phi = lat * Math.PI / 180
+  const lam = lng * Math.PI / 180
+
+  const sinPhi = Math.sin(phi)
+  const cosPhi = Math.cos(phi)
+  const tanPhi = Math.tan(phi)
+
+  const N = a / Math.sqrt(1 - e2 * sinPhi * sinPhi)
+  const T = tanPhi * tanPhi
+  const C = ep2 * cosPhi * cosPhi
+  const A = (lam - lon0) * cosPhi
+
+  const M = (p) => a * (
+    (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256) * p
+    - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * e2 * e2 * e2 / 1024) * Math.sin(2 * p)
+    + (15 * e2 * e2 / 256 + 45 * e2 * e2 * e2 / 1024) * Math.sin(4 * p)
+    - (35 * e2 * e2 * e2 / 3072) * Math.sin(6 * p)
+  )
+
+  const east = FE + k0 * N * (
+    A + (1 - T + C) * A ** 3 / 6
+    + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * A ** 5 / 120
+  )
+  const north = FN + k0 * (
+    M(phi) - M(lat0) + N * tanPhi * (
+      A * A / 2 + (5 - T + 9 * C + 4 * C * C) * A ** 4 / 24
+      + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * A ** 6 / 720
+    )
+  )
+
+  return { east: Math.round(east), north: Math.round(north) }
+}
+
 // מנקה גרשיים ומאחד רווחים
 function normalize(s) {
   return (s || '').replace(/["'״׳]/g, '').replace(/\s+/g, ' ').trim()

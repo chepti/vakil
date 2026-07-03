@@ -195,7 +195,7 @@ import {
   hebrewDayMonth,
   currentHebrewMonth,
 } from '@/utils/hebrewDate'
-import { geocodeCity, ISRAEL_CENTER } from '@/utils/israelGeo'
+import { geocodeCity, ISRAEL_CENTER, wgs84ToITM } from '@/utils/israelGeo'
 import 'leaflet/dist/leaflet.css'
 
 const props = defineProps({
@@ -364,12 +364,13 @@ function csvCell(v) {
 }
 
 function downloadLocations() {
-  const rows = [['שם', 'כתובת כפי שהוזנה', 'מקום מזוהה', 'קו רוחב', 'קו אורך']]
+  const rows = [['שם', 'כתובת כפי שהוזנה', 'מקום מזוהה', 'רשת ישראל מזרח', 'רשת ישראל צפון', 'קו רוחב', 'קו אורך']]
   for (const c of props.cities) {
     const g = resolve(c.city)
+    const itm = g ? wgs84ToITM(g.lat, g.lng) : null
     const people = (c.people && c.people.length) ? c.people : ['—']
     for (const name of people) {
-      rows.push([name, c.city, g ? g.name : '', g ? g.lat : '', g ? g.lng : ''])
+      rows.push([name, c.city, g ? g.name : '', itm ? itm.east : '', itm ? itm.north : '', g ? g.lat : '', g ? g.lng : ''])
     }
   }
   const bom = String.fromCharCode(0xFEFF)
