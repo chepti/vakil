@@ -31,7 +31,7 @@
           class="btn-download"
           title="הורד תמונה"
         >⬇ הורד</a>
-        <button v-if="canEdit && !editingTitle" class="btn-delete" @click="deletePhoto">🗑 מחק תמונה</button>
+        <button v-if="canEdit && !editingTitle" class="btn-delete" @click="deletePhoto" title="מחק תמונה">🗑</button>
       </div>
 
       <div class="photo-layout">
@@ -44,7 +44,7 @@
               <button class="zoom-btn" @click="zoomOut" :disabled="zoom <= 1" title="הקטן">−</button>
               <span class="zoom-label">{{ Math.round(zoom * 100) }}%</span>
               <button class="zoom-btn" @click="zoomIn" :disabled="zoom >= 3" title="הגדל">+</button>
-              <button v-if="zoom !== 1" class="zoom-reset" @click="zoom = 1">איפוס</button>
+              <button class="zoom-reset" :class="{ 'zoom-reset--hidden': zoom === 1 }" @click="zoom = 1">איפוס</button>
             </div>
           </div>
 
@@ -462,7 +462,21 @@ function initials(name) {
 }
 h1 { font-size: 1.4rem; color: #1a3a6b; margin: 0; flex: 1; }
 h3 { font-size: 1rem; color: #1a3a6b; margin: 0 0 0.8rem; }
-.btn-back { color: #2d6be4; text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  background: #eef4ff;
+  border: 1.5px solid #c7dbf7;
+  color: #2d6be4;
+  padding: 0.4rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-family: 'Rubik', sans-serif;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-back:hover { background: #dbeafe; }
 .btn-download {
   background: #eef4ff;
   border: 1.5px solid #c7dbf7;
@@ -478,18 +492,21 @@ h3 { font-size: 1rem; color: #1a3a6b; margin: 0 0 0.8rem; }
 }
 .btn-download:hover { background: #dbeafe; }
 .btn-delete {
-  background: #dc2626;
-  color: white;
-  border: none;
-  padding: 0.45rem 1rem;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-family: 'Rubik', sans-serif;
+  width: 32px;
+  height: 32px;
+  background: white;
+  color: #dc2626;
+  border: 1.5px solid #fca5a5;
+  border-radius: 7px;
+  font-size: 1rem;
   cursor: pointer;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  padding: 0;
 }
-.btn-delete:hover { background: #b91c1c; }
+.btn-delete:hover { background: #fef2f2; border-color: #dc2626; }
 
 .btn-edit-title {
   background: #eef4ff; border: 1.5px solid #c7dbf7; color: #2d6be4;
@@ -556,7 +573,9 @@ h3 { font-size: 1rem; color: #1a3a6b; margin: 0 0 0.8rem; }
   border: 1.5px solid #d1dce8; background: white; color: #4a5568;
   border-radius: 7px; padding: 0.25rem 0.6rem; font-size: 0.8rem; cursor: pointer;
   font-family: 'Rubik', sans-serif;
+  transition: opacity 0.15s;
 }
+.zoom-reset--hidden { opacity: 0; pointer-events: none; }
 .zoom-reset:hover { border-color: #2d6be4; background: #edf3ff; }
 
 .photo-viewport {
