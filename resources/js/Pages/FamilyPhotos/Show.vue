@@ -25,12 +25,9 @@
           <button class="btn-title-cancel" @click="editingTitle = false">ביטול</button>
         </div>
 
-        <a
-          :href="photo.url"
-          :download="photo.title || 'family-photo'"
-          class="btn-download"
-          title="הורד תמונה"
-        >⬇ הורד</a>
+        <button class="btn-download" @click="downloadPhoto" :disabled="downloading">
+          {{ downloading ? '…' : '⬇ הורד' }}
+        </button>
         <button v-if="canEdit && !editingTitle" class="btn-delete" @click="deletePhoto" title="מחק תמונה">🗑</button>
       </div>
 
@@ -436,6 +433,32 @@ async function removeTag(tagId) {
 }
 
 // ── Utilities ─────────────────────────────────────────────────
+
+const downloading = ref(false)
+
+async function downloadPhoto() {
+  if (downloading.value) return
+  downloading.value = true
+  try {
+    const res = await fetch(props.photo.url)
+    if (!res.ok) throw new Error()
+    const blob = await res.blob()
+    const ext = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg'
+    const filename = (props.photo.title || 'family-photo').replace(/[^א-תa-zA-Z0-9 _-]/g, '') + '.' + ext
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch {
+    alert('שגיאה בהורדת התמונה')
+  } finally {
+    downloading.value = false
+  }
+}
 
 function csrfToken() {
   return document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
