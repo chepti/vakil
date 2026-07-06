@@ -286,7 +286,7 @@
           <button class="fab" :class="{ active: recipeBadgesOn }" @click="toggleRecipeBadges">
             🍳 <span>למי יש מתכון</span>
           </button>
-          <button class="fab" @click="openNameStory">
+          <button class="fab" @click="router.visit('/name-stories')">
             ✨ <span>למה קראו לי בשמי</span>
           </button>
         </div>
@@ -316,44 +316,6 @@
           </ul>
         </div>
       </div>
-
-      <!-- ═══ "למה קראו לי בשמי" — modal ═══ -->
-      <Transition name="ns-fade">
-        <div v-if="nameStoryOpen" class="ns-overlay" @click.self="closeNameStory" dir="rtl">
-          <div class="ns-modal">
-            <button class="ns-close" @click="closeNameStory">×</button>
-            <h2 class="ns-title">✨ למה קראו לי בשמי</h2>
-
-            <!-- Person picker -->
-            <div class="ns-search">
-              <input v-model="nameStorySearch" type="text" placeholder="חיפוש דמות..." dir="rtl" />
-              <div v-if="nameStoryResults.length" class="ns-results">
-                <div v-for="r in nameStoryResults" :key="r.id" class="ns-result"
-                     @click="selectNameStoryPerson(r.id)">
-                  <img v-if="r.data.avatar" :src="r.data.avatar" />
-                  <span v-else class="ns-result-init">{{ initials(personName(r)) }}</span>
-                  <span>{{ personName(r) }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Selected person's name story -->
-            <div v-if="nameStoryPerson" class="ns-body">
-              <div class="ns-person">
-                <img v-if="nameStoryPerson.data.avatar" :src="nameStoryPerson.data.avatar" />
-                <span v-else class="ns-result-init">{{ initials(personName(nameStoryPerson)) }}</span>
-                <strong>{{ personName(nameStoryPerson) }}</strong>
-              </div>
-              <textarea v-model="nameStoryEdit" rows="6"
-                placeholder="ספרו את הסיפור מאחורי השם — על שם מי נקרא/ה, למה נבחר השם, ומה משמעותו..."></textarea>
-              <button class="ns-save" @click="saveNameStory" :disabled="nameStorySaving">
-                {{ nameStorySaving ? 'שומר...' : 'שמור' }}
-              </button>
-            </div>
-            <div v-else class="ns-hint">בחרו דמות כדי לראות ולערוך את הסיפור מאחורי השם</div>
-          </div>
-        </div>
-      </Transition>
 
       <!-- Side panel -->
       <Transition name="panel-slide">
@@ -425,7 +387,6 @@
             <input type="email" v-model="ef.email" class="ef-input" dir="ltr" placeholder="✉️ מייל" />
             <input type="tel" v-model="ef.phone" class="ef-input" dir="ltr" placeholder="📞 טלפון" />
             <textarea v-model="ef.bio" class="ef-input ef-textarea" rows="2" placeholder="📝 מידע נוסף"></textarea>
-            <textarea v-model="ef.name_story" class="ef-input ef-textarea" rows="2" placeholder="✨ למה קראו לי בשמי — הסיפור מאחורי השם"></textarea>
 
             <template v-if="Object.keys(ef.marriages).length">
               <div v-for="(m, spouseId) in ef.marriages" :key="spouseId" class="ef-marriage" :class="{ 'ef-marriage-former': m.is_former }">
@@ -606,75 +567,6 @@ function goToRecipes(id) {
   router.visit(`/recipes?person=${id}`)
 }
 
-// ─── "למה קראו לי בשמי" — separate modal ──────────────────────
-const nameStoryOpen   = ref(false)
-const nameStoryId     = ref(null)
-const nameStorySearch = ref('')
-const nameStoryEdit   = ref('')
-const nameStorySaving = ref(false)
-
-const nameStoryPerson = computed(() =>
-  nameStoryId.value ? localNodes.value.find(n => n.id === String(nameStoryId.value)) : null
-)
-const nameStoryResults = computed(() => {
-  const q = nameStorySearch.value.trim().toLowerCase()
-  if (!q) return []
-  return localNodes.value
-    .filter(n => personName(n).toLowerCase().includes(q))
-    .slice(0, 8)
-})
-
-function openNameStory() {
-  activePanel.value = null
-  nameStoryOpen.value = true
-  // default to the currently selected person, if any
-  if (selectedPerson.value) selectNameStoryPerson(String(selectedPerson.value.id))
-}
-function selectNameStoryPerson(id) {
-  nameStoryId.value = id
-  nameStorySearch.value = ''
-  nameStoryEdit.value = nameStoryPerson.value?.data?.name_story || ''
-}
-function closeNameStory() {
-  nameStoryOpen.value = false
-  nameStoryId.value = null
-  nameStorySearch.value = ''
-  nameStoryEdit.value = ''
-}
-async function saveNameStory() {
-  if (!nameStoryId.value) return
-  const person = nameStoryPerson.value
-  if (!person) return
-  nameStorySaving.value = true
-  try {
-    const mar = {}
-    for (const [sid, m] of Object.entries(person.data?.marriages || {})) {
-      mar[sid] = { date: m?.date ?? '', date_he: m?.date_he ?? '', is_former: !!m?.is_former }
-    }
-    const freshNodes = await apiPut(`/api/family-tree/person/${nameStoryId.value}/details`, {
-      maiden_name:          person.data?.maiden_name   || null,
-      birth_date_gregorian: person.data?.birthday      || null,
-      birth_date_hebrew:    person.data?.birthday_he   || null,
-      is_deceased:          !!person.data?.is_deceased,
-      death_date_gregorian: person.data?.death_date    || null,
-      death_date_hebrew:    person.data?.death_date_he || null,
-      current_occupation:   person.data?.occupation    || null,
-      city:                 person.data?.city          || null,
-      email:                person.data?.email         || null,
-      phone:                person.data?.phone         || null,
-      bio:                  person.data?.bio           || null,
-      name_story:           nameStoryEdit.value        || null,
-      spouse_marriages:     mar,
-    })
-    localNodes.value = freshNodes
-    refreshChart(freshNodes)
-  } catch (err) {
-    console.error('save-name-story failed:', err)
-    alert('שגיאה בשמירה')
-  }
-  nameStorySaving.value = false
-}
-
 // ─── Add relative ─────────────────────────────────────────────
 const relTypes = [
   { key: 'father',  label: '+ אב',          gender: 'M', relsKey: 'children' },
@@ -689,7 +581,7 @@ const addRelSaving  = ref(false)
 const addRelForm    = ref({ first_name: '', last_name: '', birth_date_gregorian: '', birth_date_hebrew: '', marriage_date_gregorian: '', marriage_date_hebrew: '', gender: '' })
 
 // ─── Edit-details form ────────────────────────────────────────
-const ef       = ref({ maiden_name: '', birth_date_gregorian: '', birth_date_hebrew: '', is_deceased: false, death_date_gregorian: '', death_date_hebrew: '', occupation: '', city: '', email: '', phone: '', bio: '', name_story: '', marriages: {} })
+const ef       = ref({ maiden_name: '', birth_date_gregorian: '', birth_date_hebrew: '', is_deceased: false, death_date_gregorian: '', death_date_hebrew: '', occupation: '', city: '', email: '', phone: '', bio: '', marriages: {} })
 const efSaving = ref(false)
 
 watch(selectedPerson, (person) => {
@@ -710,7 +602,6 @@ watch(selectedPerson, (person) => {
     email:                person.email         || '',
     phone:                person.phone         || '',
     bio:                  person.bio           || '',
-    name_story:           person.name_story    || '',
     marriages,
   }
 }, { immediate: true })
@@ -2013,7 +1904,6 @@ async function savePerson() {
       email:                ef.value.email                || null,
       phone:                ef.value.phone                || null,
       bio:                  ef.value.bio                  || null,
-      name_story:           ef.value.name_story           || null,
       spouse_marriages:     ef.value.marriages,
     })
   } catch (err) {
@@ -2558,5 +2448,158 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
      so the selected family stays in view instead of being hidden behind the panel. */
   .radial-wrap.panel-open { flex: none; height: 42vh; }
   .radial-hint { font-size: 0.72rem; }
+}
+
+/* ═══ Floating overlay buttons (radial view) ═══ */
+.tree-fabs {
+  position: absolute;
+  top: 84px;
+  right: 18px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+.tree-fabs > * { pointer-events: auto; }
+
+.fab-handle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(45,107,228,0.25);
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(6px);
+  color: #1a3a6b;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,50,150,0.10);
+  transition: background 0.2s, transform 0.2s;
+}
+.fab-handle:hover { background: rgba(255,255,255,0.9); transform: scale(1.08); }
+.tree-fabs.collapsed .fab-handle { background: rgba(255,255,255,0.35); }
+
+.fab-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+.fab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(45,107,228,0.18);
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(7px);
+  border-radius: 22px;
+  padding: 8px 14px;
+  font-family: 'Rubik', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1a3a6b;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(0,50,150,0.10);
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.fab:hover { background: rgba(255,255,255,0.92); transform: translateX(-2px); }
+.fab.active {
+  background: rgba(45,107,228,0.92);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 16px rgba(45,107,228,0.35);
+}
+
+/* Birthday / anniversary popover */
+.fab-popover {
+  width: 260px;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: rgba(255,255,255,0.96);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(45,107,228,0.15);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 8px 28px rgba(0,50,150,0.18);
+}
+.seg {
+  display: flex;
+  gap: 4px;
+  background: #eef3fb;
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 8px;
+}
+.seg button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 6px 4px;
+  font-family: 'Rubik', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #5a6b85;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.seg button.on { background: #fff; color: #1a3a6b; box-shadow: 0 1px 4px rgba(0,50,150,0.12); }
+
+.fab-popover-count {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1a3a6b;
+  margin: 6px 2px 8px;
+  text-align: center;
+}
+.fab-scope { color: #8a9ab5; font-weight: 500; }
+
+.fab-list-people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fab-list-people li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.fab-list-people li:hover { background: #f0f6ff; }
+.cel-name { font-size: 0.85rem; color: #1a3a6b; font-weight: 500; }
+.cel-date { font-size: 0.75rem; color: #8a9ab5; white-space: nowrap; }
+.cel-date em { color: #ec4899; font-style: normal; font-weight: 700; }
+.cel-empty { color: #8a9ab5; font-size: 0.82rem; text-align: center; padding: 10px; cursor: default; }
+.cel-empty:hover { background: transparent; }
+
+/* SVG node highlights */
+.recipe-badge { cursor: pointer; }
+.recipe-badge:hover circle { fill: #c2410c; }
+.bday-ring { animation: bday-pulse 1.8s ease-in-out infinite; transform-origin: center; }
+@keyframes bday-pulse {
+  0%, 100% { opacity: 0.75; }
+  50%      { opacity: 1; }
+}
+.bday-balloon { animation: balloon-bob 2.4s ease-in-out infinite; }
+.bday-balloon-2 { animation-delay: 0.6s; }
+@keyframes balloon-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2.5px); }
+}
+.anniv-ring { animation: bday-pulse 2.2s ease-in-out infinite; }
+
+@media (max-width: 640px) {
+  .tree-fabs { top: 70px; right: 10px; gap: 6px; }
+  .fab { font-size: 0.8rem; padding: 7px 11px; }
+  .fab-popover { width: 220px; }
 }
 </style>

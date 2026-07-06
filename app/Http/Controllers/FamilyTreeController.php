@@ -187,7 +187,6 @@ class FamilyTreeController extends Controller
             'email'                       => 'nullable|email|max:255',
             'phone'                       => 'nullable|string|max:30',
             'bio'                         => 'nullable|string',
-            'name_story'                  => 'nullable|string',
             'spouse_marriages'            => 'nullable|array',
             'spouse_marriages.*.date'     => 'nullable|date',
             'spouse_marriages.*.date_he'  => 'nullable|string|max:60',
@@ -206,7 +205,6 @@ class FamilyTreeController extends Controller
             'email'                => $data['email']                ?? null,
             'phone'                => $data['phone']                ?? null,
             'bio'                  => $data['bio']                  ?? null,
-            'name_story'           => $data['name_story']           ?? null,
         ]);
 
         foreach ($data['spouse_marriages'] ?? [] as $spouseId => $dates) {
@@ -239,7 +237,7 @@ class FamilyTreeController extends Controller
             'id', 'first_name', 'last_name', 'maiden_name', 'gender',
             'birth_date_gregorian', 'birth_date_hebrew',
             'death_date_gregorian', 'death_date_hebrew', 'is_deceased',
-            'current_occupation', 'city', 'email', 'phone', 'bio', 'name_story', 'profile_photo'
+            'current_occupation', 'city', 'email', 'phone', 'bio', 'profile_photo'
         )->get();
 
         // מספר מתכונים המקושרים לכל דמות — לתג "למי יש מתכון" בעץ
@@ -366,7 +364,6 @@ class FamilyTreeController extends Controller
                     'email'         => $p->email,
                     'phone'         => $p->phone,
                     'bio'           => $p->bio,
-                    'name_story'    => $p->name_story,
                     'recipe_count'  => (int) ($recipeCounts[$p->id] ?? 0),
                     'marriages'     => (object) ($marriages[$p->id] ?? []),
                     'avatar'      => $p->profile_photo
