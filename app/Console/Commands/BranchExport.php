@@ -11,6 +11,7 @@ class BranchExport extends Command
     protected $signature = 'branch:export
         {person : מזהה דמות-השורש של הענף (id או origin_uuid)}
         {--output= : תיקיית יעד לקובץ ה-ZIP (ברירת מחדל: storage/app/branch-exports)}
+        {--light : חבילה קלה — בלי תמונות-מקור מלאות (רק הגרסאות המוצגות)}
         {--dry : הצגת היקף הענף בלבד, בלי ליצור קובץ}';
 
     protected $description = 'מייצא ענף שלם (דמות-שורש + צאצאים + בני זוג + כל התוכן הצמוד) לקובץ ZIP להעברה לאתר-אח';
@@ -41,7 +42,7 @@ class BranchExport extends Command
         }
 
         $outputDir = $this->option('output') ?: storage_path('app/branch-exports');
-        $zipPath = $service->export($root, $outputDir);
+        $zipPath = $service->export($root, $outputDir, skipOriginals: (bool) $this->option('light'));
 
         $this->info("נוצר: {$zipPath}");
         $this->line('גודל: ' . round(filesize($zipPath) / 1048576, 1) . ' MB');

@@ -49,9 +49,13 @@
             <option :value="null">בחרו את שורש הענף...</option>
             <option v-for="p in people" :key="p.id" :value="p.id">🌿 ענף {{ p.name }}</option>
           </select>
-          <a v-if="branchRootId" :href="`/admin/export/branch/${branchRootId}`" class="dl-btn">📦 הורדת חבילת ענף</a>
+          <a v-if="branchRootId" :href="`/admin/export/branch/${branchRootId}${branchLight ? '?light=1' : ''}`" class="dl-btn">📦 הורדת חבילת ענף</a>
           <span v-else class="dl-btn" style="opacity:.45; cursor:not-allowed;">📦 הורדת חבילת ענף</span>
         </div>
+        <label class="branch-light">
+          <input type="checkbox" v-model="branchLight" />
+          חבילה קלה — בלי תמונות מקור מלאות (מומלץ לשליחה; קובץ קטן בהרבה)
+        </label>
       </section>
 
       <!-- שליחת עדכון חודשי -->
@@ -227,6 +231,7 @@ const digestMessage = ref(usePage().props.flash?.digest_success ?? null)
 
 // העברת ענף
 const branchRootId = ref(null)
+const branchLight = ref(true)
 
 // הודעה מותאמת
 const customOpen    = ref(false)
@@ -353,6 +358,7 @@ function deleteUser(u) {
 
 /* הורדות */
 .download-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.branch-light { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: #9aa7c0; margin-top: 0.7rem; cursor: pointer; }
 .dl-btn {
   background: #edf3ff; color: #2d6be4; text-decoration: none;
   padding: 0.6rem 1rem; border-radius: 9px; font-size: 0.9rem; font-weight: 500;

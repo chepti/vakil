@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Person;
 use App\Models\Relationship;
+use App\Services\Photos\PhotoStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -462,10 +463,9 @@ class PersonController extends Controller
         if ($request->hasFile('source')) {
             $originalPath = $request->file('source')->store('photos/originals', 'public');
         } elseif (!empty($data['source_path']) && Storage::disk('public')->exists($data['source_path'])) {
-            $ext  = pathinfo($data['source_path'], PATHINFO_EXTENSION) ?: 'jpg';
-            $copy = 'photos/originals/' . \Illuminate\Support\Str::uuid() . '.' . $ext;
-            Storage::disk('public')->copy($data['source_path'], $copy);
-            $originalPath = $copy;
+            // חיתוך מתמונה שכבר קיימת — מפנים ישירות למקור הקיים בלי לשכפל אותו.
+            // אותו קובץ-מקור יכול לשמש כמה חיתוכים; מחיקה מוגנת בספירת-הפניות.
+            $originalPath = $data['source_path'];
         }
 
         \App\Models\Photo::create([
@@ -495,9 +495,9 @@ class PersonController extends Controller
 
         $wasCurrent = $person->profile_photo === $photo->thumb_path;
 
-        // מחיקת ה-thumb הישן (אך לא המקור!)
+        // מחיקת ה-thumb הישן (אך לא המקור, ולא אם משותף לרשומה אחרת)
         if ($photo->thumb_path && $photo->thumb_path !== $photo->original_path) {
-            Storage::disk('public')->delete($photo->thumb_path);
+            PhotoStorage::deleteIfUnreferenced($photo->thumb_path, $photo->id);
         }
 
         $newThumb = $request->file('profile_photo')->store('avatars', 'public');
@@ -529,12 +529,8 @@ class PersonController extends Controller
     {
         abort_unless($photo->person_id === $person->id, 404);
 
-        if ($photo->thumb_path && $photo->thumb_path !== $photo->original_path) {
-            Storage::disk('public')->delete($photo->thumb_path);
-        }
-        if ($photo->original_path) {
-            Storage::disk('public')->delete($photo->original_path);
-        }
+        $thumb = $photo->thumb_path;
+        $original = $photo->original_path;
 
         $wasCurrent = $person->profile_photo === $photo->thumb_path;
         $photo->delete();
@@ -543,6 +539,11 @@ class PersonController extends Controller
             $next = $person->photos()->latest()->first();
             $person->update(['profile_photo' => $next?->thumb_path]);
         }
+
+        // מוחקים קבצים רק אם אף רשומה/דמות אחרת כבר לא מפנה אליהם
+        // (אותו קובץ-מקור עשוי לשמש כמה חיתוכים).
+        PhotoStorage::deleteIfUnreferenced($thumb);
+        PhotoStorage::deleteIfUnreferenced($original);
 
         return redirect()->back()->with('success', 'התמונה נמחקה');
     }

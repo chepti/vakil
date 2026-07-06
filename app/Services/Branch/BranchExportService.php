@@ -24,11 +24,11 @@ class BranchExportService
     /**
      * @return string הנתיב המלא לקובץ ה-ZIP שנוצר
      */
-    public function export(Person $root, string $outputDir): string
+    public function export(Person $root, string $outputDir, bool $skipOriginals = false): string
     {
         $memberIds = $this->collectBranchMemberIds($root);
 
-        $payload = $this->buildPayload($root, $memberIds);
+        $payload = $this->buildPayload($root, $memberIds, $skipOriginals);
 
         return $this->writeZip($root, $payload, $outputDir);
     }
@@ -63,7 +63,7 @@ class BranchExportService
      * בונה את מבנה הנתונים המלא: לכל טבלה — רשימת רשומות כשה-FK
      * מוחלפים ב-origin_uuid, ורשימת קבצי מדיה לאריזה.
      */
-    private function buildPayload(Person $root, array $memberIds): array
+    private function buildPayload(Person $root, array $memberIds, bool $skipOriginals = false): array
     {
         $schema = BranchSchema::tables();
         $tables = [];
@@ -113,8 +113,18 @@ class BranchExportService
                     unset($data[$def['creator']]);
                 }
 
+                // בחבילה קלה: לא אורזים את תמונות-המקור המלאות.
+                // מפנים את original_path ל-thumb (שכן נכלל) כדי לשמור שלמות התייחסות.
+                if ($skipOriginals && $tableName === 'photos'
+                    && ! empty($data['original_path']) && $data['original_path'] !== ($data['thumb_path'] ?? null)) {
+                    $data['original_path'] = $data['thumb_path'] ?? null;
+                }
+
                 // איסוף קבצי מדיה
                 foreach ($def['media'] as $mediaCol) {
+                    if ($skipOriginals && $tableName === 'photos' && $mediaCol === 'original_path') {
+                        continue;
+                    }
                     if (! empty($data[$mediaCol])) {
                         $mediaFiles[$data[$mediaCol]] = true;
                     }

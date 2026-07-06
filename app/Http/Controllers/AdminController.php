@@ -180,11 +180,15 @@ class AdminController extends Controller
      * מייצא ענף שלם (דמות-שורש + צאצאים + בני זוג + תוכן צמוד + מדיה)
      * כ-ZIP להורדה — לייבוא באתר-אח עם branch:import.
      */
-    public function branchExport(Person $person, BranchExportService $service)
+    public function branchExport(Person $person, Request $request, BranchExportService $service)
     {
         $this->ensureAdmin();
 
-        $zipPath = $service->export($person, storage_path('app/branch-exports'));
+        $zipPath = $service->export(
+            $person,
+            storage_path('app/branch-exports'),
+            skipOriginals: $request->boolean('light'),
+        );
 
         return response()->download($zipPath)->deleteFileAfterSend(true);
     }
