@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOriginUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Relationship extends Model
 {
-    protected $fillable = ['person1_id', 'person2_id', 'type', 'sort_order', 'marriage_date_gregorian', 'marriage_date_hebrew', 'is_former', 'is_explicit'];
+    use HasOriginUuid;
+
+    protected $fillable = ['person1_id', 'person2_id', 'type', 'sort_order', 'marriage_date_gregorian', 'marriage_date_hebrew', 'is_former', 'is_explicit', 'origin_uuid'];
 
     protected $casts = [
         'marriage_date_gregorian' => 'date',

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Mail\InvitationMail;
+use App\Models\Concerns\HasOriginUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\Mail;
 
 class Person extends Model
 {
+    use HasOriginUuid;
+
     protected static function boot(): void
     {
         parent::boot();
@@ -64,6 +67,7 @@ class Person extends Model
         'death_date_gregorian', 'death_date_hebrew',
         'is_deceased', 'is_main_person', 'profile_photo', 'bio', 'name_story',
         'current_occupation', 'city', 'email', 'phone', 'created_by',
+        'origin_uuid',
     ];
 
     protected $casts = [

@@ -95,6 +95,15 @@
           @pointerup="onRadialPointerUp"
           @pointercancel="onRadialPointerUp"
         >
+          <defs>
+            <linearGradient id="bdayGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%"   stop-color="#f472b6" />
+              <stop offset="35%"  stop-color="#a855f7" />
+              <stop offset="70%"  stop-color="#38bdf8" />
+              <stop offset="100%" stop-color="#4ade80" />
+            </linearGradient>
+          </defs>
+
           <!-- Parents/spouse sector — soft amber wedge behind the relatives -->
           <path
             v-if="radialData.sectorPath"
@@ -195,6 +204,30 @@
             >
               <textPath :href="`#lpath-${node.id}`" startOffset="50%" text-anchor="middle">{{ node.isRoot ? node.fullName : node.firstName }}</textPath>
             </text>
+            <!-- 🎂 יום הולדת — מעגל צבעוני ובלונים -->
+            <g v-if="birthdayHighlightIds.has(node.id)" class="bday-highlight">
+              <circle :r="node.nodeR + 6" fill="none" stroke="url(#bdayGrad)" stroke-width="3.5" class="bday-ring" />
+              <text :y="-node.nodeR - 6" text-anchor="middle" :font-size="node.isRoot ? 20 : 16" class="bday-balloon">🎈</text>
+              <text :x="node.nodeR - 2" :y="-node.nodeR + 2" text-anchor="middle" :font-size="node.isRoot ? 15 : 12" class="bday-balloon bday-balloon-2">🎉</text>
+            </g>
+
+            <!-- 💍 יום נישואין — מעגל זהב -->
+            <g v-if="anniversaryHighlightIds.has(node.id)" class="anniv-highlight">
+              <circle :r="node.nodeR + 6" fill="none" stroke="#f5b800" stroke-width="3.5" class="anniv-ring" />
+              <circle :r="node.nodeR + 6" fill="none" stroke="#fff3c4" stroke-width="1" opacity="0.8" />
+              <text :y="-node.nodeR - 6" text-anchor="middle" :font-size="node.isRoot ? 18 : 14">💍</text>
+            </g>
+
+            <!-- 🍳 תג מספר מתכונים -->
+            <g v-if="recipeBadgesOn && node.recipeCount"
+               class="recipe-badge"
+               :transform="`translate(${-(node.nodeR - 3)}, ${-(node.nodeR - 3)})`"
+               @click.stop="goToRecipes(node.id)">
+              <circle r="10" fill="#ea580c" stroke="#fff" stroke-width="1.5" />
+              <text text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="10" font-weight="700"
+                    font-family="Rubik, sans-serif">{{ node.recipeCount }}</text>
+            </g>
+
             <!-- קיפול ענפים שכבר נפתחו -->
             <g v-if="node.openBranches?.length" class="branch-collapses">
               <g
@@ -238,6 +271,89 @@
         </svg>
         <div class="radial-hint">{{ radialHintText }}</div>
       </div>
+
+      <!-- ═══ Floating overlay buttons (radial view only) ═══ -->
+      <div v-if="radialMode && localNodes.length" class="tree-fabs" :class="{ collapsed: !fabsOpen }" dir="rtl">
+        <button class="fab-handle" @click="fabsOpen = !fabsOpen"
+          :title="fabsOpen ? 'הסתר כפתורים' : 'הצג כפתורים'">
+          {{ fabsOpen ? '✕' : '✨' }}
+        </button>
+
+        <div v-if="fabsOpen" class="fab-list">
+          <button class="fab" :class="{ active: activePanel === 'bday' }" @click="togglePanel('bday')">
+            🎂 <span>למי יש יום הולדת?</span>
+          </button>
+          <button class="fab" :class="{ active: recipeBadgesOn }" @click="toggleRecipeBadges">
+            🍳 <span>למי יש מתכון</span>
+          </button>
+          <button class="fab" @click="openNameStory">
+            ✨ <span>למה קראו לי בשמי</span>
+          </button>
+        </div>
+
+        <!-- Birthday / anniversary popover -->
+        <div v-if="fabsOpen && activePanel === 'bday'" class="fab-popover" dir="rtl">
+          <div class="seg">
+            <button :class="{ on: bdayMode === 'birthday' }" @click="bdayMode = 'birthday'">🎂 ימי הולדת</button>
+            <button :class="{ on: bdayMode === 'anniversary' }" @click="bdayMode = 'anniversary'">💍 ימי נישואין</button>
+          </div>
+          <div class="seg">
+            <button :class="{ on: bdayRange === 'today' }" @click="bdayRange = 'today'">היום</button>
+            <button :class="{ on: bdayRange === 'week' }"  @click="bdayRange = 'week'">השבוע</button>
+            <button :class="{ on: bdayRange === 'month' }" @click="bdayRange = 'month'">החודש</button>
+          </div>
+          <div class="fab-popover-count">
+            {{ celebrantsList.length }}
+            {{ bdayMode === 'birthday' ? 'חוגגים יום הולדת' : 'חוגגים יום נישואין' }}
+            <span class="fab-scope">({{ bdayRange === 'today' ? 'היום' : bdayRange === 'week' ? 'השבוע' : 'החודש' }})</span>
+          </div>
+          <ul class="fab-list-people">
+            <li v-for="c in celebrantsList" :key="c.id + (c.spouseId || '')" @click="goToPerson(c.id)">
+              <span class="cel-name">{{ c.name }}</span>
+              <span class="cel-date">{{ c.label }}<em v-if="c.diffDays === 0"> · היום!</em></span>
+            </li>
+            <li v-if="!celebrantsList.length" class="cel-empty">אין חגיגות בטווח שנבחר</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ═══ "למה קראו לי בשמי" — modal ═══ -->
+      <Transition name="ns-fade">
+        <div v-if="nameStoryOpen" class="ns-overlay" @click.self="closeNameStory" dir="rtl">
+          <div class="ns-modal">
+            <button class="ns-close" @click="closeNameStory">×</button>
+            <h2 class="ns-title">✨ למה קראו לי בשמי</h2>
+
+            <!-- Person picker -->
+            <div class="ns-search">
+              <input v-model="nameStorySearch" type="text" placeholder="חיפוש דמות..." dir="rtl" />
+              <div v-if="nameStoryResults.length" class="ns-results">
+                <div v-for="r in nameStoryResults" :key="r.id" class="ns-result"
+                     @click="selectNameStoryPerson(r.id)">
+                  <img v-if="r.data.avatar" :src="r.data.avatar" />
+                  <span v-else class="ns-result-init">{{ initials(personName(r)) }}</span>
+                  <span>{{ personName(r) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Selected person's name story -->
+            <div v-if="nameStoryPerson" class="ns-body">
+              <div class="ns-person">
+                <img v-if="nameStoryPerson.data.avatar" :src="nameStoryPerson.data.avatar" />
+                <span v-else class="ns-result-init">{{ initials(personName(nameStoryPerson)) }}</span>
+                <strong>{{ personName(nameStoryPerson) }}</strong>
+              </div>
+              <textarea v-model="nameStoryEdit" rows="6"
+                placeholder="ספרו את הסיפור מאחורי השם — על שם מי נקרא/ה, למה נבחר השם, ומה משמעותו..."></textarea>
+              <button class="ns-save" @click="saveNameStory" :disabled="nameStorySaving">
+                {{ nameStorySaving ? 'שומר...' : 'שמור' }}
+              </button>
+            </div>
+            <div v-else class="ns-hint">בחרו דמות כדי לראות ולערוך את הסיפור מאחורי השם</div>
+          </div>
+        </div>
+      </Transition>
 
       <!-- Side panel -->
       <Transition name="panel-slide">
@@ -309,6 +425,7 @@
             <input type="email" v-model="ef.email" class="ef-input" dir="ltr" placeholder="✉️ מייל" />
             <input type="tel" v-model="ef.phone" class="ef-input" dir="ltr" placeholder="📞 טלפון" />
             <textarea v-model="ef.bio" class="ef-input ef-textarea" rows="2" placeholder="📝 מידע נוסף"></textarea>
+            <textarea v-model="ef.name_story" class="ef-input ef-textarea" rows="2" placeholder="✨ למה קראו לי בשמי — הסיפור מאחורי השם"></textarea>
 
             <template v-if="Object.keys(ef.marriages).length">
               <div v-for="(m, spouseId) in ef.marriages" :key="spouseId" class="ef-marriage" :class="{ 'ef-marriage-former': m.is_former }">
@@ -353,11 +470,11 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { Link } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { createChart } from 'family-chart'
 import 'family-chart/styles/family-chart.css'
-import { gregorianToHebrew, hebrewToGregorian } from '@/utils/hebrewDate'
+import { gregorianToHebrew, hebrewToGregorian, hebBirthdayInfo } from '@/utils/hebrewDate'
 
 const props = defineProps({
   nodes:               { type: Array,   default: () => [] },
@@ -414,6 +531,150 @@ function goToPerson(id) {
   }
 }
 
+// ─── Floating overlay buttons (radial view only) ──────────────
+const fabsOpen         = ref(true)          // master show/hide of the floating buttons
+const activePanel      = ref(null)          // 'bday' | null — which popover is open
+const bdayMode         = ref('birthday')    // 'birthday' | 'anniversary'
+const bdayRange        = ref('month')       // 'today' | 'week' | 'month'
+const recipeBadgesOn   = ref(false)         // show recipe-count badges on the tree
+
+function togglePanel(name) {
+  activePanel.value = activePanel.value === name ? null : name
+}
+function toggleRecipeBadges() {
+  recipeBadgesOn.value = !recipeBadgesOn.value
+}
+
+// Person display name helper (shared)
+function personName(n) {
+  return `${n?.data?.['first name'] || ''} ${n?.data?.['last name'] || ''}`.trim()
+}
+
+function inSelectedRange(info) {
+  if (bdayRange.value === 'today') return info.isToday
+  if (bdayRange.value === 'week')  return info.inWeek
+  return info.inMonth
+}
+
+// List of celebrants (birthdays OR anniversaries) within the selected Hebrew range.
+// Sorted by how soon the occasion is. One row per couple for anniversaries.
+const celebrantsList = computed(() => {
+  const out = []
+  if (bdayMode.value === 'birthday') {
+    for (const n of localNodes.value) {
+      if (n.data?.is_deceased) continue
+      const info = hebBirthdayInfo(n.data?.birthday)
+      if (!info || !inSelectedRange(info)) continue
+      out.push({ id: n.id, name: personName(n), label: info.label, diffDays: info.diffDays })
+    }
+  } else {
+    const seen = new Set()
+    for (const n of localNodes.value) {
+      if (n.data?.is_deceased) continue
+      const mar = n.data?.marriages || {}
+      for (const [spouseId, m] of Object.entries(mar)) {
+        if (!m?.date || m.is_former) continue
+        const key = [n.id, spouseId].sort((a, b) => Number(a) - Number(b)).join('-')
+        if (seen.has(key)) continue
+        seen.add(key)
+        const spouse = localNodes.value.find(x => x.id === String(spouseId))
+        if (spouse?.data?.is_deceased) continue
+        const info = hebBirthdayInfo(m.date)
+        if (!info || !inSelectedRange(info)) continue
+        const names = [personName(n), spouse ? personName(spouse) : ''].filter(Boolean).join(' ♥ ')
+        out.push({ id: n.id, spouseId, name: names, label: info.label, diffDays: info.diffDays })
+      }
+    }
+  }
+  return out.sort((a, b) => a.diffDays - b.diffDays)
+})
+
+// Sets of person-ids to highlight on the tree, driven by the open panel + mode.
+const birthdayHighlightIds = computed(() => {
+  if (activePanel.value !== 'bday' || bdayMode.value !== 'birthday') return new Set()
+  return new Set(celebrantsList.value.map(c => c.id))
+})
+const anniversaryHighlightIds = computed(() => {
+  if (activePanel.value !== 'bday' || bdayMode.value !== 'anniversary') return new Set()
+  const s = new Set()
+  celebrantsList.value.forEach(c => { s.add(c.id); if (c.spouseId) s.add(String(c.spouseId)) })
+  return s
+})
+
+// ─── Recipe badge → open recipes filtered to that person ──────
+function goToRecipes(id) {
+  router.visit(`/recipes?person=${id}`)
+}
+
+// ─── "למה קראו לי בשמי" — separate modal ──────────────────────
+const nameStoryOpen   = ref(false)
+const nameStoryId     = ref(null)
+const nameStorySearch = ref('')
+const nameStoryEdit   = ref('')
+const nameStorySaving = ref(false)
+
+const nameStoryPerson = computed(() =>
+  nameStoryId.value ? localNodes.value.find(n => n.id === String(nameStoryId.value)) : null
+)
+const nameStoryResults = computed(() => {
+  const q = nameStorySearch.value.trim().toLowerCase()
+  if (!q) return []
+  return localNodes.value
+    .filter(n => personName(n).toLowerCase().includes(q))
+    .slice(0, 8)
+})
+
+function openNameStory() {
+  activePanel.value = null
+  nameStoryOpen.value = true
+  // default to the currently selected person, if any
+  if (selectedPerson.value) selectNameStoryPerson(String(selectedPerson.value.id))
+}
+function selectNameStoryPerson(id) {
+  nameStoryId.value = id
+  nameStorySearch.value = ''
+  nameStoryEdit.value = nameStoryPerson.value?.data?.name_story || ''
+}
+function closeNameStory() {
+  nameStoryOpen.value = false
+  nameStoryId.value = null
+  nameStorySearch.value = ''
+  nameStoryEdit.value = ''
+}
+async function saveNameStory() {
+  if (!nameStoryId.value) return
+  const person = nameStoryPerson.value
+  if (!person) return
+  nameStorySaving.value = true
+  try {
+    const mar = {}
+    for (const [sid, m] of Object.entries(person.data?.marriages || {})) {
+      mar[sid] = { date: m?.date ?? '', date_he: m?.date_he ?? '', is_former: !!m?.is_former }
+    }
+    const freshNodes = await apiPut(`/api/family-tree/person/${nameStoryId.value}/details`, {
+      maiden_name:          person.data?.maiden_name   || null,
+      birth_date_gregorian: person.data?.birthday      || null,
+      birth_date_hebrew:    person.data?.birthday_he   || null,
+      is_deceased:          !!person.data?.is_deceased,
+      death_date_gregorian: person.data?.death_date    || null,
+      death_date_hebrew:    person.data?.death_date_he || null,
+      current_occupation:   person.data?.occupation    || null,
+      city:                 person.data?.city          || null,
+      email:                person.data?.email         || null,
+      phone:                person.data?.phone         || null,
+      bio:                  person.data?.bio           || null,
+      name_story:           nameStoryEdit.value        || null,
+      spouse_marriages:     mar,
+    })
+    localNodes.value = freshNodes
+    refreshChart(freshNodes)
+  } catch (err) {
+    console.error('save-name-story failed:', err)
+    alert('שגיאה בשמירה')
+  }
+  nameStorySaving.value = false
+}
+
 // ─── Add relative ─────────────────────────────────────────────
 const relTypes = [
   { key: 'father',  label: '+ אב',          gender: 'M', relsKey: 'children' },
@@ -428,7 +689,7 @@ const addRelSaving  = ref(false)
 const addRelForm    = ref({ first_name: '', last_name: '', birth_date_gregorian: '', birth_date_hebrew: '', marriage_date_gregorian: '', marriage_date_hebrew: '', gender: '' })
 
 // ─── Edit-details form ────────────────────────────────────────
-const ef       = ref({ maiden_name: '', birth_date_gregorian: '', birth_date_hebrew: '', is_deceased: false, death_date_gregorian: '', death_date_hebrew: '', occupation: '', city: '', email: '', phone: '', bio: '', marriages: {} })
+const ef       = ref({ maiden_name: '', birth_date_gregorian: '', birth_date_hebrew: '', is_deceased: false, death_date_gregorian: '', death_date_hebrew: '', occupation: '', city: '', email: '', phone: '', bio: '', name_story: '', marriages: {} })
 const efSaving = ref(false)
 
 watch(selectedPerson, (person) => {
@@ -449,6 +710,7 @@ watch(selectedPerson, (person) => {
     email:                person.email         || '',
     phone:                person.phone         || '',
     bio:                  person.bio           || '',
+    name_story:           person.name_story    || '',
     marriages,
   }
 }, { immediate: true })
@@ -1451,6 +1713,7 @@ const radialData = computed(() => {
       lastName:  n?.data?.['last name']  || '',
       fullName:  fullNameOf(n),
       isDeceased: !!n?.data?.is_deceased,
+      recipeCount: Number(n?.data?.recipe_count || 0),
       isRoot, centerSpouse: !!pos.centerSpouse, spouse,
       openBranches: radialExpansions.value
         .filter(e => String(e.anchorId) === id)
@@ -1750,6 +2013,7 @@ async function savePerson() {
       email:                ef.value.email                || null,
       phone:                ef.value.phone                || null,
       bio:                  ef.value.bio                  || null,
+      name_story:           ef.value.name_story           || null,
       spouse_marriages:     ef.value.marriages,
     })
   } catch (err) {

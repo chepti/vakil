@@ -34,6 +34,12 @@
         </div>
       </div>
 
+      <!-- Filtered by person (from the family tree) -->
+      <div v-if="activePerson" class="person-filter-bar">
+        <span>🍳 מתכונים של <strong>{{ activePerson.name }}</strong></span>
+        <Link href="/recipes" class="person-filter-clear">× הצג את כל המתכונים</Link>
+      </div>
+
       <!-- Empty state -->
       <div v-if="recipes.length === 0" class="empty-state">
         <div class="empty-icon">🥘</div>
@@ -105,6 +111,7 @@ const props = defineProps({
     default: () => [],
   },
   categoryOptions: Array,
+  activePerson: { type: Object, default: null },
 })
 
 const catEmojis = {
@@ -158,6 +165,30 @@ function toggleCategory(cat) {
   padding: 2rem 1.5rem;
   font-family: 'Rubik', sans-serif;
 }
+
+.person-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: #fff7ed;
+  border: 1.5px solid #fdba74;
+  border-radius: 12px;
+  padding: 0.7rem 1.1rem;
+  margin-bottom: 1.25rem;
+  color: #9a3412;
+  font-size: 0.95rem;
+}
+.person-filter-bar strong { color: #7c2d12; }
+.person-filter-clear {
+  color: #b45309;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.person-filter-clear:hover { text-decoration: underline; }
 
 /* Header */
 .page-header {

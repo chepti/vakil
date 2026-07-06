@@ -187,6 +187,7 @@ class FamilyTreeController extends Controller
             'email'                       => 'nullable|email|max:255',
             'phone'                       => 'nullable|string|max:30',
             'bio'                         => 'nullable|string',
+            'name_story'                  => 'nullable|string',
             'spouse_marriages'            => 'nullable|array',
             'spouse_marriages.*.date'     => 'nullable|date',
             'spouse_marriages.*.date_he'  => 'nullable|string|max:60',
@@ -205,6 +206,7 @@ class FamilyTreeController extends Controller
             'email'                => $data['email']                ?? null,
             'phone'                => $data['phone']                ?? null,
             'bio'                  => $data['bio']                  ?? null,
+            'name_story'           => $data['name_story']           ?? null,
         ]);
 
         foreach ($data['spouse_marriages'] ?? [] as $spouseId => $dates) {

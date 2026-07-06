@@ -36,6 +36,24 @@
         </div>
       </section>
 
+      <!-- העברת ענף לאתר-אח -->
+      <section class="panel">
+        <h2>🌿 העברת ענף לאתר-אח</h2>
+        <p class="hint">
+          מוריד קובץ ZIP עם ענף שלם — הדמות הנבחרת, כל צאצאיה ובני/בנות הזוג,
+          כולל תמונות, אירועים, סיפורי שם ואלבום.
+          את הקובץ מייבאים באתר-אח (עותק נפרד של האתר) והדמות הנבחרת הופכת שם למרכז העץ.
+        </p>
+        <div class="download-row">
+          <select v-model="branchRootId" class="custom-input" style="max-width: 280px;">
+            <option :value="null">בחרו את שורש הענף...</option>
+            <option v-for="p in people" :key="p.id" :value="p.id">🌿 ענף {{ p.name }}</option>
+          </select>
+          <a v-if="branchRootId" :href="`/admin/export/branch/${branchRootId}`" class="dl-btn">📦 הורדת חבילת ענף</a>
+          <span v-else class="dl-btn" style="opacity:.45; cursor:not-allowed;">📦 הורדת חבילת ענף</span>
+        </div>
+      </section>
+
       <!-- שליחת עדכון חודשי -->
       <section class="panel">
         <h2>📬 עדכון חודשי במייל</h2>
@@ -206,6 +224,9 @@ const docForm = useForm({ title: '', file: null })
 // דיגסט מייל
 const digestSending = ref(false)
 const digestMessage = ref(usePage().props.flash?.digest_success ?? null)
+
+// העברת ענף
+const branchRootId = ref(null)
 
 // הודעה מותאמת
 const customOpen    = ref(false)

@@ -2,13 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOriginUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class FamilyPhoto extends Model
 {
-    protected $fillable = ['path', 'title', 'uploaded_by'];
+    use HasOriginUuid;
+
+    protected $fillable = ['path', 'title', 'uploaded_by', 'origin_uuid'];
 
     public function tags(): HasMany
     {

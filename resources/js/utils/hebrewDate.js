@@ -93,6 +93,52 @@ export function hebrewDayMonth(dateStr) {
   return p ? `${p.dayHe} ב${p.monthHe}` : ''
 }
 
+// אדר / אדר א' / אדר ב' — נחשבים כאותו חודש לצורך "מי חוגג החודש"
+const ADAR_FAMILY = new Set(['Adar', 'Adar I', 'Adar II'])
+
+// מידע על יום-הולדת/יום-נישואין עברי מתוך תאריך לועזי:
+// מחזיר { label, diffDays, isToday, inWeek, inMonth, nextGreg } או null.
+// diffDays = מספר הימים עד המופע הקרוב של התאריך העברי (0 = היום).
+export function hebBirthdayInfo(gregorianStr, today = new Date()) {
+  const p = gregorianToHebrewParts(gregorianStr)
+  if (!p) return null
+  const todayHd    = new HDate(today)
+  const curYear    = todayHd.getFullYear()
+  const curMonthEn = todayHd.getMonthName()
+  const d0 = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+  // התאריך הלועזי של המופע העברי בשנה נתונה (עם נפילה-לאחור לאדר בשנה מעוברת/רגילה)
+  function occGreg(year) {
+    let hd
+    try { hd = new HDate(p.day, p.monthEn, year) }
+    catch {
+      try { hd = new HDate(p.day, 'Adar II', year) }
+      catch { try { hd = new HDate(p.day, 'Adar', year) } catch { return null } }
+    }
+    const g = hd.greg()
+    return new Date(g.getFullYear(), g.getMonth(), g.getDate())
+  }
+
+  let gd = occGreg(curYear)
+  if (!gd) return null
+  // אם המופע כבר עבר השנה — קח את המופע בשנה העברית הבאה (לחישוב "השבוע" סביב ראש השנה)
+  if (gd < d0) { const g2 = occGreg(curYear + 1); if (g2) gd = g2 }
+
+  const diffDays = Math.round((gd - d0) / 86400000)
+  const inMonth  = (ADAR_FAMILY.has(p.monthEn) && ADAR_FAMILY.has(curMonthEn)) || p.monthEn === curMonthEn
+
+  return {
+    label:   `${p.dayHe} ב${p.monthHe}`,
+    dayHe:   p.dayHe,
+    monthHe: p.monthHe,
+    diffDays,
+    isToday: diffDays === 0,
+    inWeek:  diffDays >= 0 && diffDays <= 6,
+    inMonth,
+    nextGreg: gd,
+  }
+}
+
 // החודש העברי הנוכחי — { monthEn, monthHe, year }
 export function currentHebrewMonth(today = new Date()) {
   const hd = new HDate(today)

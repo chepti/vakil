@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOriginUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PhotoTag extends Model
 {
-    protected $fillable = ['family_photo_id', 'person_id', 'x_percent', 'y_percent', 'w_percent', 'h_percent'];
+    use HasOriginUuid;
+
+    protected $fillable = ['family_photo_id', 'person_id', 'x_percent', 'y_percent', 'w_percent', 'h_percent', 'origin_uuid'];
 
     public function familyPhoto(): BelongsTo
     {

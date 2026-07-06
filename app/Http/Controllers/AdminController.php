@@ -8,6 +8,7 @@ use App\Models\Document;
 use App\Models\Invitation;
 use App\Models\Person;
 use App\Models\User;
+use App\Services\Branch\BranchExportService;
 use App\Services\DigestBuilder;
 use App\Support\HebrewDate;
 use Carbon\Carbon;
@@ -171,6 +172,21 @@ class AdminController extends Controller
         $document->delete();
 
         return back()->with('success', 'המסמך נמחק');
+    }
+
+    // ─── ייצוא ענף לאתר-אח ─────────────────────────────────────────
+
+    /**
+     * מייצא ענף שלם (דמות-שורש + צאצאים + בני זוג + תוכן צמוד + מדיה)
+     * כ-ZIP להורדה — לייבוא באתר-אח עם branch:import.
+     */
+    public function branchExport(Person $person, BranchExportService $service)
+    {
+        $this->ensureAdmin();
+
+        $zipPath = $service->export($person, storage_path('app/branch-exports'));
+
+        return response()->download($zipPath)->deleteFileAfterSend(true);
     }
 
     // ─── ייצוא CSV ─────────────────────────────────────────────────

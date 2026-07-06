@@ -93,6 +93,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/users/{user}', [AdminController::class, 'deleteUser'])->name('users.delete');
         Route::post('/documents', [AdminController::class, 'uploadDocument'])->name('documents.upload');
         Route::delete('/documents/{document}', [AdminController::class, 'deleteDocument'])->name('documents.delete');
+        Route::get('/export/branch/{person}', [AdminController::class, 'branchExport'])->name('export.branch');
         Route::get('/export/family', [AdminController::class, 'exportFamily'])->name('export.family');
         Route::get('/export/users', [AdminController::class, 'exportUsers'])->name('export.users');
         Route::get('/export/birthdays', [AdminController::class, 'exportBirthdays'])->name('export.birthdays');

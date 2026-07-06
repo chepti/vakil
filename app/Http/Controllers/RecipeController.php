@@ -24,6 +24,17 @@ class RecipeController extends Controller
             ->withCount('comments')
             ->latest();
 
+        // סינון לפי דמות — מגיע מתג "למי יש מתכון" בעץ המשפחה
+        $personId = $request->query('person');
+        $activePerson = null;
+        if ($personId) {
+            $query->where('person_id', $personId);
+            $person = Person::find($personId);
+            if ($person) {
+                $activePerson = ['id' => $person->id, 'name' => $person->full_name];
+            }
+        }
+
         if (!empty($categories)) {
             $query->where(function ($q) use ($categories) {
                 foreach ($categories as $cat) {
@@ -62,6 +73,7 @@ class RecipeController extends Controller
             'recipes'          => $recipes,
             'activeCategories' => array_values($categories),
             'categoryOptions'  => $allCategoryTokens,
+            'activePerson'     => $activePerson,
         ]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOriginUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Mail;
 
 class Event extends Model
 {
+    use HasOriginUuid;
+
     protected static function boot(): void
     {
         parent::boot();
@@ -38,7 +41,7 @@ class Event extends Model
     protected $fillable = [
         'person_id', 'type', 'event_date', 'event_time', 'hebrew_date', 'title', 'description',
         'location', 'invitation_image', 'photos_link', 'audience', 'audience_branch_person_id',
-        'created_by',
+        'created_by', 'origin_uuid',
     ];
 
     protected $casts = [
