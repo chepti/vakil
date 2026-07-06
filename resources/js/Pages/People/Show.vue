@@ -52,6 +52,33 @@
         </div>
       </div>
 
+      <!-- ─── סיפור השם — "למה קראו לי בשמי" ─── -->
+      <div class="name-story-section">
+        <div class="ns-header">
+          <h2>📜 למה קראו לי בשמי</h2>
+          <Link
+            v-if="nameStory && nameStory.can_edit"
+            :href="`/name-stories/${nameStory.id}/edit`"
+            class="ns-action"
+          >✏️ עריכה</Link>
+          <Link
+            v-else-if="!nameStory"
+            :href="`/name-stories/create?person=${person.id}`"
+            class="ns-action ns-action-add"
+          >+ הוסף סיפור</Link>
+        </div>
+
+        <div v-if="nameStory" class="ns-card">
+          <span class="ns-quote">”</span>
+          <div class="ns-text" v-html="renderRichText(nameStory.content)"></div>
+          <div v-if="nameStory.created_by_name" class="ns-byline">נכתב ע״י {{ nameStory.created_by_name }}</div>
+        </div>
+        <Link v-else :href="`/name-stories/create?person=${person.id}`" class="ns-empty">
+          <span class="ns-empty-icon">✍️</span>
+          <span>עדיין אין סיפור על השם של {{ person.first_name }} — רוצים לספר?</span>
+        </Link>
+      </div>
+
       <!-- ─── Family grid ─── -->
       <div class="family-grid">
 
@@ -694,6 +721,7 @@ import { ref, computed, reactive, nextTick } from 'vue'
 import { Link, router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { gregorianToHebrew, hebrewToGregorian } from '@/utils/hebrewDate'
+import { renderRichText } from '@/utils/richText'
 
 // המרה דו-כיוונית על אובייקט טופס נתון — ממלא רק אם ההמרה הצליחה
 function syncH(obj, gKey, hKey)  { const v = gregorianToHebrew(obj[gKey]); if (v) obj[hKey] = v }
@@ -710,6 +738,7 @@ const props = defineProps({
   allPeople:    { type: Array,  default: () => [] },
   parentIds:    { type: Array,  default: () => [] },
   spouseId:     { type: [Number, null], default: null },
+  nameStory:    { type: [Object, null], default: null },
 })
 
 // ─── Photo upload ─────────────────────────────────────────
@@ -1388,6 +1417,67 @@ h1 { font-size: 1.8rem; color: #1a3a6b; margin: 0; }
 /* ─── Family grid ─── */
 .family-grid { display: flex; flex-direction: column; gap: 1.25rem; }
 .family-section { background: white; border-radius: 14px; padding: 1.25rem 1.5rem; box-shadow: 0 2px 10px rgba(0,50,150,0.06); }
+
+/* ─── סיפור השם ─── */
+.name-story-section { margin: 1.25rem 0; }
+.ns-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; }
+.ns-header h2 { color: #4a2e83; }
+.ns-action {
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: #8b5cf6;
+  border: 1.5px solid #e5ddf5;
+  padding: 0.3rem 0.75rem;
+  border-radius: 8px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.ns-action:hover { background: #faf8ff; border-color: #c4b5fd; }
+.ns-action-add { border-style: dashed; }
+
+.ns-card {
+  position: relative;
+  background: linear-gradient(135deg, #faf8ff, #f5f0ff);
+  border: 1px solid #ece4fb;
+  border-inline-start: 4px solid #c4b5fd;
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 2px 12px rgba(74,46,131,0.06);
+}
+.ns-quote {
+  position: absolute;
+  top: 0.1rem;
+  inset-inline-start: 0.9rem;
+  font-size: 2.8rem;
+  color: #d6c9f7;
+  line-height: 1;
+  font-family: Georgia, serif;
+}
+.ns-text {
+  color: #4a4362;
+  font-size: 1rem;
+  line-height: 1.8;
+  padding-top: 0.5rem;
+  white-space: normal;
+}
+.ns-text :deep(strong) { color: #5b21b6; font-weight: 700; }
+.ns-byline { margin-top: 0.9rem; font-size: 0.8rem; color: #b0a4cc; text-align: left; }
+
+.ns-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #faf8ff;
+  border: 2px dashed #e5ddf5;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  color: #8a7fa8;
+  font-size: 0.92rem;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.ns-empty:hover { border-color: #c4b5fd; background: #f5f0ff; color: #6d28d9; }
+.ns-empty-icon { font-size: 1.4rem; }
 
 .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
 .section-header-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }

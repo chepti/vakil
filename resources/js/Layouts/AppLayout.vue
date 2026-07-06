@@ -23,6 +23,7 @@
               <Sparkles :size="18" /> פעילות <ChevronDown :size="14" class="chevron" />
             </button>
             <div class="dropdown-menu">
+              <Link href="/name-stories" class="dropdown-item" @click="activityOpen = false"><ScrollText :size="16" /> סיפורי שמות</Link>
               <Link href="/game" class="dropdown-item" @click="activityOpen = false"><Gamepad2 :size="16" /> משחק</Link>
               <Link href="/stats" class="dropdown-item" @click="activityOpen = false"><BarChart3 :size="16" /> מספרים</Link>
               <Link href="/print/tree" class="dropdown-item" @click="activityOpen = false"><Printer :size="16" /> הדפסה</Link>
@@ -55,6 +56,7 @@
         <Link href="/events" class="mobile-link" @click="mobileOpen = false"><CalendarDays :size="18" /> אירועים</Link>
         <Link href="/recipes" class="mobile-link" @click="mobileOpen = false"><ChefHat :size="18" /> מתכונים</Link>
         <div class="mobile-section-label">פעילות</div>
+        <Link href="/name-stories" class="mobile-link mobile-indent" @click="mobileOpen = false"><ScrollText :size="18" /> סיפורי שמות</Link>
         <Link href="/game" class="mobile-link mobile-indent" @click="mobileOpen = false"><Gamepad2 :size="18" /> משחק</Link>
         <Link href="/stats" class="mobile-link mobile-indent" @click="mobileOpen = false"><BarChart3 :size="18" /> מספרים</Link>
         <Link href="/print/tree" class="mobile-link mobile-indent" @click="mobileOpen = false"><Printer :size="18" /> הדפסה</Link>
@@ -79,7 +81,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
-import { TreePine, Network, Users, Images, CalendarDays, Gamepad2, BarChart3, Printer, Settings, ChefHat, Sparkles, ChevronDown } from 'lucide-vue-next'
+import { TreePine, Network, Users, Images, CalendarDays, Gamepad2, BarChart3, Printer, Settings, ChefHat, Sparkles, ChevronDown, ScrollText } from 'lucide-vue-next'
 
 defineProps({
   title: { type: String, default: '' },
@@ -91,7 +93,7 @@ const page = usePage()
 
 const isActivityActive = computed(() => {
   const url = page.url
-  return url.startsWith('/game') || url.startsWith('/stats') || url.startsWith('/print')
+  return url.startsWith('/game') || url.startsWith('/stats') || url.startsWith('/print') || url.startsWith('/name-stories')
 })
 </script>
 

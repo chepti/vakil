@@ -224,7 +224,27 @@ class PersonController extends Controller
             'allPeople'    => $allPeople,
             'parentIds'    => $person->parents->pluck('id')->values(),
             'spouseId'     => $spouses->first()?->id,
+            'nameStory'    => $this->loadNameStory($person),
         ]);
+    }
+
+    /** סיפור השם של הדמות — "למה קראו לי בשמי" (הטבלה עשויה שלא להתקיים עדיין) */
+    private function loadNameStory(Person $person): ?array
+    {
+        try {
+            $story = $person->nameStory()->with('createdBy')->first();
+        } catch (\Exception $e) {
+            return null;
+        }
+
+        if (! $story) return null;
+
+        return [
+            'id'              => $story->id,
+            'content'         => $story->content,
+            'created_by_name' => $story->createdBy?->name,
+            'can_edit'        => Auth::user()->role === 'admin' || $story->created_by === Auth::id(),
+        ];
     }
 
     public function addParent(Request $request, Person $person)

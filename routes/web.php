@@ -5,6 +5,7 @@ use App\Http\Controllers\FamilyPhotoController;
 use App\Http\Controllers\FamilyTreeController;
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\NameStoryController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\OnboardingController;
@@ -117,6 +118,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/recipes/{recipe}/comments', [RecipeController::class, 'addComment'])->name('recipes.comments.add');
     Route::delete('/recipe-comments/{comment}', [RecipeController::class, 'deleteComment'])->name('recipes.comments.delete');
     Route::post('/recipes/{recipe}/adaptation', [RecipeController::class, 'saveAdaptation'])->name('recipes.adaptation');
+
+    // סיפורי שמות — "למה קראו לי בשמי"
+    Route::get('/name-stories', [NameStoryController::class, 'index'])->name('name-stories.index');
+    Route::get('/name-stories/create', [NameStoryController::class, 'create'])->name('name-stories.create');
+    Route::post('/name-stories', [NameStoryController::class, 'store'])->name('name-stories.store');
+    Route::get('/name-stories/{nameStory}/edit', [NameStoryController::class, 'edit'])->name('name-stories.edit');
+    Route::put('/name-stories/{nameStory}', [NameStoryController::class, 'update'])->name('name-stories.update');
+    Route::delete('/name-stories/{nameStory}', [NameStoryController::class, 'destroy'])->name('name-stories.destroy');
 
     // משחק — "הדרך אל סבתא ואקיל"
     Route::get('/game', [GameController::class, 'index'])->name('game');

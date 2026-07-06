@@ -109,6 +109,11 @@ class Person extends Model
         return $this->hasMany(Event::class);
     }
 
+    public function nameStory(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(NameStory::class);
+    }
+
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class);
