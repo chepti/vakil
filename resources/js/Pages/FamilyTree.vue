@@ -218,6 +218,32 @@
               <text :y="-node.nodeR - 6" text-anchor="middle" :font-size="node.isRoot ? 18 : 14">💍</text>
             </g>
 
+            <!-- 📅 תאריך יום הולדת לכולם — באדום כשחסר, כדי שיתקנו -->
+            <text v-if="showAllDates && node.birthdayHe"
+                  class="date-label"
+                  :y="node.nodeR + (node.isRoot || node.centerSpouse ? 19 : 15)"
+                  text-anchor="middle" dominant-baseline="hanging"
+                  font-size="6.5" font-family="Rubik, sans-serif" font-weight="600"
+                  fill="#0e7490"
+                  stroke="rgba(240,246,255,0.92)" stroke-width="2.5" paint-order="stroke"
+            >🎂 {{ node.birthdayHe }}</text>
+            <text v-else-if="showAllDates"
+                  class="date-label date-missing"
+                  :y="node.nodeR + (node.isRoot || node.centerSpouse ? 19 : 15)"
+                  text-anchor="middle" dominant-baseline="hanging"
+                  font-size="6.5" font-family="Rubik, sans-serif" font-weight="700"
+                  fill="#dc2626"
+                  stroke="rgba(240,246,255,0.92)" stroke-width="2.5" paint-order="stroke"
+            >חסר תאריך 🎂</text>
+
+            <!-- ✨ יש סיפור שם — הדגשה סגולה -->
+            <g v-if="storyHighlightOn && node.hasNameStory" class="story-highlight">
+              <circle :r="node.nodeR + 6" fill="none" stroke="#a855f7" stroke-width="3" stroke-dasharray="7 4" class="story-ring" />
+              <text :y="-node.nodeR - 6" text-anchor="middle" :font-size="node.isRoot ? 18 : 14"
+                    class="story-spark" @click.stop="router.visit('/name-stories')"
+              >✨<title>יש סיפור שם — לחצו לעמוד הסיפורים</title></text>
+            </g>
+
             <!-- 🍳 תג מספר מתכונים -->
             <g v-if="recipeBadgesOn && node.recipeCount"
                class="recipe-badge"
@@ -286,7 +312,7 @@
           <button class="fab" :class="{ active: recipeBadgesOn }" @click="toggleRecipeBadges">
             🍳 <span>למי יש מתכון</span>
           </button>
-          <button class="fab" @click="router.visit('/name-stories')">
+          <button class="fab" :class="{ active: storyHighlightOn }" @click="storyHighlightOn = !storyHighlightOn">
             ✨ <span>למה קראו לי בשמי</span>
           </button>
         </div>
@@ -302,6 +328,10 @@
             <button :class="{ on: bdayRange === 'week' }"  @click="bdayRange = 'week'">השבוע</button>
             <button :class="{ on: bdayRange === 'month' }" @click="bdayRange = 'month'">החודש</button>
           </div>
+          <button class="dates-toggle" :class="{ on: showAllDates }" @click="showAllDates = !showAllDates">
+            📅 הצג את כל התאריכים על העץ
+          </button>
+          <div v-if="showAllDates" class="dates-hint">באדום — דמויות שחסר להן תאריך לידה</div>
           <div class="fab-popover-count">
             {{ celebrantsList.length }}
             {{ bdayMode === 'birthday' ? 'חוגגים יום הולדת' : 'חוגגים יום נישואין' }}
@@ -314,6 +344,13 @@
             </li>
             <li v-if="!celebrantsList.length" class="cel-empty">אין חגיגות בטווח שנבחר</li>
           </ul>
+        </div>
+
+        <!-- Name-story popover -->
+        <div v-if="fabsOpen && storyHighlightOn" class="fab-popover" dir="rtl">
+          <div class="fab-popover-count">✨ {{ storyCount }} דמויות עם סיפור שם</div>
+          <Link href="/name-stories" class="story-page-link">לקריאת כל הסיפורים ←</Link>
+          <Link href="/name-stories/create" class="story-page-link story-add-link">+ הוסיפו סיפור לדמות</Link>
         </div>
       </div>
 
@@ -435,7 +472,7 @@ import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { createChart } from 'family-chart'
 import 'family-chart/styles/family-chart.css'
-import { gregorianToHebrew, hebrewToGregorian, hebBirthdayInfo } from '@/utils/hebrewDate'
+import { gregorianToHebrew, hebrewToGregorian, hebBirthdayInfo, hebrewDayMonth } from '@/utils/hebrewDate'
 
 const props = defineProps({
   nodes:               { type: Array,   default: () => [] },
@@ -498,6 +535,8 @@ const activePanel      = ref(null)          // 'bday' | null — which popover i
 const bdayMode         = ref('birthday')    // 'birthday' | 'anniversary'
 const bdayRange        = ref('month')       // 'today' | 'week' | 'month'
 const recipeBadgesOn   = ref(false)         // show recipe-count badges on the tree
+const showAllDates     = ref(false)         // show every birth date under the nodes (red = missing)
+const storyHighlightOn = ref(false)         // highlight figures that have a name story
 
 function togglePanel(name) {
   activePanel.value = activePanel.value === name ? null : name
@@ -561,6 +600,11 @@ const anniversaryHighlightIds = computed(() => {
   celebrantsList.value.forEach(c => { s.add(c.id); if (c.spouseId) s.add(String(c.spouseId)) })
   return s
 })
+
+// כמה דמויות עם סיפור שם — לפאנל "למה קראו לי בשמי"
+const storyCount = computed(() =>
+  localNodes.value.filter(n => n.data?.has_name_story).length
+)
 
 // ─── Recipe badge → open recipes filtered to that person ──────
 function goToRecipes(id) {
@@ -1605,6 +1649,8 @@ const radialData = computed(() => {
       fullName:  fullNameOf(n),
       isDeceased: !!n?.data?.is_deceased,
       recipeCount: Number(n?.data?.recipe_count || 0),
+      hasNameStory: !!n?.data?.has_name_story,
+      birthdayHe: hebrewDayMonth(n?.data?.birthday),
       isRoot, centerSpouse: !!pos.centerSpouse, spouse,
       openBranches: radialExpansions.value
         .filter(e => String(e.anchorId) === id)
@@ -2581,7 +2627,62 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 .cel-empty { color: #8a9ab5; font-size: 0.82rem; text-align: center; padding: 10px; cursor: default; }
 .cel-empty:hover { background: transparent; }
 
+/* Dates toggle inside the birthday popover */
+.dates-toggle {
+  width: 100%;
+  border: 1.5px dashed #b0c8e4;
+  background: #f8fbff;
+  border-radius: 10px;
+  padding: 7px 8px;
+  font-family: 'Rubik', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1a3a6b;
+  cursor: pointer;
+  margin-bottom: 6px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.dates-toggle:hover { background: #eef5ff; }
+.dates-toggle.on {
+  background: #0e7490;
+  border-color: #0e7490;
+  border-style: solid;
+  color: #fff;
+}
+.dates-hint {
+  font-size: 0.72rem;
+  color: #dc2626;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+/* Name-story popover links */
+.story-page-link {
+  display: block;
+  text-align: center;
+  background: #f5f0ff;
+  border: 1px solid #ddd0f5;
+  border-radius: 10px;
+  padding: 8px;
+  margin-top: 6px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #7c3aed;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.story-page-link:hover { background: #ede4ff; }
+.story-add-link { background: #fdf9ef; border-color: #f3e3bb; color: #b45309; }
+.story-add-link:hover { background: #faf1da; }
+
 /* SVG node highlights */
+.date-label { pointer-events: none; }
+.story-ring { animation: story-spin 14s linear infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes story-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.story-spark { cursor: pointer; }
 .recipe-badge { cursor: pointer; }
 .recipe-badge:hover circle { fill: #c2410c; }
 .bday-ring { animation: bday-pulse 1.8s ease-in-out infinite; transform-origin: center; }

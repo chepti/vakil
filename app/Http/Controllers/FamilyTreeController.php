@@ -246,6 +246,9 @@ class FamilyTreeController extends Controller
             ->groupBy('person_id')
             ->pluck('c', 'person_id');
 
+        // למי יש סיפור שם — להדגשה בעץ ("למה קראו לי בשמי")
+        $storyIds = \App\Models\NameStory::pluck('person_id')->flip();
+
         // סדר משני יציב (person2_id) כדי שילדים ללא sort_order לא יחליפו מקומות בין רענונים
         $relationships = Relationship::orderByRaw('COALESCE(sort_order, 999) ASC')
             ->orderBy('person2_id')
@@ -345,7 +348,7 @@ class FamilyTreeController extends Controller
         }
         unset($childIds);
 
-        $nodes = $people->map(function ($p) use ($children, $parents, $spouses, $marriages, $recipeCounts) {
+        $nodes = $people->map(function ($p) use ($children, $parents, $spouses, $marriages, $recipeCounts, $storyIds) {
             $id = (string) $p->id;
             return [
                 'id'   => $id,
@@ -365,6 +368,7 @@ class FamilyTreeController extends Controller
                     'phone'         => $p->phone,
                     'bio'           => $p->bio,
                     'recipe_count'  => (int) ($recipeCounts[$p->id] ?? 0),
+                    'has_name_story' => isset($storyIds[$p->id]),
                     'marriages'     => (object) ($marriages[$p->id] ?? []),
                     'avatar'      => $p->profile_photo
                         ? asset('storage/' . $p->profile_photo)

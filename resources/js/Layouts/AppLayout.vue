@@ -15,7 +15,6 @@
           <Link href="/people" :class="['nav-link', { active: $page.url.startsWith('/people') && !$page.url.startsWith('/people/create') }]"><Users :size="18" /> בני המשפחה</Link>
           <Link href="/family-photos" :class="['nav-link', { active: $page.url.startsWith('/family-photos') }]"><Images :size="18" /> תמונות</Link>
           <Link href="/events" :class="['nav-link', { active: $page.url.startsWith('/events') }]"><CalendarDays :size="18" /> אירועים</Link>
-          <Link href="/recipes" :class="['nav-link', { active: $page.url.startsWith('/recipes') }]"><ChefHat :size="18" /> מתכונים</Link>
 
           <!-- פעילות dropdown -->
           <div class="nav-dropdown" :class="{ open: activityOpen }" @mouseenter="activityOpen = true" @mouseleave="activityOpen = false">
@@ -23,6 +22,7 @@
               <Sparkles :size="18" /> פעילות <ChevronDown :size="14" class="chevron" />
             </button>
             <div class="dropdown-menu">
+              <Link href="/recipes" class="dropdown-item" @click="activityOpen = false"><ChefHat :size="16" /> מתכונים</Link>
               <Link href="/name-stories" class="dropdown-item" @click="activityOpen = false"><ScrollText :size="16" /> סיפורי שמות</Link>
               <Link href="/game" class="dropdown-item" @click="activityOpen = false"><Gamepad2 :size="16" /> משחק</Link>
               <Link href="/stats" class="dropdown-item" @click="activityOpen = false"><BarChart3 :size="16" /> מספרים</Link>
@@ -54,8 +54,8 @@
         <Link href="/people" class="mobile-link" @click="mobileOpen = false"><Users :size="18" /> בני המשפחה</Link>
         <Link href="/family-photos" class="mobile-link" @click="mobileOpen = false"><Images :size="18" /> תמונות</Link>
         <Link href="/events" class="mobile-link" @click="mobileOpen = false"><CalendarDays :size="18" /> אירועים</Link>
-        <Link href="/recipes" class="mobile-link" @click="mobileOpen = false"><ChefHat :size="18" /> מתכונים</Link>
         <div class="mobile-section-label">פעילות</div>
+        <Link href="/recipes" class="mobile-link mobile-indent" @click="mobileOpen = false"><ChefHat :size="18" /> מתכונים</Link>
         <Link href="/name-stories" class="mobile-link mobile-indent" @click="mobileOpen = false"><ScrollText :size="18" /> סיפורי שמות</Link>
         <Link href="/game" class="mobile-link mobile-indent" @click="mobileOpen = false"><Gamepad2 :size="18" /> משחק</Link>
         <Link href="/stats" class="mobile-link mobile-indent" @click="mobileOpen = false"><BarChart3 :size="18" /> מספרים</Link>
@@ -93,7 +93,7 @@ const page = usePage()
 
 const isActivityActive = computed(() => {
   const url = page.url
-  return url.startsWith('/game') || url.startsWith('/stats') || url.startsWith('/print') || url.startsWith('/name-stories')
+  return url.startsWith('/game') || url.startsWith('/stats') || url.startsWith('/print') || url.startsWith('/name-stories') || url.startsWith('/recipes')
 })
 </script>
 
