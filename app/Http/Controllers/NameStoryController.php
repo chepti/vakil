@@ -61,13 +61,15 @@ class NameStoryController extends Controller
     {
         $this->authorizeEdit($nameStory);
 
+        $people = Person::orderBy('first_name')->get(['id', 'first_name', 'last_name']);
+
         return Inertia::render('NameStories/Form', [
             'story' => [
                 'id'        => $nameStory->id,
                 'person_id' => $nameStory->person_id,
                 'content'   => $nameStory->content,
             ],
-            'people'       => Person::orderBy('first_name')->get(['id', 'first_name', 'last_name']),
+            'people'       => $this->formatPeople($people),
             'presetPerson' => null,
         ]);
     }
@@ -99,9 +101,21 @@ class NameStoryController extends Controller
     {
         $taken = NameStory::pluck('person_id');
 
-        return Person::whereNotIn('id', $taken)
+        $people = Person::whereNotIn('id', $taken)
             ->orderBy('first_name')
             ->get(['id', 'first_name', 'last_name']);
+
+        return $this->formatPeople($people);
+    }
+
+    /** מוסיף לכל דמות את ההקשר המשפחתי "של X של Y" לזיהוי חד-משמעי ברשימה */
+    private function formatPeople($people)
+    {
+        return $people->map(fn ($p) => [
+            'id'      => $p->id,
+            'name'    => $p->full_name,
+            'context' => $p->ancestralContext(),
+        ])->values();
     }
 
     private function authorizeEdit(NameStory $nameStory): void

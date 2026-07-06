@@ -16,7 +16,7 @@
             <select v-model="form.person_id" :disabled="!!story" required>
               <option :value="null" disabled>— בחר/י בן/בת משפחה —</option>
               <option v-for="p in people" :key="p.id" :value="p.id">
-                {{ p.first_name }} {{ p.last_name }}
+                {{ p.name }}{{ p.context ? ' — ' + p.context : '' }}
               </option>
             </select>
             <span v-if="story" class="field-hint">לא ניתן לשנות את הדמות בעריכה</span>

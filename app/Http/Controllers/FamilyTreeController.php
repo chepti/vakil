@@ -237,8 +237,14 @@ class FamilyTreeController extends Controller
             'id', 'first_name', 'last_name', 'maiden_name', 'gender',
             'birth_date_gregorian', 'birth_date_hebrew',
             'death_date_gregorian', 'death_date_hebrew', 'is_deceased',
-            'current_occupation', 'city', 'email', 'phone', 'bio', 'profile_photo'
+            'current_occupation', 'city', 'email', 'phone', 'bio', 'name_story', 'profile_photo'
         )->get();
+
+        // מספר מתכונים המקושרים לכל דמות — לתג "למי יש מתכון" בעץ
+        $recipeCounts = \App\Models\Recipe::whereNotNull('person_id')
+            ->selectRaw('person_id, COUNT(*) as c')
+            ->groupBy('person_id')
+            ->pluck('c', 'person_id');
 
         // סדר משני יציב (person2_id) כדי שילדים ללא sort_order לא יחליפו מקומות בין רענונים
         $relationships = Relationship::orderByRaw('COALESCE(sort_order, 999) ASC')
@@ -339,7 +345,7 @@ class FamilyTreeController extends Controller
         }
         unset($childIds);
 
-        $nodes = $people->map(function ($p) use ($children, $parents, $spouses, $marriages) {
+        $nodes = $people->map(function ($p) use ($children, $parents, $spouses, $marriages, $recipeCounts) {
             $id = (string) $p->id;
             return [
                 'id'   => $id,
@@ -358,6 +364,8 @@ class FamilyTreeController extends Controller
                     'email'         => $p->email,
                     'phone'         => $p->phone,
                     'bio'           => $p->bio,
+                    'name_story'    => $p->name_story,
+                    'recipe_count'  => (int) ($recipeCounts[$p->id] ?? 0),
                     'marriages'     => (object) ($marriages[$p->id] ?? []),
                     'avatar'      => $p->profile_photo
                         ? asset('storage/' . $p->profile_photo)

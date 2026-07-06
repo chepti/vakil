@@ -469,7 +469,7 @@
     ]
   },
   "resources/js/Pages/NameStories/Form.vue": {
-    "file": "assets/Form-C-yFm9dB.js",
+    "file": "assets/Form-DUWTNphm.js",
     "name": "Form",
     "src": "resources/js/Pages/NameStories/Form.vue",
     "isDynamicEntry": true,
@@ -481,7 +481,7 @@
       "_richText-BGrPrj2U.js"
     ],
     "css": [
-      "assets/Form-rldrwcNN.css"
+      "assets/Form-4TLA2fCB.css"
     ]
   },
   "resources/js/Pages/NameStories/Index.vue": {
@@ -802,7 +802,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-ilEshN8v.js",
+    "file": "assets/app-Ch1A0Sod.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
