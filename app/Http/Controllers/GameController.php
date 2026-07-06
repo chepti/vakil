@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\GameStat;
 use App\Models\Person;
 use App\Models\Relationship;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class GameController extends Controller
@@ -173,6 +175,23 @@ class GameController extends Controller
             'target_last_name'  => $targetPerson?->last_name,
             'target_hint'       => $this->targetHint($target, $parentsOf, $childrenOf, $spouseOf, $onPath, $people),
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+
+    /**
+     * רישום סבב שהושלם — צוברים לדמות המטרה ניחוש + נקודות (לתצוגת ניקוד על העץ).
+     */
+    public function finish(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'person_id' => 'required|exists:people,id',
+            'points'    => 'required|integer|min:0|max:5000',
+        ]);
+
+        $stat = GameStat::firstOrCreate(['person_id' => $data['person_id']]);
+        $stat->increment('correct_guesses');
+        $stat->increment('points', $data['points']);
+
+        return response()->json(['ok' => true]);
     }
 
     /**

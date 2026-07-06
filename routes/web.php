@@ -131,6 +131,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // משחק — "הדרך אל סבתא ואקיל"
     Route::get('/game', [GameController::class, 'index'])->name('game');
     Route::get('/api/game/round', [GameController::class, 'round'])->name('game.round');
+    Route::post('/api/game/finish', [GameController::class, 'finish'])->name('game.finish');
 
     // JSON API — inline tree editing (no page reload)
     Route::get('/api/family-tree', [FamilyTreeController::class, 'apiData'])->name('api.tree');

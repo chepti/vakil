@@ -249,6 +249,13 @@ class FamilyTreeController extends Controller
         // למי יש סיפור שם — להדגשה בעץ ("למה קראו לי בשמי")
         $storyIds = \App\Models\NameStory::pluck('person_id')->flip();
 
+        // על שם מי נקרא/ה — לקווי הזהב בעץ (ילד ↔ סבא שנקרא על שמו)
+        $namedAfter = \App\Models\NameStory::whereNotNull('named_after_person_id')
+            ->pluck('named_after_person_id', 'person_id');
+
+        // ניקוד המשחק — כמה פעמים ניחשו כל דמות וכמה נקודות נצברו
+        $gameStats = \App\Models\GameStat::get()->keyBy('person_id');
+
         // סדר משני יציב (person2_id) כדי שילדים ללא sort_order לא יחליפו מקומות בין רענונים
         $relationships = Relationship::orderByRaw('COALESCE(sort_order, 999) ASC')
             ->orderBy('person2_id')
@@ -348,7 +355,7 @@ class FamilyTreeController extends Controller
         }
         unset($childIds);
 
-        $nodes = $people->map(function ($p) use ($children, $parents, $spouses, $marriages, $recipeCounts, $storyIds) {
+        $nodes = $people->map(function ($p) use ($children, $parents, $spouses, $marriages, $recipeCounts, $storyIds, $namedAfter, $gameStats) {
             $id = (string) $p->id;
             return [
                 'id'   => $id,
@@ -369,6 +376,9 @@ class FamilyTreeController extends Controller
                     'bio'           => $p->bio,
                     'recipe_count'  => (int) ($recipeCounts[$p->id] ?? 0),
                     'has_name_story' => isset($storyIds[$p->id]),
+                    'named_after'    => isset($namedAfter[$p->id]) ? (string) $namedAfter[$p->id] : null,
+                    'game_guesses'   => (int) ($gameStats[$p->id]->correct_guesses ?? 0),
+                    'game_points'    => (int) ($gameStats[$p->id]->points ?? 0),
                     'marriages'     => (object) ($marriages[$p->id] ?? []),
                     'avatar'      => $p->profile_photo
                         ? asset('storage/' . $p->profile_photo)

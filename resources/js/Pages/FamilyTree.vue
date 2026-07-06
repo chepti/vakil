@@ -122,6 +122,13 @@
             :stroke-dasharray="link.type === 'expanded' ? '3 2' : link.type === 'spouse' ? '4 3' : link.type === 'parent' ? '5 3' : 'none'"
             stroke-linecap="round"
           />
+          <!-- ✨ קווי "נקרא/ה על שם" — זהב מקווקו פועם בין הילד למי שנקרא על שמו -->
+          <line
+            v-for="l in namesakeLinks" :key="l.key"
+            class="namesake-line"
+            :x1="l.x1" :y1="l.y1" :x2="l.x2" :y2="l.y2"
+            stroke="#f5b800" stroke-width="2.5" stroke-dasharray="9 6" stroke-linecap="round"
+          />
           <!-- Nodes -->
           <g
             v-for="node in radialData.nodes" :key="node.id"
@@ -254,6 +261,16 @@
                     font-family="Rubik, sans-serif">{{ node.recipeCount }}</text>
             </g>
 
+            <!-- 🏆 תג ניקוד מהמשחק — כמה פעמים ניחשו את הדמות -->
+            <g v-if="gamePanelOn && node.gameGuesses"
+               class="game-badge"
+               :transform="`translate(${node.nodeR - 3}, ${node.nodeR - 3})`">
+              <circle r="10" fill="#f5b800" stroke="#fff" stroke-width="1.5" />
+              <text text-anchor="middle" dominant-baseline="central" fill="#7c2d12" font-size="9" font-weight="800"
+                    font-family="Rubik, sans-serif">{{ node.gameGuesses }}</text>
+              <title>נוחש/ה {{ node.gameGuesses }} פעמים · {{ node.gamePoints }} נקודות</title>
+            </g>
+
             <!-- קיפול ענפים שכבר נפתחו -->
             <g v-if="node.openBranches?.length" class="branch-collapses">
               <g
@@ -315,6 +332,9 @@
           <button class="fab" :class="{ active: storyHighlightOn }" @click="storyHighlightOn = !storyHighlightOn">
             ✨ <span>למה קראו לי בשמי</span>
           </button>
+          <button class="fab" :class="{ active: gamePanelOn }" @click="gamePanelOn = !gamePanelOn">
+            🎮 <span>משחק משפחתי</span>
+          </button>
         </div>
 
         <!-- Birthday / anniversary popover -->
@@ -349,8 +369,24 @@
         <!-- Name-story popover -->
         <div v-if="fabsOpen && storyHighlightOn" class="fab-popover" dir="rtl">
           <div class="fab-popover-count">✨ {{ storyCount }} דמויות עם סיפור שם</div>
+          <div v-if="namesakeLinks.length" class="fab-popover-sub">🥇 קו זהב = נקרא/ה על שם</div>
           <Link href="/name-stories" class="story-page-link">לקריאת כל הסיפורים ←</Link>
           <Link href="/name-stories/create" class="story-page-link story-add-link">+ הוסיפו סיפור לדמות</Link>
+        </div>
+
+        <!-- Family-game popover -->
+        <div v-if="fabsOpen && gamePanelOn" class="fab-popover" dir="rtl">
+          <Link href="/game" class="story-page-link game-open-link">🎮 לפתיחת המשחק ←</Link>
+          <template v-if="gameLeaders.length">
+            <div class="fab-popover-count">🏆 את מי ניחשו הכי הרבה?</div>
+            <ul class="fab-list-people">
+              <li v-for="g in gameLeaders" :key="'gl-' + g.id" @click="goToPerson(g.id)">
+                <span class="cel-name">{{ g.name }}</span>
+                <span class="cel-date">{{ g.guesses }}× · {{ g.points }} נק'</span>
+              </li>
+            </ul>
+          </template>
+          <div v-else class="cel-empty">עוד לא שיחקו — היו הראשונים! 🎉</div>
         </div>
       </div>
 
@@ -472,7 +508,7 @@ import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { createChart } from 'family-chart'
 import 'family-chart/styles/family-chart.css'
-import { gregorianToHebrew, hebrewToGregorian, hebBirthdayInfo, hebrewDayMonth } from '@/utils/hebrewDate'
+import { gregorianToHebrew, hebrewToGregorian, hebBirthdayInfo } from '@/utils/hebrewDate'
 
 const props = defineProps({
   nodes:               { type: Array,   default: () => [] },
@@ -537,6 +573,7 @@ const bdayRange        = ref('month')       // 'today' | 'week' | 'month'
 const recipeBadgesOn   = ref(false)         // show recipe-count badges on the tree
 const showAllDates     = ref(false)         // show every birth date under the nodes (red = missing)
 const storyHighlightOn = ref(false)         // highlight figures that have a name story
+const gamePanelOn      = ref(false)         // family game — score badges on the tree + popover
 
 function togglePanel(name) {
   activePanel.value = activePanel.value === name ? null : name
@@ -605,6 +642,37 @@ const anniversaryHighlightIds = computed(() => {
 const storyCount = computed(() =>
   localNodes.value.filter(n => n.data?.has_name_story).length
 )
+
+// קווי זהב "נקרא/ה על שם" — בין ילד לדמות שעל שמה נקרא, כששניהם מוצגים בתצוגה
+const namesakeLinks = computed(() => {
+  if (!storyHighlightOn.value || !radialMode.value) return []
+  const pos = {}
+  radialData.value.nodes.forEach(nd => { pos[nd.id] = nd })
+  const out = []
+  for (const n of localNodes.value) {
+    const toId = n.data?.named_after ? String(n.data.named_after) : null
+    if (!toId) continue
+    const from = pos[String(n.id)]
+    const to   = pos[toId]
+    if (!from || !to) continue
+    out.push({ key: `ns-${n.id}-${toId}`, x1: from.x, y1: from.y, x2: to.x, y2: to.y })
+  }
+  return out
+})
+
+// לוח מובילים למשחק — מי נוחש הכי הרבה
+const gameLeaders = computed(() => {
+  return localNodes.value
+    .filter(n => Number(n.data?.game_guesses || 0) > 0)
+    .map(n => ({
+      id: n.id,
+      name: personName(n),
+      guesses: Number(n.data.game_guesses),
+      points:  Number(n.data.game_points || 0),
+    }))
+    .sort((a, b) => b.guesses - a.guesses || b.points - a.points)
+    .slice(0, 8)
+})
 
 // ─── Recipe badge → open recipes filtered to that person ──────
 function goToRecipes(id) {
@@ -1650,7 +1718,9 @@ const radialData = computed(() => {
       isDeceased: !!n?.data?.is_deceased,
       recipeCount: Number(n?.data?.recipe_count || 0),
       hasNameStory: !!n?.data?.has_name_story,
-      birthdayHe: hebrewDayMonth(n?.data?.birthday),
+      birthdayHe: gregorianToHebrew(n?.data?.birthday),
+      gameGuesses: Number(n?.data?.game_guesses || 0),
+      gamePoints:  Number(n?.data?.game_points  || 0),
       isRoot, centerSpouse: !!pos.centerSpouse, spouse,
       openBranches: radialExpansions.value
         .filter(e => String(e.anchorId) === id)
@@ -2675,8 +2745,27 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 .story-add-link { background: #fdf9ef; border-color: #f3e3bb; color: #b45309; }
 .story-add-link:hover { background: #faf1da; }
 
+.fab-popover-sub {
+  font-size: 0.75rem;
+  color: #b45309;
+  text-align: center;
+  margin-bottom: 6px;
+}
+.game-open-link { background: #eef4ff; border-color: #c7d8f5; color: #2d6be4; margin-bottom: 8px; }
+.game-open-link:hover { background: #dfeaff; }
+
 /* SVG node highlights */
 .date-label { pointer-events: none; }
+.namesake-line {
+  animation: namesake-flow 1.5s linear infinite;
+  filter: drop-shadow(0 0 3px rgba(245, 184, 0, 0.75));
+}
+@keyframes namesake-flow {
+  0%   { stroke-dashoffset: 30; opacity: 0.6; }
+  50%  { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0.6; }
+}
+.game-badge { cursor: default; }
 .story-ring { animation: story-spin 14s linear infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes story-spin {
   from { transform: rotate(0deg); }

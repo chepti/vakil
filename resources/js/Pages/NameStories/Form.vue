@@ -24,6 +24,19 @@
             <span v-if="errors.person_id" class="field-error">{{ errors.person_id }}</span>
           </div>
 
+          <!-- על שם מי בעץ (אופציונלי) -->
+          <div class="form-field">
+            <label>על שם מי בעץ נקרא/ה? (אופציונלי)</label>
+            <select v-model="form.named_after_person_id">
+              <option :value="null">— לא נקרא/ה על שם דמות בעץ —</option>
+              <option v-for="p in namedAfterOptions" :key="'na-' + p.id" :value="p.id">
+                {{ p.name }}{{ p.context ? ' — ' + p.context : '' }}
+              </option>
+            </select>
+            <span class="field-hint">כשמקושר — יופיע קו זהב בעץ בין הילד/ה למי שנקרא/ה על שמו/ה ✨</span>
+            <span v-if="errors.named_after_person_id" class="field-error">{{ errors.named_after_person_id }}</span>
+          </div>
+
           <!-- תוכן -->
           <div class="form-field">
             <label>הסיפור — למה קראו לי בשמי *</label>
@@ -70,7 +83,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { renderRichText } from '@/utils/richText'
@@ -78,17 +91,24 @@ import { renderRichText } from '@/utils/richText'
 const props = defineProps({
   story:        Object,
   people:       { type: Array, default: () => [] },
+  allPeople:    { type: Array, default: () => [] },
   presetPerson: { type: [Number, null], default: null },
 })
 
 const contentEl = ref(null)
 const submitting = ref(false)
-const errors = reactive({ person_id: '', content: '' })
+const errors = reactive({ person_id: '', content: '', named_after_person_id: '' })
 
 const form = reactive({
   person_id: props.story?.person_id ?? props.presetPerson ?? null,
   content:   props.story?.content ?? '',
+  named_after_person_id: props.story?.named_after_person_id ?? null,
 })
+
+// בורר "על שם מי" — כל הדמויות חוץ מהדמות של הסיפור עצמו
+const namedAfterOptions = computed(() =>
+  props.allPeople.filter(p => p.id !== form.person_id)
+)
 
 function wrapBold() {
   const el = contentEl.value
@@ -117,6 +137,7 @@ function wrapBold() {
 function submit() {
   errors.person_id = ''
   errors.content = ''
+  errors.named_after_person_id = ''
   if (!form.person_id) { errors.person_id = 'יש לבחור דמות'; return }
   if (!form.content.trim()) { errors.content = 'יש לכתוב את הסיפור'; return }
 

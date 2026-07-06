@@ -206,6 +206,46 @@
               </div>
             </div>
 
+            <!-- ניחוש קדימה: הסבא/סבתא — לפעמים זה מה שעוזר להבין מי ההורה -->
+            <div v-if="nextStep && !placed[currentIndex + 1]" class="mission mission-ahead" :class="{ collapsed: aheadCollapsed }">
+              <button class="mission-head" @click="aheadCollapsed = !aheadCollapsed">
+                <span class="mission-icon">🔭</span>
+                <span class="mission-title">מזהים כבר את <strong>{{ nextStep.label }}</strong>? נחשו קדימה</span>
+                <span class="mission-bonus ahead-bonus">+{{ AHEAD_BONUS }}</span>
+                <span class="mission-chevron">{{ aheadCollapsed ? '◀' : '▼' }}</span>
+              </button>
+              <Transition name="expand">
+                <div v-if="!aheadCollapsed" class="mission-body">
+                  <input
+                    v-model="aheadQuery"
+                    type="text"
+                    class="search-input"
+                    :placeholder="`מי ${nextStep.label}? הקלידו שם…`"
+                    @keydown.enter.prevent="placeFirstAhead"
+                  />
+                  <div v-if="aheadResults.length" class="results-grid">
+                    <button
+                      v-for="p in aheadResults"
+                      :key="'ah-' + p.id"
+                      class="pick-card"
+                      :class="genderClass(p.id)"
+                      @click="attemptPlaceAhead(p.id)"
+                    >
+                      <div class="pick-photo">
+                        <img v-if="p.photo_url" :src="p.photo_url" />
+                        <span v-else>{{ initials(p.full_name) }}</span>
+                      </div>
+                      <span class="pick-name">{{ p.full_name }}</span>
+                    </button>
+                  </div>
+                  <div v-else-if="aheadQuery" class="no-results">לא נמצאו תוצאות</div>
+                </div>
+              </Transition>
+            </div>
+            <div v-else-if="nextStep && placed[currentIndex + 1]" class="identity-done pop-in">
+              <span>🔭 {{ nextStep.label }}: {{ name(placed[currentIndex + 1]) }} ✓</span>
+            </div>
+
             <Transition name="fade">
               <p v-if="feedback" class="feedback" :class="feedback.type">{{ feedback.text }}</p>
             </Transition>
@@ -258,6 +298,7 @@ const props = defineProps({
 
 const BASE_POINTS = 150
 const OPTIONS_COST = 60
+const AHEAD_BONUS = 120
 const TARGET_HINT_COST = { 1: 40, 2: 30, 3: 20 }
 const TARGET_IDENTITY_BONUS = { 0: 300, 1: 120, 2: 50, 3: 0 }
 const PART_BONUS = { first: 120, last: 100 }
@@ -293,11 +334,14 @@ const feedback  = ref(null)
 const shakeIdx  = ref(null)
 const showHelp  = ref(false)
 const identityCollapsed = ref(false)
+const aheadCollapsed = ref(true)   // ניחוש קדימה — סבא/סבתא לפני ההורה
+const aheadQuery = ref('')
 const trailEl   = ref(null)
 
 const confettiCanvas = ref(null)
 
 const currentStep = computed(() => quizSteps.value[currentIndex.value] ?? null)
+const nextStep    = computed(() => quizSteps.value[currentIndex.value + 1] ?? null)
 
 const shortStepLabel = (label) => {
   if (label === 'ההורה') return 'הורה'
@@ -383,6 +427,8 @@ const identityNextHint = computed(() => {
 })
 
 watch(currentIndex, async () => {
+  aheadQuery.value = ''
+  aheadCollapsed.value = true
   await nextTick()
   const active = trailEl.value?.querySelector('.trail-node.active')
   active?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
@@ -390,6 +436,16 @@ watch(currentIndex, async () => {
 
 const searchResults = computed(() => {
   const q = query.value.trim().toLowerCase()
+  if (!q) return []
+  const used = new Set(placed.value.filter(Boolean))
+  return props.allPeople
+    .filter(p => p.id !== round.value?.target_id && !used.has(p.id))
+    .filter(p => p.full_name.toLowerCase().includes(q))
+    .slice(0, 6)
+})
+
+const aheadResults = computed(() => {
+  const q = aheadQuery.value.trim().toLowerCase()
   if (!q) return []
   const used = new Set(placed.value.filter(Boolean))
   return props.allPeople
@@ -604,6 +660,8 @@ async function newRound() {
     targetGuess.value = ''
     currentIndex.value = 0
     query.value = ''
+    aheadQuery.value = ''
+    aheadCollapsed.value = true
     lastRoundScore.value = 0
 
     if (quizSteps.value.length === 0) {
@@ -611,6 +669,7 @@ async function newRound() {
       lastRoundScore.value = 50
       score.value += 50
       celebrate()
+      reportRound()
     }
   } catch (e) {
     loadError.value = e.message
@@ -636,11 +695,16 @@ function attemptPlace(personId) {
     query.value = ''
     burstFromActiveSlot()
 
-    if (idx + 1 >= quizSteps.value.length) {
+    // דילוג על שלבים שכבר נפתרו מראש (ניחוש קדימה של הסבא/סבתא)
+    let next = idx + 1
+    while (next < quizSteps.value.length && placed.value[next]) next++
+
+    if (next >= quizSteps.value.length) {
       finished.value = true
       celebrate()
+      reportRound()
     } else {
-      currentIndex.value++
+      currentIndex.value = next
     }
   } else if ((step.parent_ids || []).includes(personId)) {
     marriedIn.value[idx] = personId
@@ -655,6 +719,45 @@ function attemptPlace(personId) {
     shakeIdx.value = idx
     setTimeout(() => { shakeIdx.value = null }, 500)
   }
+}
+
+// ניחוש קדימה — זיהוי הסבא/סבתא לפני שההורה נפתר; לפעמים זה מה שעוזר להבין מי ההורה
+function placeFirstAhead() {
+  if (aheadResults.value.length) attemptPlaceAhead(aheadResults.value[0].id)
+}
+
+function attemptPlaceAhead(personId) {
+  if (finished.value) return
+  const idx = currentIndex.value + 1
+  const step = quizSteps.value[idx]
+  if (!step || placed.value[idx]) return
+
+  if (personId === step.correct_id) {
+    placed.value[idx] = personId
+    awardPoints(AHEAD_BONUS, `וואו! זיהיתם מראש את ${name(personId)} — ${step.label}! +${AHEAD_BONUS} 🔭`)
+    aheadQuery.value = ''
+    aheadCollapsed.value = true
+    fireConfetti(50, window.innerWidth / 2, window.innerHeight * 0.55)
+  } else if ((step.parent_ids || []).includes(personId)) {
+    feedback.value = {
+      type: 'info',
+      text: `נכון, ${name(personId)} מהדור הזה! אבל זה הצד שהתחתן לתוך המשפחה — מי מצד המשפחה?`,
+    }
+    aheadQuery.value = ''
+  } else {
+    feedback.value = { type: 'err', text: 'לא מדויק… אולי קודם נפתור את השלב הנוכחי 🙂' }
+  }
+}
+
+// דיווח סבב שהושלם — לניקוד הדמויות על העץ
+function reportRound() {
+  if (!round.value) return
+  const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
+  fetch('/api/game/finish', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+    body: JSON.stringify({ person_id: round.value.target_id, points: Math.max(0, lastRoundScore.value) }),
+  }).catch(() => {})
 }
 
 function applyPenalty(n) {
@@ -884,6 +987,9 @@ onMounted(() => { if (props.mainPerson) newRound() })
 .mission-id { background: #fffbeb; border: 1px solid #fde68a; }
 .mission-id.collapsed .mission-head { border-bottom: none; }
 .mission-climb { background: #f8faff; border: 1px solid #dbeafe; }
+.mission-ahead { background: #f0fdfa; border: 1px solid #99f6e4; }
+.mission-ahead.collapsed .mission-head { border-bottom: none; }
+.ahead-bonus { background: #ccfbf1; color: #0f766e; }
 
 .mission-head {
   display: flex; align-items: center; gap: 0.5rem; width: 100%;

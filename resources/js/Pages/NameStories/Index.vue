@@ -56,6 +56,13 @@
             >✏️</Link>
           </div>
 
+          <Link
+            v-if="story.named_after_name"
+            :href="`/people/${story.named_after_id}`"
+            class="named-after-chip"
+            :title="story.named_after_context || ''"
+          >✨ על שם {{ story.named_after_name }}<template v-if="story.named_after_context"> — {{ story.named_after_context }}</template></Link>
+
           <div class="card-quote">
             <span class="quote-mark">”</span>
             <div class="story-text" v-html="renderRichText(story.content)"></div>
@@ -261,6 +268,22 @@ h1 {
   opacity: 0.6;
 }
 .edit-btn:hover { background: #f3eefe; opacity: 1; }
+
+/* Named-after chip */
+.named-after-chip {
+  display: inline-block;
+  margin-bottom: 0.6rem;
+  background: #fdf9ef;
+  border: 1px solid #f3e3bb;
+  border-radius: 20px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #b45309;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.named-after-chip:hover { background: #faf1da; }
 
 /* Quote body */
 .card-quote {

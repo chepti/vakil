@@ -12,7 +12,7 @@ class NameStoryController extends Controller
 {
     public function index()
     {
-        $stories = NameStory::with(['person', 'createdBy'])
+        $stories = NameStory::with(['person', 'createdBy', 'namedAfter'])
             ->latest()
             ->get()
             ->map(fn ($s) => [
@@ -23,6 +23,9 @@ class NameStoryController extends Controller
                 'person_context'  => $s->person?->ancestralContext(),
                 'person_photo'    => $s->person?->profile_photo_url,
                 'person_gender'   => $s->person?->gender,
+                'named_after_id'      => $s->named_after_person_id,
+                'named_after_name'    => $s->namedAfter?->full_name,
+                'named_after_context' => $s->namedAfter?->ancestralContext(),
                 'created_by_name' => $s->createdBy->name,
                 'can_edit'        => Auth::user()->role === 'admin' || $s->created_by === Auth::id(),
             ]);
@@ -37,6 +40,7 @@ class NameStoryController extends Controller
         return Inertia::render('NameStories/Form', [
             'story'         => null,
             'people'        => $this->peopleWithoutStory(),
+            'allPeople'     => $this->formatPeople(Person::orderBy('first_name')->get(['id', 'first_name', 'last_name'])),
             'presetPerson'  => $request->integer('person') ?: null,
         ]);
     }
@@ -44,14 +48,19 @@ class NameStoryController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'person_id' => 'required|exists:people,id',
-            'content'   => 'required|string|max:5000',
+            'person_id'             => 'required|exists:people,id',
+            'content'               => 'required|string|max:5000',
+            'named_after_person_id' => 'nullable|exists:people,id|different:person_id',
         ]);
 
         // סיפור אחד לכל דמות — אם קיים, נעדכן במקום ליצור כפילות
         NameStory::updateOrCreate(
             ['person_id' => $data['person_id']],
-            ['content' => $data['content'], 'created_by' => Auth::id()],
+            [
+                'content'               => $data['content'],
+                'named_after_person_id' => $data['named_after_person_id'] ?? null,
+                'created_by'            => Auth::id(),
+            ],
         );
 
         return redirect()->route('name-stories.index')->with('success', 'הסיפור נוסף בהצלחה!');
@@ -68,8 +77,10 @@ class NameStoryController extends Controller
                 'id'        => $nameStory->id,
                 'person_id' => $nameStory->person_id,
                 'content'   => $nameStory->content,
+                'named_after_person_id' => $nameStory->named_after_person_id,
             ],
             'people'       => $this->formatPeople($people),
+            'allPeople'    => $this->formatPeople($people),
             'presetPerson' => null,
         ]);
     }
@@ -79,9 +90,11 @@ class NameStoryController extends Controller
         $this->authorizeEdit($nameStory);
 
         $data = $request->validate([
-            'person_id' => 'required|exists:people,id',
-            'content'   => 'required|string|max:5000',
+            'person_id'             => 'required|exists:people,id',
+            'content'               => 'required|string|max:5000',
+            'named_after_person_id' => 'nullable|exists:people,id|different:person_id',
         ]);
+        $data['named_after_person_id'] = $data['named_after_person_id'] ?? null;
 
         $nameStory->update($data);
 
