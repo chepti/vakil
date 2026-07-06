@@ -543,6 +543,15 @@ onMounted(() => {
   radialMobileMq = window.matchMedia(RADIAL_MOBILE_MQ)
   syncRadialMobile()
   radialMobileMq.addEventListener('change', syncRadialMobile)
+
+  // הגעה מכרטיס דמות ("הצג בעץ") — ממרכזים את התצוגה העגולה על הדמות המבוקשת
+  const focusId   = new URLSearchParams(window.location.search).get('person')
+  const focusNode = focusId ? localNodes.value.find(n => String(n.id) === String(focusId)) : null
+  if (focusNode) {
+    radialCenterId.value = String(focusNode.id)
+    openRadialPersonPanel(focusNode.id)
+  }
+
   if (radialMode.value) { fitRadialView(); return }   // radial is the default view — fit on entry, skip the (expensive) linear chart build entirely
   if (!chartContainer.value || props.nodes.length === 0) return
   initChart()

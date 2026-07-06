@@ -45,6 +45,7 @@
           </div>
 
           <div class="hero-actions">
+            <Link :href="`/family-tree?person=${person.id}`" class="btn-edit btn-show-tree">🌳 הצג בעץ</Link>
             <button class="btn-edit" @click="openEditPersonal">✏️ עריכה</button>
             <button v-if="$page.props.auth.user.role === 'admin'" class="btn-delete" @click="showDeleteConfirm = true">🗑 מחיקה</button>
           </div>
@@ -1377,6 +1378,7 @@ h1 { font-size: 1.8rem; color: #1a3a6b; margin: 0; }
   font-family: 'Rubik', sans-serif; transition: background 0.2s;
 }
 .btn-edit:hover { background: #dbeafe; }
+.btn-show-tree { text-decoration: none; text-align: center; display: inline-block; }
 .btn-delete {
   background: none; border: 1.5px solid #fca5a5; color: #e74c3c;
   padding: 0.45rem 1.2rem; border-radius: 8px; font-size: 0.9rem;
