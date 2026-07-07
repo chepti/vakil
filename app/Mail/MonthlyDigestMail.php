@@ -38,6 +38,7 @@ class MonthlyDigestMail extends Mailable
                 'recipientName' => $this->recipientName,
                 'branch'        => $this->branch,
                 'profileUrl'    => route('profile.edit'),
+                'treeUrl'       => route('family-tree'),
             ],
         );
     }

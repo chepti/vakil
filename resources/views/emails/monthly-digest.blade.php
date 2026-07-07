@@ -33,6 +33,9 @@
         .dc-heb { color: #2d6be4; font-size: 12px; font-weight: 700; display: block; }
         .dc-greg { color: #9aa7c0; font-size: 11px; display: block; }
         .empty { font-size: 14px; color: #9ca3af; }
+        .cta-strip { background: #eaf2ff; padding: 22px 24px 26px; text-align: center; direction: rtl; }
+        .cta-strip-title { font-size: 14px; font-weight: 700; color: #1a3a6b; margin-bottom: 14px; }
+        .gbtn { display: inline-block; margin: 4px; padding: 9px 16px; border-radius: 22px; font-size: 13px; font-weight: 700; text-decoration: none; border: 1px solid rgba(45,107,228,0.18); background: rgba(255,255,255,0.65); color: #1a3a6b; }
         .footer { background: #f8fafc; padding: 18px 36px; text-align: center; font-size: 12px; color: #9ca3af; direction: rtl; }
         .footer a { color: #6b7a99; }
     </style>
@@ -245,6 +248,14 @@
             @if ($d['isEmpty'] && ! $branchHas)
             <p class="empty">החודש אין עדכונים מיוחדים — אבל תמיד אפשר להיכנס לעץ ולגלות משהו חדש 🙂</p>
             @endif
+        </div>
+
+        <div class="cta-strip">
+            <div class="cta-strip-title">🌳 עוד יש מה לגלות בעץ המשפחה</div>
+            <a href="{{ $treeUrl }}" class="gbtn">🎂 ימי הולדת</a>
+            <a href="{{ $treeUrl }}" class="gbtn">🍳 מתכונים</a>
+            <a href="{{ $treeUrl }}" class="gbtn">✨ סיפורי שמות</a>
+            <a href="{{ $treeUrl }}" class="gbtn">🎮 משחק משפחתי</a>
         </div>
 
         <div class="footer">
