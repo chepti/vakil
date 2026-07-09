@@ -28,6 +28,13 @@ Route::get('/', function () {
     ]);
 });
 
+// מדריך הקמה — לא דורש התחברות, כדי שגם מי ששוקל להעתיק יוכל לצפות
+Route::get('/guide', function () {
+    return Inertia::render('Guide', [
+        'canLogin' => Route::has('login'),
+    ]);
+})->name('guide');
+
 // Onboarding — רק כשה-DB ריק
 Route::get('/onboarding', [OnboardingController::class, 'show'])
     ->middleware(['auth'])

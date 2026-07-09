@@ -344,10 +344,18 @@ onMounted(() => {
                     style="background:#c8a45a;box-shadow:0 6px 24px rgba(200,164,90,0.4)">
                     ✉️ {{ contactEmail }}
                 </a>
-                <p class="mt-5 text-sm" style="color:#8aace0">
-                    קוד פתוח:
-                    <a href="https://github.com/chepti/vakil" target="_blank" class="underline text-white hover:text-yellow-300 transition-colors">github.com/chepti/vakil</a>
-                </p>
+                <div class="flex flex-wrap justify-center gap-3 mt-6">
+                    <Link href="/guide"
+                        class="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-full border transition-all hover:-translate-y-0.5"
+                        style="color:#e8eefb;border-color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.08)">
+                        🧭 מדריך הקמה למשפחה שלכם
+                    </Link>
+                    <a href="https://github.com/chepti/vakil" target="_blank"
+                        class="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-full border transition-all hover:-translate-y-0.5"
+                        style="color:#e8eefb;border-color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.08)">
+                        קוד פתוח — github.com/chepti/vakil
+                    </a>
+                </div>
             </div>
         </section>
 
