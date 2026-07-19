@@ -81,7 +81,7 @@
       </div>
 
       <!-- Radial view -->
-      <div v-show="localNodes.length > 0 && radialMode" class="radial-wrap" :class="{ 'panel-open': selectedPerson }">
+      <div v-show="localNodes.length > 0 && radialMode" class="radial-wrap" :class="{ 'panel-open': selectedPerson, 'timeline-live': timelineOn }">
         <!-- breadcrumb: who is at center -->
         <div class="radial-center-label" v-if="radialCenterId && radialCenterId !== String(props.defaultMainPersonId || props.rootPersonId || props.nodes[0]?.id)">
           <button class="radial-back-btn" @click="resetRadialToRoot()">← חזור לשורש</button>
@@ -312,7 +312,33 @@
             <title>{{ node.fullName }}{{ node.relType === 'spouse' ? ' (בן/בת זוג)' : node.relType === 'parent' ? ' (הורה)' : '' }}</title>
           </g>
         </svg>
-        <div class="radial-hint">{{ radialHintText }}</div>
+        <div v-if="!timelineOn" class="radial-hint">{{ radialHintText }}</div>
+
+        <!-- ═══ ציר זמן — סרגל שנים רץ בתחתית ═══ -->
+        <template v-if="timelineOn">
+          <TransitionGroup name="tl-evt" tag="div" class="tl-events" dir="rtl">
+            <div v-for="ev in timelineEvents" :key="ev.key" class="tl-event">{{ ev.text }}</div>
+          </TransitionGroup>
+
+          <div class="timeline-bar" dir="rtl">
+            <button class="tl-btn tl-play" @click="toggleTimelinePlay" :title="timelinePlaying ? 'השהה' : 'הפעל'">
+              {{ timelinePlaying ? '⏸' : '▶' }}
+            </button>
+            <button class="tl-btn tl-speed" @click="cycleTimelineSpeed" title="מהירות ההרצה">×{{ timelineSpeed }}</button>
+            <div class="tl-year-wrap">
+              <div class="tl-year">{{ timelineYear }}</div>
+              <div class="tl-year-he">{{ tlHebYear }}</div>
+            </div>
+            <input
+              class="tl-slider" type="range"
+              :min="tlStartYear" :max="tlEndYear" :value="timelineYear"
+              @input="onTimelineScrub"
+              title="גרירה — המשפחה ברגע מסוים בזמן"
+            />
+            <span class="tl-count">👥 {{ radialData.nodes.length }}</span>
+            <button class="tl-btn tl-close" @click="stopTimeline()" title="סגירת ציר הזמן">✕</button>
+          </div>
+        </template>
       </div>
 
       <!-- ═══ Floating overlay buttons (radial view only) ═══ -->
@@ -334,6 +360,9 @@
           </button>
           <button class="fab" :class="{ active: gamePanelOn }" @click="gamePanelOn = !gamePanelOn">
             🎮 <span>משחק משפחתי</span>
+          </button>
+          <button class="fab" :class="{ active: timelineOn }" @click="timelineOn ? stopTimeline() : startTimeline()">
+            🎞 <span>הרצת ציר זמן</span>
           </button>
         </div>
 
@@ -508,7 +537,7 @@ import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { createChart } from 'family-chart'
 import 'family-chart/styles/family-chart.css'
-import { gregorianToHebrew, hebrewToGregorian, hebBirthdayInfo } from '@/utils/hebrewDate'
+import { gregorianToHebrew, hebrewToGregorian, hebBirthdayInfo, toGematria } from '@/utils/hebrewDate'
 
 const props = defineProps({
   nodes:               { type: Array,   default: () => [] },
@@ -824,6 +853,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   radialMobileMq?.removeEventListener('change', syncRadialMobile)
+  clearInterval(timelineTimer)
+  cancelAnimationFrame(vbAnimFrame)
   chartInstance = null
   cardHtml = null
 })
@@ -1491,11 +1522,246 @@ function resolveRadialCollisions(positions, centerId) {
   }
 }
 
-const radialData = computed(() => {
-  if (!radialMode.value || !localNodes.value.length) return { nodes: [], links: [] }
+// ─── ציר זמן — הרצת המשפחה שנה אחר שנה ────────────────────────
+const timelineOn      = ref(false)
+const timelinePlaying = ref(false)
+const timelineYear    = ref(0)
+const timelineSpeed   = ref(1)          // ×1 / ×2 / ×3
+const tlStartYear     = ref(1900)
+const tlEndYear       = ref(new Date().getFullYear())
+let   timelineTimer   = null
+let   vbAnimFrame     = null
+let   lastFitSize     = 0
+const TIMELINE_TICK_MS = 1300           // קצב איטי — שנה אחת לכל טיק
 
-  const centerId = String(radialCenterId.value || props.defaultMainPersonId || props.rootPersonId || localNodes.value[0]?.id)
-  const nodeMap = buildNodeMap(localNodes.value)
+function parseYear(dateStr) {
+  if (!dateStr) return null
+  const y = parseInt(String(dateStr).slice(0, 4), 10)
+  return Number.isFinite(y) && y >= 1000 && y <= 2200 ? y : null
+}
+
+// שנות לידה/פטירה/נישואין לכל דמות + הערכה חכמה למי שאין תאריך,
+// כדי שגם דמויות ללא תאריך לידה ישתלבו בזרימת השנים ולא ייעלמו.
+const timelineMeta = computed(() => {
+  const nodes = localNodes.value
+  const byId  = buildNodeMap(nodes)
+  const birthYear = {}, estYear = {}, deathYear = {}, firstMarriage = {}
+
+  for (const n of nodes) {
+    const id = String(n.id)
+    const by = parseYear(n.data?.birthday)
+    if (by) { birthYear[id] = by; estYear[id] = by }
+    const dy = parseYear(n.data?.death_date)
+    if (dy) deathYear[id] = dy
+    for (const m of Object.values(n.data?.marriages || {})) {
+      const my = parseYear(m?.date)
+      if (my && (!firstMarriage[id] || my < firstMarriage[id])) firstMarriage[id] = my
+    }
+  }
+
+  // הערכת שנת לידה בכמה מעברים: מהילדים, מתאריך הנישואין, מבן הזוג, מההורים
+  for (let pass = 0; pass < 6; pass++) {
+    let changed = false
+    for (const n of nodes) {
+      const id = String(n.id)
+      if (estYear[id]) continue
+      const cands = []
+      const kidYears = (n.rels?.children || []).map(c => estYear[String(c)]).filter(Boolean)
+      if (kidYears.length) cands.push(Math.min(...kidYears) - 27)
+      if (firstMarriage[id]) cands.push(firstMarriage[id] - 22)
+      const spYears = (n.rels?.spouses || []).map(s => estYear[String(s)]).filter(Boolean)
+      if (spYears.length) cands.push(Math.min(...spYears))
+      const parYears = (n.rels?.parents || []).map(p => estYear[String(p)]).filter(Boolean)
+      if (parYears.length) cands.push(Math.max(...parYears) + 28)
+      if (cands.length) {
+        estYear[id] = Math.round(cands.reduce((a, b) => a + b, 0) / cands.length)
+        changed = true
+      }
+    }
+    if (!changed) break
+  }
+
+  // שנת הופעה: מי שנישא לתוך המשפחה (ללא הורים בעץ) מופיע בשנת החתונה; כל השאר בלידה
+  const appearYear = {}
+  for (const n of nodes) {
+    const id = String(n.id)
+    const hasParentsInTree = (n.rels?.parents || []).some(p => byId[String(p)])
+    if (!hasParentsInTree && (n.rels?.spouses || []).length && firstMarriage[id]) {
+      appearYear[id] = firstMarriage[id]
+    } else if (estYear[id]) {
+      appearYear[id] = estYear[id]
+    }
+    // דמות בלי שום עוגן בזמן — מוצגת תמיד (אין לה שנת הופעה)
+  }
+
+  return { birthYear, estYear, deathYear, firstMarriage, appearYear }
+})
+
+// הדמויות ה"קיימות" בשנה הנוכחית של ציר הזמן (null = ציר הזמן כבוי)
+const timelineVisibleIds = computed(() => {
+  if (!timelineOn.value) return null
+  const { appearYear } = timelineMeta.value
+  const y = timelineYear.value
+  const centerId = radialActiveCenterId()
+  const s = new Set()
+  for (const n of localNodes.value) {
+    const id = String(n.id)
+    if (id === centerId || (appearYear[id] ?? -Infinity) <= y) s.add(id)
+  }
+  return s
+})
+
+// מקור הנתונים לתצוגה העגולה — בזמן ציר זמן מסונן לפי שנה, עם קשרים מסוננים בהתאם
+const radialSourceNodes = computed(() => {
+  const vis = timelineVisibleIds.value
+  if (!vis) return localNodes.value
+  const { deathYear } = timelineMeta.value
+  const y = timelineYear.value
+  return localNodes.value
+    .filter(n => vis.has(String(n.id)))
+    .map(n => ({
+      ...n,
+      data: {
+        ...n.data,
+        // בציר הזמן דמות "חיה" עד שנת הפטירה שלה
+        is_deceased: !!n.data?.is_deceased && (deathYear[String(n.id)] ? deathYear[String(n.id)] <= y : true),
+      },
+      rels: {
+        parents:  (n.rels?.parents  || []).filter(id => vis.has(String(id))),
+        spouses:  (n.rels?.spouses  || []).filter(id => vis.has(String(id))),
+        children: (n.rels?.children || []).filter(id => vis.has(String(id))),
+      },
+    }))
+})
+
+// אירועי השנה הנוכחית — לידות, חתונות ופטירות (רק תאריכים אמיתיים, לא הערכות)
+const timelineEvents = computed(() => {
+  if (!timelineOn.value) return []
+  const y = timelineYear.value
+  const { birthYear, deathYear } = timelineMeta.value
+  const out = []
+  for (const n of localNodes.value) {
+    const id = String(n.id)
+    if (birthYear[id] === y) out.push({ key: 'b' + id, text: `🎉 נולד${n.data?.gender === 'F' ? 'ה' : ''} ${personName(n)}` })
+  }
+  const seen = new Set()
+  for (const n of localNodes.value) {
+    for (const [sid, m] of Object.entries(n.data?.marriages || {})) {
+      if (parseYear(m?.date) !== y) continue
+      const key = [String(n.id), String(sid)].sort((a, b) => Number(a) - Number(b)).join('-')
+      if (seen.has(key)) continue
+      seen.add(key)
+      const sp = localNodes.value.find(x => x.id === String(sid))
+      out.push({ key: 'm' + key, text: `💍 ${personName(n)}${sp ? ' ♥ ' + personName(sp) : ''}` })
+    }
+  }
+  for (const n of localNodes.value) {
+    const id = String(n.id)
+    if (deathYear[id] === y) out.push({ key: 'd' + id, text: `🕯 ${personName(n)} ז״ל` })
+  }
+  return out.slice(0, 4)
+})
+
+// השנה העברית המקבילה (קירוב — לפי רוב השנה האזרחית)
+const tlHebYear = computed(() => toGematria(timelineYear.value + 3760))
+
+function startTimeline() {
+  selectedPerson.value   = null
+  addRelType.value       = null
+  activePanel.value      = null
+  radialExpansions.value = []
+  radialCenterId.value   = null          // ההרצה תמיד מתחילה מהדמות הראשית
+
+  const meta      = timelineMeta.value
+  const centerId  = radialActiveCenterId()
+  const realYears = Object.values(meta.birthYear)
+  tlStartYear.value  = meta.appearYear[centerId]
+    ?? (realYears.length ? Math.min(...realYears) : 1900)
+  tlEndYear.value    = new Date().getFullYear()
+  timelineYear.value = tlStartYear.value
+
+  timelineOn.value      = true
+  timelinePlaying.value = true
+  lastFitSize = 0
+  scheduleTimelineTick()
+  smoothFitRadial()
+}
+
+function scheduleTimelineTick() {
+  clearInterval(timelineTimer)
+  timelineTimer = setInterval(() => {
+    if (!timelinePlaying.value) return
+    if (timelineYear.value >= tlEndYear.value) { timelinePlaying.value = false; return }
+    timelineYear.value++
+    smoothFitRadial()
+  }, Math.round(TIMELINE_TICK_MS / timelineSpeed.value))
+}
+
+function toggleTimelinePlay() {
+  if (!timelinePlaying.value && timelineYear.value >= tlEndYear.value) {
+    timelineYear.value = tlStartYear.value   // בסוף ההרצה — הפעלה מחדש מההתחלה
+  }
+  timelinePlaying.value = !timelinePlaying.value
+}
+
+function cycleTimelineSpeed() {
+  timelineSpeed.value = timelineSpeed.value >= 3 ? 1 : timelineSpeed.value + 1
+  scheduleTimelineTick()
+}
+
+function onTimelineScrub(e) {
+  timelinePlaying.value = false            // גרירה = השהיה והתבוננות ברגע מסוים
+  timelineYear.value = Number(e.target.value)
+  smoothFitRadial()
+}
+
+function stopTimeline(fit = true) {
+  timelineOn.value      = false
+  timelinePlaying.value = false
+  clearInterval(timelineTimer)
+  timelineTimer = null
+  cancelAnimationFrame(vbAnimFrame)
+  if (fit) fitRadialView()
+}
+
+// זום-אאוט עדין — אנימציית viewBox רכה במקום קפיצה
+function animateVB(target, dur = 950) {
+  cancelAnimationFrame(vbAnimFrame)
+  const from = { ...radialVB.value }
+  const t0   = performance.now()
+  const ease = t => 1 - Math.pow(1 - t, 3)
+  const step = now => {
+    const t = Math.min(1, (now - t0) / dur)
+    const k = ease(t)
+    radialVB.value = {
+      x: from.x + (target.x - from.x) * k,
+      y: from.y + (target.y - from.y) * k,
+      w: from.w + (target.w - from.w) * k,
+      h: from.h + (target.h - from.h) * k,
+    }
+    if (t < 1) vbAnimFrame = requestAnimationFrame(step)
+  }
+  vbAnimFrame = requestAnimationFrame(step)
+}
+
+// מרחיב את התצוגה רק כשהמשפחה באמת גדלה — לא נלחם בזום ידני של המשתמש
+function smoothFitRadial() {
+  nextTick(() => {
+    const maxR = radialData.value.maxR || 300
+    const mob  = isRadialMobile.value
+    const size = Math.min(Math.max(maxR * (mob ? 2.0 : 2.2), 380), mob ? 720 : 820)
+    if (Math.abs(size - lastFitSize) < 1) return
+    lastFitSize = size
+    animateVB({ x: -size / 2, y: -size / 2, w: size, h: size })
+  })
+}
+
+const radialData = computed(() => {
+  const srcNodes = radialSourceNodes.value
+  if (!radialMode.value || !srcNodes.length) return { nodes: [], links: [] }
+
+  const centerId = String(radialCenterId.value || props.defaultMainPersonId || props.rootPersonId || srcNodes[0]?.id)
+  const nodeMap = buildNodeMap(srcNodes)
 
   // Number of leaf (childless) descendants — drives how much angular room a subtree needs
   function leafCount(id, seen) {
@@ -1940,6 +2206,7 @@ function resetRadialToRoot() {
 function toggleRadialMode() {
   radialMode.value = !radialMode.value
   if (!radialMode.value) {
+    if (timelineOn.value) stopTimeline(false)
     // First time leaving radial view — the linear chart build was deferred on mount, do it now
     if (!chartInstance && chartContainer.value && props.nodes.length > 0) {
       initChart(radialActiveCenterId())
@@ -2791,5 +3058,106 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   .tree-fabs { top: 70px; right: 10px; gap: 6px; }
   .fab { font-size: 0.8rem; padding: 7px 11px; }
   .fab-popover { width: 220px; }
+}
+
+/* ═══ ציר זמן ═══ */
+.timeline-bar {
+  position: absolute;
+  bottom: 0.9rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(92%, 620px);
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(45,107,228,0.18);
+  border-radius: 40px;
+  padding: 8px 16px;
+  box-shadow: 0 6px 24px rgba(0,50,150,0.16);
+  z-index: 30;
+  cursor: default;
+}
+.tl-btn {
+  border: 1px solid rgba(45,107,228,0.25);
+  background: rgba(255,255,255,0.75);
+  color: #1a3a6b;
+  border-radius: 50%;
+  width: 34px; height: 34px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: 'Rubik', sans-serif;
+  transition: background 0.2s, transform 0.15s;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.tl-btn:hover { background: #fff; transform: scale(1.07); }
+.tl-play { background: #2d6be4; color: #fff; border-color: transparent; font-size: 1rem; }
+.tl-play:hover { background: #1a55c8; }
+.tl-speed { font-size: 0.72rem; font-weight: 700; }
+.tl-close { font-size: 0.8rem; color: #8a9ab5; }
+.tl-year-wrap { text-align: center; flex-shrink: 0; min-width: 56px; }
+.tl-year {
+  font-size: 1.25rem; font-weight: 700; color: #1a3a6b;
+  line-height: 1.1; font-variant-numeric: tabular-nums;
+}
+.tl-year-he { font-size: 0.68rem; color: #b45309; font-weight: 600; }
+.tl-slider {
+  flex: 1;
+  accent-color: #2d6be4;
+  cursor: pointer;
+  min-width: 60px;
+}
+.tl-count {
+  font-size: 0.78rem; color: #5a6b85; font-weight: 600;
+  white-space: nowrap; flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* כרזות אירועי השנה — צפות מעל הסרגל */
+.tl-events {
+  position: absolute;
+  bottom: 4.8rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  z-index: 29;
+  pointer-events: none;
+}
+.tl-event {
+  background: rgba(255,255,255,0.9);
+  border: 1px solid rgba(200,164,90,0.4);
+  color: #1a3a6b;
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: 20px;
+  box-shadow: 0 3px 12px rgba(0,50,150,0.12);
+  white-space: nowrap;
+}
+.tl-evt-enter-active { transition: opacity 0.45s ease, transform 0.45s ease; }
+.tl-evt-leave-active { transition: opacity 0.35s ease; position: absolute; }
+.tl-evt-enter-from { opacity: 0; transform: translateY(10px) scale(0.9); }
+.tl-evt-leave-to { opacity: 0; }
+.tl-evt-move { transition: transform 0.4s ease; }
+
+/* דמות חדשה "נולדת" לתוך העץ — פייד + סקייל עדין (scale נפרד לא דורס את ה-translate) */
+.radial-node { transform-box: fill-box; transform-origin: center; }
+.timeline-live .radial-node { animation: tl-born 0.9s cubic-bezier(0.34, 1.45, 0.64, 1) both; }
+.timeline-live .radial-link-anim { animation: tl-link-in 0.9s ease-out both; }
+@keyframes tl-born { from { opacity: 0; scale: 0.25; } to { opacity: 1; scale: 1; } }
+@keyframes tl-link-in { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 640px) {
+  .timeline-bar { gap: 6px; padding: 6px 10px; bottom: 0.6rem; width: 94%; }
+  .tl-btn { width: 30px; height: 30px; }
+  .tl-year { font-size: 1.05rem; }
+  .tl-year-wrap { min-width: 46px; }
+  .tl-count { display: none; }
+  .tl-events { bottom: 4rem; }
 }
 </style>

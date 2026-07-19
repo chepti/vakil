@@ -1,0 +1,1 @@
+import{t as e}from"./UpdatePasswordForm-8gN5PBUQ.js";export{e as default};
