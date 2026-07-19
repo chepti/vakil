@@ -393,7 +393,7 @@
     ]
   },
   "resources/js/Pages/FamilyPhotos/Index.vue": {
-    "file": "assets/Index-D-_mag6t.js",
+    "file": "assets/Index-D-PTeodq.js",
     "name": "Index",
     "src": "resources/js/Pages/FamilyPhotos/Index.vue",
     "isDynamicEntry": true,
@@ -404,7 +404,7 @@
       "_AppLayout-CX1YdrEx.js"
     ],
     "css": [
-      "assets/Index-dwdmbWps.css"
+      "assets/Index-BtT1Buiv.css"
     ]
   },
   "resources/js/Pages/FamilyPhotos/Show.vue": {
@@ -423,7 +423,7 @@
     ]
   },
   "resources/js/Pages/FamilyTree.vue": {
-    "file": "assets/FamilyTree-DYmJXH3w.js",
+    "file": "assets/FamilyTree-CeAtAIrC.js",
     "name": "FamilyTree",
     "src": "resources/js/Pages/FamilyTree.vue",
     "isDynamicEntry": true,
@@ -435,7 +435,7 @@
       "_AppLayout-CX1YdrEx.js"
     ],
     "css": [
-      "assets/FamilyTree-C2KCZFcd.css"
+      "assets/FamilyTree-PQvoyQCS.css"
     ]
   },
   "resources/js/Pages/Game.vue": {
@@ -825,7 +825,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-aDhG_qOf.js",
+    "file": "assets/app-BNs1BgBz.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

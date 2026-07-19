@@ -3164,29 +3164,32 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   font-variant-numeric: tabular-nums;
 }
 
-/* כרזות אירועי השנה — צפות מעל הסרגל */
+/* כרזות אירועי השנה — בצד שמאל, לא מסתירות את העץ והסרגל */
 .tl-events {
   position: absolute;
-  bottom: 4.8rem;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 5rem;
+  left: 0.9rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 5px;
   z-index: 29;
   pointer-events: none;
+  max-width: 40%;
 }
 .tl-event {
-  background: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.85);
   border: 1px solid rgba(200,164,90,0.4);
   color: #1a3a6b;
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  padding: 4px 14px;
+  padding: 3px 12px;
   border-radius: 20px;
-  box-shadow: 0 3px 12px rgba(0,50,150,0.12);
+  box-shadow: 0 3px 12px rgba(0,50,150,0.1);
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tl-evt-enter-active { transition: opacity 0.45s ease, transform 0.45s ease; }
 .tl-evt-leave-active { transition: opacity 0.35s ease; position: absolute; }
@@ -3207,6 +3210,7 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   .tl-year { font-size: 1.05rem; }
   .tl-year-wrap { min-width: 46px; }
   .tl-count { display: none; }
-  .tl-events { bottom: 4rem; }
+  .tl-events { bottom: 4.2rem; left: 0.5rem; max-width: 55%; }
+  .tl-event { font-size: 0.72rem; padding: 2px 9px; }
 }
 </style>

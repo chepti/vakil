@@ -57,7 +57,21 @@
             </div>
             <div class="photo-info">
               <span class="photo-title">{{ photo.title || 'ללא כותרת' }}</span>
-              <span v-if="photo.taken_year" class="photo-year">📅 {{ photo.taken_year }}</span>
+              <label
+                v-if="canDelete(photo)"
+                class="photo-year photo-year-edit"
+                title="שנת צילום — הפנים המתויגות יופיעו בציר הזמן לפי שנה זו"
+                @click.prevent.stop
+              >
+                📅
+                <input
+                  type="number" min="1800" :max="currentYear" placeholder="שנה"
+                  :value="localYears[photo.id] || ''"
+                  @change="saveCardYear(photo, $event)"
+                  @click.prevent.stop
+                />
+              </label>
+              <span v-else-if="photo.taken_year" class="photo-year">📅 {{ photo.taken_year }}</span>
             </div>
           </Link>
           <button
@@ -78,7 +92,7 @@ import { ref } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
-defineProps({
+const props = defineProps({
   photos: { type: Array, default: () => [] },
 })
 
@@ -91,6 +105,32 @@ function canDelete(photo) {
 function deletePhoto(photo) {
   if (!confirm('למחוק את התמונה לצמיתות?')) return
   router.delete(`/family-photos/${photo.id}`)
+}
+
+// ── שנת צילום ישירות מהגלריה ──
+const localYears = ref(Object.fromEntries(props.photos.map(p => [p.id, p.taken_year])))
+
+async function saveCardYear(photo, e) {
+  const v = e.target.value ? Number(e.target.value) : null
+  if (v && (v < 1800 || v > currentYear)) {
+    alert(`שנה בין 1800 ל-${currentYear}`)
+    e.target.value = localYears.value[photo.id] || ''
+    return
+  }
+  try {
+    const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
+    const res = await fetch(`/family-photos/${photo.id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
+      body:    JSON.stringify({ taken_year: v }),
+    })
+    if (!res.ok) throw new Error()
+    const data = await res.json()
+    localYears.value[photo.id] = data.taken_year || null
+  } catch {
+    alert('שגיאה בשמירת השנה')
+    e.target.value = localYears.value[photo.id] || ''
+  }
 }
 
 const uploadFile     = ref(null)
@@ -296,5 +336,16 @@ input[type="text"]:focus, input[type="number"]:focus { outline: none; border-col
   font-size: 0.75rem; color: #a07830; font-weight: 600; flex-shrink: 0;
   background: #fdf6ec; border: 1px solid #f0d898; border-radius: 10px; padding: 0.1rem 0.45rem;
 }
+.photo-year-edit { display: inline-flex; align-items: center; gap: 0.2rem; cursor: text; }
+.photo-year-edit input {
+  width: 48px; border: none !important; background: transparent; padding: 0 !important;
+  font-size: 0.75rem !important; font-weight: 600; color: #a07830;
+  font-family: 'Rubik', sans-serif; direction: ltr; text-align: center;
+  -moz-appearance: textfield; appearance: textfield;
+}
+.photo-year-edit input::-webkit-outer-spin-button,
+.photo-year-edit input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.photo-year-edit input:focus { outline: none; }
+.photo-year-edit input::placeholder { color: #d0b070; font-weight: 400; }
 .year-input { max-width: 160px; direction: ltr; text-align: right; }
 </style>
