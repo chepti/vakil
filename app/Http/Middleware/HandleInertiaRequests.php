@@ -41,6 +41,9 @@ class HandleInertiaRequests extends Middleware
             ],
             // הכפתור "התחבר עם Google" יופיע רק כשהוגדרו credentials ב-.env
             'googleEnabled' => filled(config('services.google.client_id')),
+            // מצב אתר-הדגמה — באנר "הכל בדוי" ושם משפחה בדוי בכל הכותרות
+            'demo'          => (bool) config('app.demo'),
+            'siteName'      => config('app.demo') ? 'משפחת ישראלי (הדגמה)' : 'משפחת ואקיל',
         ];
     }
 }

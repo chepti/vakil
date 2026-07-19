@@ -3,7 +3,7 @@
     <div class="people-page" dir="rtl">
       <div class="page-header">
         <div>
-          <h1>בני משפחת ואקיל</h1>
+          <h1>בני {{ $page.props.siteName || 'משפחת ואקיל' }}</h1>
           <p class="count-label">{{ people.length }} דמויות בעץ</p>
         </div>
         <Link href="/people/create" class="btn-primary">+ הוסף דמות</Link>

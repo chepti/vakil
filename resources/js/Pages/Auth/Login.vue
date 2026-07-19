@@ -56,7 +56,18 @@ const submit = () => {
       </button>
     </form>
 
-    <div class="auth-foot" style="color:#8aace0;font-size:0.82rem">
+    <!-- כניסת אורח — רק באתר ההדגמה -->
+    <template v-if="$page.props.demo">
+      <div class="auth-divider"><span>או</span></div>
+      <Link href="/demo-login" method="post" as="button" class="auth-btn" style="background:#d97706">
+        🎭 כניסה כאורח/ת — בלי סיסמה
+      </Link>
+      <div class="auth-foot" style="color:#b45309;font-size:0.82rem">
+        זהו אתר הדגמה עם נתונים בדויים — מוזמנים להסתובב ולנסות הכל
+      </div>
+    </template>
+
+    <div v-else class="auth-foot" style="color:#8aace0;font-size:0.82rem">
       🔒 כניסה בהזמנה בלבד — פנה למנהל/ת האתר
     </div>
   </GuestLayout>

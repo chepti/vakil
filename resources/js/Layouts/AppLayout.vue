@@ -1,12 +1,17 @@
 <template>
   <div class="app-layout">
+    <!-- באנר אתר-הדגמה — מופיע רק כש-APP_DEMO=true -->
+    <div v-if="$page.props.demo" class="demo-banner" dir="rtl">
+      🎭 אתר הדגמה — כל הדמויות, התאריכים והנתונים כאן בדויים לחלוטין. מוזמנים לנסות ולערוך הכל; הנתונים מתאפסים מדי לילה.
+    </div>
+
     <!-- Navbar -->
     <nav class="app-nav" dir="rtl">
       <div class="nav-inner">
         <!-- לוגו -->
         <Link href="/family-tree" class="nav-logo">
           <TreePine class="logo-icon" :size="22" />
-          <span class="logo-text">משפחת ואקיל</span>
+          <span class="logo-text">{{ $page.props.siteName || 'משפחת ואקיל' }}</span>
         </Link>
 
         <!-- ניווט ראשי -->
@@ -104,6 +109,17 @@ const isActivityActive = computed(() => {
   min-height: 100vh;
   background: #f4f8ff;
   font-family: 'Rubik', sans-serif;
+}
+
+/* באנר אתר-הדגמה */
+.demo-banner {
+  background: repeating-linear-gradient(135deg, #fef3c7, #fef3c7 14px, #fde68a 14px, #fde68a 28px);
+  color: #92400e;
+  border-bottom: 1px solid #f59e0b;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 0.5rem 1rem;
 }
 
 /* Navbar */

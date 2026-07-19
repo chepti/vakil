@@ -37,7 +37,7 @@
 
     <!-- אזור ההדפסה -->
     <div class="printable">
-      <h1 class="print-title">משפחת ואקיל — {{ rootName }}</h1>
+      <h1 class="print-title">{{ $page.props.siteName || 'משפחת ואקיל' }} — {{ rootName }}</h1>
       <p class="print-sub">{{ generations }} דורות · {{ countShown }} בני משפחה</p>
 
       <div class="tree-scroll">

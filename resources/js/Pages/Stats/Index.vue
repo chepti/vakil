@@ -3,7 +3,7 @@
     <div class="stats-page" dir="rtl">
       <div class="page-header">
         <h1>📊 המשפחה במספרים</h1>
-        <p class="subtitle">מבט מהיר על משפחת ואקיל · חודש {{ hebMonth.monthHe }} {{ hebMonth.yearHe }}</p>
+        <p class="subtitle">מבט מהיר על {{ $page.props.siteName || 'משפחת ואקיל' }} · חודש {{ hebMonth.monthHe }} {{ hebMonth.yearHe }}</p>
       </div>
 
       <!-- כרטיסי מספרים -->

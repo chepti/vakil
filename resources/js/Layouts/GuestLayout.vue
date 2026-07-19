@@ -8,14 +8,21 @@ defineProps({
 })
 
 const googleEnabled = computed(() => usePage().props.googleEnabled)
+const isDemo        = computed(() => usePage().props.demo)
+const siteName      = computed(() => usePage().props.siteName || 'משפחת ואקיל')
 </script>
 
 <template>
   <div class="auth-page" dir="rtl">
     <div class="auth-card">
+      <!-- באנר אתר-הדגמה -->
+      <div v-if="isDemo" class="auth-demo-banner">
+        🎭 אתר הדגמה — כל הנתונים בדויים
+      </div>
+
       <Link href="/" class="auth-brand">
         <span class="auth-brand-icon">🌳</span>
-        <span class="auth-brand-text">משפחת ואקיל</span>
+        <span class="auth-brand-text">{{ siteName }}</span>
       </Link>
 
       <h1 v-if="title" class="auth-title">{{ title }}</h1>
@@ -59,6 +66,18 @@ const googleEnabled = computed(() => usePage().props.googleEnabled)
   box-shadow: 0 12px 44px rgba(0, 50, 150, 0.13);
   padding: 2.1rem 1.9rem;
   border: 1px solid #e7eefb;
+}
+
+.auth-demo-banner {
+  background: repeating-linear-gradient(135deg, #fef3c7, #fef3c7 14px, #fde68a 14px, #fde68a 28px);
+  color: #92400e;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.8rem;
+  margin-bottom: 1rem;
 }
 
 .auth-brand {

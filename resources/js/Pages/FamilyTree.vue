@@ -5,7 +5,7 @@
       <!-- Header -->
       <div class="tree-header">
         <div class="tree-title">
-          <h1>🌳 עץ משפחת ואקיל</h1>
+          <h1>🌳 עץ {{ $page.props.siteName || 'משפחת ואקיל' }}</h1>
           <span class="people-count">{{ localNodes.length }} דמויות</span>
         </div>
         <div class="tree-controls">
