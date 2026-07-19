@@ -325,7 +325,7 @@
 
         <!-- ═══ ציר זמן — סרגל שנים רץ בתחתית ═══ -->
         <template v-if="timelineOn">
-          <TransitionGroup name="tl-evt" tag="div" class="tl-events" dir="rtl">
+          <TransitionGroup name="tl-evt" tag="div" class="tl-events" dir="rtl" :duration="450">
             <div v-for="ev in timelineEvents" :key="ev.key" class="tl-event">{{ ev.text }}</div>
           </TransitionGroup>
 
