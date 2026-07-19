@@ -22,6 +22,7 @@ class FamilyPhotoController extends Controller
                 'id'          => $p->id,
                 'url'         => $p->url,
                 'title'       => $p->title,
+                'taken_year'  => $p->taken_year,
                 'tags_count'  => $p->tags->count(),
                 'uploaded_by' => $p->uploaded_by,
             ]);
@@ -32,8 +33,9 @@ class FamilyPhotoController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'photo' => 'required|image|max:10240',
-            'title' => 'nullable|string|max:255',
+            'photo'      => 'required|image|max:10240',
+            'title'      => 'nullable|string|max:255',
+            'taken_year' => 'nullable|integer|min:1800|max:' . (int) date('Y'),
         ]);
 
         $path = $request->file('photo')->store('family-photos', 'public');
@@ -41,6 +43,7 @@ class FamilyPhotoController extends Controller
         $photo = FamilyPhoto::create([
             'path'        => $path,
             'title'       => $request->title,
+            'taken_year'  => $request->taken_year ?: null,
             'uploaded_by' => Auth::id(),
         ]);
 
@@ -69,6 +72,7 @@ class FamilyPhotoController extends Controller
                 'url'         => $familyPhoto->url,
                 'path'        => $familyPhoto->path,
                 'title'       => $familyPhoto->title,
+                'taken_year'  => $familyPhoto->taken_year,
                 'uploaded_by' => $familyPhoto->uploaded_by,
                 'tags'        => $familyPhoto->tags->map(fn($t) => [
                     'id'          => $t->id,
@@ -131,10 +135,20 @@ class FamilyPhotoController extends Controller
             abort(403);
         }
 
-        $data = $request->validate(['title' => 'nullable|string|max:255']);
-        $familyPhoto->update(['title' => $data['title'] ?? null]);
+        $data = $request->validate([
+            'title'      => 'sometimes|nullable|string|max:255',
+            'taken_year' => 'sometimes|nullable|integer|min:1800|max:' . (int) date('Y'),
+        ]);
 
-        return response()->json(['title' => $familyPhoto->title]);
+        $updates = [];
+        if ($request->has('title'))      $updates['title']      = $data['title'] ?? null;
+        if ($request->has('taken_year')) $updates['taken_year'] = $data['taken_year'] ?? null;
+        if ($updates) $familyPhoto->update($updates);
+
+        return response()->json([
+            'title'      => $familyPhoto->title,
+            'taken_year' => $familyPhoto->taken_year,
+        ]);
     }
 
     public function destroy(FamilyPhoto $familyPhoto)

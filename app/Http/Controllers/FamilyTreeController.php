@@ -24,6 +24,7 @@ class FamilyTreeController extends Controller
             'isAdmin'             => Auth::user()->role === 'admin',
             'rootPersonId'        => $this->findRootPersonId($nodes),
             'defaultMainPersonId' => $defaultMainPersonId,
+            'faceTimeline'        => $this->buildFaceTimeline(),
         ]);
     }
 
@@ -393,6 +394,34 @@ class FamilyTreeController extends Controller
         })->values()->toArray();
 
         return $nodes;
+    }
+
+    /**
+     * פנים מתויגות לפי שנת צילום — מזין את החלפת התמונות בזמן ריצת ציר הזמן:
+     * person_id → [{year, url, x, y, w, h}] מכל התמונות המשפחתיות שיש להן taken_year.
+     */
+    private function buildFaceTimeline(): array
+    {
+        return \App\Models\PhotoTag::query()
+            ->join('family_photos', 'family_photos.id', '=', 'photo_tags.family_photo_id')
+            ->whereNotNull('family_photos.taken_year')
+            ->orderBy('family_photos.taken_year')
+            ->get([
+                'photo_tags.person_id',
+                'photo_tags.x_percent', 'photo_tags.y_percent',
+                'photo_tags.w_percent', 'photo_tags.h_percent',
+                'family_photos.taken_year', 'family_photos.path',
+            ])
+            ->groupBy('person_id')
+            ->map(fn($tags) => $tags->map(fn($t) => [
+                'year' => (int) $t->taken_year,
+                'url'  => asset('storage/' . $t->path),
+                'x'    => (float) $t->x_percent,
+                'y'    => (float) $t->y_percent,
+                'w'    => (float) ($t->w_percent ?: 10),
+                'h'    => (float) ($t->h_percent ?: 10),
+            ])->values())
+            ->toArray();
     }
 
     private function findRootPersonId(array $nodes): string

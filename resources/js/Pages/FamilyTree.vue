@@ -185,8 +185,17 @@
               :stroke-width="node.isDeceased ? 2.5 : (node.isRoot || node.centerSpouse ? 3 : 1.5)"
               :opacity="node.isDeceased ? 0.82 : 1"
             />
+            <!-- פנים לפי תקופה — חיתוך התיוג מהתמונה המשפחתית של אותה שנה -->
             <image
-              v-if="node.avatar"
+              v-if="node.tlFace"
+              :href="node.tlFace.url"
+              :x="node.tlFace.x" :y="node.tlFace.y"
+              :width="node.tlFace.w" :height="node.tlFace.h"
+              :clip-path="`url(#rclip-${node.id})`"
+              preserveAspectRatio="none"
+            />
+            <image
+              v-else-if="node.avatar"
               :href="node.avatar"
               :x="-node.nodeR" :y="-node.nodeR"
               :width="node.nodeR * 2" :height="node.nodeR * 2"
@@ -545,6 +554,7 @@ const props = defineProps({
   isAdmin:             { type: Boolean, default: false },
   rootPersonId:        { type: String,  default: null },
   defaultMainPersonId: { type: String,  default: null },
+  faceTimeline:        { type: Object,  default: () => ({}) },  // person_id → פנים מתויגות לפי שנת צילום
 })
 
 const chartContainer   = ref(null)
@@ -1581,13 +1591,23 @@ const timelineMeta = computed(() => {
     if (!changed) break
   }
 
-  // שנת הופעה: מי שנישא לתוך המשפחה (ללא הורים בעץ) מופיע בשנת החתונה; כל השאר בלידה
+  // שנת הופעה: מי שנישא לתוך המשפחה (ללא הורים בעץ) מופיע רק בחתונה —
+  // גם כשאין תאריך נישואין (הערכה: שנה לפני הילד הראשון, או גיל 22). כל השאר בלידה.
   const appearYear = {}
   for (const n of nodes) {
     const id = String(n.id)
     const hasParentsInTree = (n.rels?.parents || []).some(p => byId[String(p)])
-    if (!hasParentsInTree && (n.rels?.spouses || []).length && firstMarriage[id]) {
-      appearYear[id] = firstMarriage[id]
+    const isMarriedIn = !hasParentsInTree && (n.rels?.spouses || []).length > 0
+    if (isMarriedIn) {
+      if (firstMarriage[id]) {
+        appearYear[id] = firstMarriage[id]
+      } else {
+        const kidYears    = (n.rels?.children || []).map(c => estYear[String(c)]).filter(Boolean)
+        const spouseYears = (n.rels?.spouses  || []).map(s => estYear[String(s)]).filter(Boolean)
+        if (kidYears.length)         appearYear[id] = Math.min(...kidYears) - 1
+        else if (estYear[id])        appearYear[id] = estYear[id] + 22
+        else if (spouseYears.length) appearYear[id] = Math.min(...spouseYears) + 22
+      }
     } else if (estYear[id]) {
       appearYear[id] = estYear[id]
     }
@@ -1665,12 +1685,24 @@ const timelineEvents = computed(() => {
 // השנה העברית המקבילה (קירוב — לפי רוב השנה האזרחית)
 const tlHebYear = computed(() => toGematria(timelineYear.value + 3760))
 
+// בחירת הפנים המתאימות ביותר לשנה — מעדיף תמונה מהעבר הקרוב על פני עתידית
+function pickTimelineFace(personId, year) {
+  const faces = props.faceTimeline?.[personId]
+  if (!faces?.length) return null
+  let best = null, bestCost = Infinity
+  for (const f of faces) {
+    const cost = f.year > year ? (f.year - year) * 2 : (year - f.year)
+    if (cost < bestCost) { bestCost = cost; best = f }
+  }
+  return best
+}
+
 function startTimeline() {
   selectedPerson.value   = null
   addRelType.value       = null
   activePanel.value      = null
   radialExpansions.value = []
-  radialCenterId.value   = null          // ההרצה תמיד מתחילה מהדמות הראשית
+  // ההרצה מתחילה מהדמות שבמרכז כרגע — כך אפשר להתמקד בציר של ענף מסוים
 
   const meta      = timelineMeta.value
   const centerId  = radialActiveCenterId()
@@ -1744,12 +1776,13 @@ function animateVB(target, dur = 950) {
   vbAnimFrame = requestAnimationFrame(step)
 }
 
-// מרחיב את התצוגה רק כשהמשפחה באמת גדלה — לא נלחם בזום ידני של המשתמש
+// מרחיב את התצוגה רק כשהמשפחה באמת גדלה — לא נלחם בזום ידני של המשתמש.
+// ללא תקרה: ברירת המחדל תמיד מרחיקה מספיק כדי שכל הדמויות ייכנסו למסך.
 function smoothFitRadial() {
   nextTick(() => {
     const maxR = radialData.value.maxR || 300
     const mob  = isRadialMobile.value
-    const size = Math.min(Math.max(maxR * (mob ? 2.0 : 2.2), 380), mob ? 720 : 820)
+    const size = Math.max(maxR * (mob ? 2.05 : 2.2), 380)
     if (Math.abs(size - lastFitSize) < 1) return
     lastFitSize = size
     animateVB({ x: -size / 2, y: -size / 2, w: size, h: size })
@@ -1972,10 +2005,26 @@ const radialData = computed(() => {
       }
     }
 
+    // פנים לפי תקופה — בזמן ריצת ציר הזמן התמונה בעיגול מתחלפת לפי שנת הצילום
+    let tlFace = null
+    if (timelineOn.value) {
+      const f = pickTimelineFace(id, timelineYear.value)
+      if (f) {
+        const dispW = (2 * nodeR) * 100 / f.w
+        const dispH = (2 * nodeR) * 100 / f.h
+        tlFace = {
+          url: f.url,
+          x: -nodeR - dispW * f.x / 100,
+          y: -nodeR - dispH * f.y / 100,
+          w: dispW, h: dispH,
+        }
+      }
+    }
+
     return {
       id,
       x: pos.x, y: pos.y, level: pos.level, relType: pos.relType,
-      nodeR, labelArc,
+      nodeR, labelArc, tlFace,
       gender:    n?.data?.gender,
       avatar:    n?.data?.avatar || null,
       firstName: n?.data?.['first name'] || '',

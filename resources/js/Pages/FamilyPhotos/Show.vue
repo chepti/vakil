@@ -25,6 +25,16 @@
           <button class="btn-title-cancel" @click="editingTitle = false">ביטול</button>
         </div>
 
+        <label v-if="canEdit && !editingTitle" class="year-field" title="שנת צילום — הפנים המתויגות יופיעו בציר הזמן לפי שנה זו">
+          📅
+          <input
+            v-model.number="yearDraft" type="number" min="1800" :max="currentYear"
+            placeholder="שנה" @change="saveYear"
+          />
+          <span v-if="savingYear" class="year-saving">…</span>
+        </label>
+        <span v-else-if="localYear && !editingTitle" class="year-field year-readonly">📅 {{ localYear }}</span>
+
         <button class="btn-download" @click="downloadPhoto" :disabled="downloading">
           {{ downloading ? '…' : '⬇ הורד' }}
         </button>
@@ -168,6 +178,35 @@ const canEdit = authUser?.role === 'admin' || props.photo.uploaded_by === authUs
 function deletePhoto() {
   if (!confirm('למחוק את התמונה לצמיתות?')) return
   router.delete(`/family-photos/${props.photo.id}`)
+}
+
+// ── שנת צילום — מזינה את ציר הזמן ──
+const currentYear = new Date().getFullYear()
+const localYear   = ref(props.photo.taken_year || null)
+const yearDraft   = ref(props.photo.taken_year || null)
+const savingYear  = ref(false)
+
+async function saveYear() {
+  if (savingYear.value) return
+  const y = yearDraft.value || null
+  if (y && (y < 1800 || y > currentYear)) { alert(`שנה בין 1800 ל-${currentYear}`); yearDraft.value = localYear.value; return }
+  savingYear.value = true
+  try {
+    const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
+    const res = await fetch(`/family-photos/${props.photo.id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
+      body:    JSON.stringify({ taken_year: y }),
+    })
+    if (!res.ok) throw new Error()
+    const data = await res.json()
+    localYear.value = data.taken_year || null
+  } catch {
+    alert('שגיאה בשמירת השנה')
+    yearDraft.value = localYear.value
+  } finally {
+    savingYear.value = false
+  }
 }
 
 // ── עריכת שם התמונה ──
@@ -522,6 +561,22 @@ h3 { font-size: 1rem; color: #1a3a6b; margin: 0 0 0.8rem; }
   flex-shrink: 0;
 }
 .btn-back:hover { background: #dbeafe; }
+.year-field {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.88rem; color: #a07830; flex-shrink: 0;
+  background: #fdf6ec; border: 1.5px solid #f0d898; border-radius: 8px;
+  padding: 0.3rem 0.6rem;
+}
+.year-field input {
+  width: 68px; border: none; background: transparent;
+  font-size: 0.88rem; font-family: 'Rubik', sans-serif; font-weight: 600; color: #a07830;
+  direction: ltr; text-align: center;
+}
+.year-field input:focus { outline: none; }
+.year-field input::placeholder { color: #d0b070; font-weight: 400; }
+.year-saving { font-size: 0.8rem; }
+.year-readonly { font-weight: 600; }
+
 .btn-download {
   background: #eef4ff;
   border: 1.5px solid #c7dbf7;

@@ -18,6 +18,10 @@
             <label>כותרת (אופציונלי)</label>
             <input v-model="uploadTitle" type="text" placeholder="למשל: חתונת הוריי 1985" />
           </div>
+          <div class="form-group">
+            <label>📅 שנת צילום — הפנים המתויגות יופיעו בציר הזמן לפי שנה זו</label>
+            <input v-model="uploadYear" type="number" class="year-input" min="1800" :max="currentYear" placeholder="למשל: 1985" />
+          </div>
           <div v-if="uploading" class="upload-progress">
             <div class="upload-progress-bar" :style="{ width: uploadProgress + '%' }"></div>
             <span class="upload-progress-label">{{ uploadProgress }}%</span>
@@ -53,6 +57,7 @@
             </div>
             <div class="photo-info">
               <span class="photo-title">{{ photo.title || 'ללא כותרת' }}</span>
+              <span v-if="photo.taken_year" class="photo-year">📅 {{ photo.taken_year }}</span>
             </div>
           </Link>
           <button
@@ -91,8 +96,10 @@ function deletePhoto(photo) {
 const uploadFile     = ref(null)
 const uploadPreview  = ref(null)
 const uploadTitle    = ref('')
+const uploadYear     = ref('')
 const uploading      = ref(false)
 const uploadProgress = ref(0)
+const currentYear    = new Date().getFullYear()
 
 function handleFileSelect(e) {
   const file = e.target.files[0]
@@ -100,6 +107,7 @@ function handleFileSelect(e) {
   uploadFile.value    = file
   uploadPreview.value = URL.createObjectURL(file)
   uploadTitle.value   = ''
+  uploadYear.value    = ''
   e.target.value = ''
 }
 
@@ -107,6 +115,7 @@ function cancelUpload() {
   uploadFile.value    = null
   uploadPreview.value = null
   uploadTitle.value   = ''
+  uploadYear.value    = ''
   uploadProgress.value = 0
 }
 
@@ -118,6 +127,7 @@ function submitUpload() {
   const data = new FormData()
   data.append('photo', uploadFile.value)
   if (uploadTitle.value) data.append('title', uploadTitle.value)
+  if (uploadYear.value)  data.append('taken_year', uploadYear.value)
 
   const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
   const xhr = new XMLHttpRequest()
@@ -182,11 +192,11 @@ h1 { font-size: 1.5rem; color: #1a3a6b; margin: 0; }
 .upload-meta { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 1rem; }
 .form-group { display: flex; flex-direction: column; gap: 0.35rem; }
 label { font-size: 0.85rem; color: #4a5568; font-weight: 500; }
-input[type="text"] {
+input[type="text"], input[type="number"] {
   padding: 0.55rem 0.75rem; border: 1.5px solid #d1dce8; border-radius: 8px;
   font-size: 0.95rem; font-family: 'Rubik', sans-serif; direction: rtl;
 }
-input[type="text"]:focus { outline: none; border-color: #2d6be4; }
+input[type="text"]:focus, input[type="number"]:focus { outline: none; border-color: #2d6be4; }
 
 .upload-actions { display: flex; gap: 0.75rem; margin-top: auto; }
 .btn-cancel {
@@ -280,6 +290,11 @@ input[type="text"]:focus { outline: none; border-color: #2d6be4; }
   font-size: 0.75rem; padding: 0.18rem 0.5rem; border-radius: 12px;
 }
 
-.photo-info { padding: 0.75rem; }
-.photo-title { font-size: 0.88rem; color: #2d4a7a; font-weight: 500; }
+.photo-info { padding: 0.75rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.photo-title { font-size: 0.88rem; color: #2d4a7a; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.photo-year {
+  font-size: 0.75rem; color: #a07830; font-weight: 600; flex-shrink: 0;
+  background: #fdf6ec; border: 1px solid #f0d898; border-radius: 10px; padding: 0.1rem 0.45rem;
+}
+.year-input { max-width: 160px; direction: ltr; text-align: right; }
 </style>

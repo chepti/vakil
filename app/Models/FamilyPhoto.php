@@ -11,7 +11,7 @@ class FamilyPhoto extends Model
 {
     use HasOriginUuid;
 
-    protected $fillable = ['path', 'title', 'uploaded_by', 'origin_uuid'];
+    protected $fillable = ['path', 'title', 'taken_year', 'uploaded_by', 'origin_uuid'];
 
     public function tags(): HasMany
     {
