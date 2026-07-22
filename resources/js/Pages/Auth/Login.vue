@@ -18,6 +18,17 @@ const submit = () => {
     onFinish: () => form.reset('password'),
   })
 }
+
+// כניסת אורח בדמו — מתחברים דרך ה-login הרגיל עם פרטי האורח הקבועים
+// (לא דרך endpoint ייעודי, כדי לא להיחסם ע"י שכבת ה-edge של האחסון)
+const loginAsGuest = () => {
+  form.email = 'guest@example.com'
+  form.password = 'demo1234'
+  form.remember = true
+  form.post(route('login'), {
+    onFinish: () => form.reset('password'),
+  })
+}
 </script>
 
 <template>
@@ -62,9 +73,9 @@ const submit = () => {
     <!-- כניסת אורח — רק באתר ההדגמה -->
     <template v-if="$page.props.demo">
       <div class="auth-divider"><span>או</span></div>
-      <Link href="/demo-login" method="post" as="button" class="auth-btn" style="background:#d97706">
-        🎭 כניסה כאורח/ת — בלי סיסמה
-      </Link>
+      <button type="button" class="auth-btn" style="background:#d97706" :disabled="form.processing" @click="loginAsGuest">
+        {{ form.processing ? 'נכנס...' : '🎭 כניסה כאורח/ת — בלי סיסמה' }}
+      </button>
       <div class="auth-foot" style="color:#b45309;font-size:0.82rem">
         זהו אתר הדגמה עם נתונים בדויים — מוזמנים להסתובב ולנסות הכל
       </div>

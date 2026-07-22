@@ -161,15 +161,7 @@ Route::get('/invite/{token}', [InvitationController::class, 'show'])->name('invi
 Route::post('/invite/{token}', [InvitationController::class, 'register'])->name('invitation.register');
 Route::middleware(['auth'])->post('/invitations', [InvitationController::class, 'send'])->name('invitation.send');
 
-// כניסת אורח בקליק — קיים רק באתר ההדגמה (APP_DEMO=true)
-if (config('app.demo')) {
-    Route::post('/demo-login', function (\Illuminate\Http\Request $request) {
-        $guest = \App\Models\User::where('email', 'guest@example.com')->first();
-        abort_unless($guest, 404);
-        \Illuminate\Support\Facades\Auth::login($guest);
-        $request->session()->regenerate();
-        return redirect()->route('people.index');
-    })->name('demo.login');
-}
+// כניסת אורח בדמו נעשית דרך ה-login הרגיל עם פרטי האורח (ראו Login.vue) —
+// לא דרך endpoint ייעודי, שנחסם ע"י שכבת ה-edge/cache של האחסון.
 
 require __DIR__.'/auth.php';
