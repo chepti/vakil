@@ -14,6 +14,15 @@ use Inertia\Response;
 
 class ProfileController extends Controller
 {
+    /** אימייל חשבון האורח המשותף באתר ההדגמה בלבד */
+    private const DEMO_GUEST_EMAIL = 'guest@example.com';
+
+    /** האם זה חשבון האורח המשותף באתר הדגמה — אסור לערוך/למחוק אותו, כי זה שובר את הכניסה לכל המבקרים */
+    private function isDemoGuest(Request $request): bool
+    {
+        return config('app.demo') && $request->user()->email === self::DEMO_GUEST_EMAIL;
+    }
+
     /**
      * Display the user's profile form.
      */
@@ -36,6 +45,10 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
+        if ($this->isDemoGuest($request)) {
+            return Redirect::route('profile.edit')->with('error', 'זהו חשבון האורח המשותף בהדגמה — לא ניתן לערוך אותו, כדי לא לפגוע בכניסה של מבקרים אחרים.');
+        }
+
         $request->user()->fill($request->validated());
 
         if ($request->user()->isDirty('email')) {
@@ -52,6 +65,10 @@ class ProfileController extends Controller
      */
     public function updateNotifications(Request $request): RedirectResponse
     {
+        if ($this->isDemoGuest($request)) {
+            return Redirect::route('profile.edit');
+        }
+
         $data = $request->validate([
             'notify_monthly_digest'   => ['required', 'boolean'],
             'notify_new_person'       => ['required', 'boolean'],
@@ -69,6 +86,10 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        if ($this->isDemoGuest($request)) {
+            return Redirect::route('profile.edit')->with('error', 'זהו חשבון האורח המשותף בהדגמה — לא ניתן למחוק אותו.');
+        }
+
         $request->validate([
             'password' => ['required', 'current_password'],
         ]);
