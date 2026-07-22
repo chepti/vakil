@@ -32,12 +32,17 @@ class Person extends Model
 
             if ($alreadyUser || $alreadyInvited) return;
 
-            $invitation = Invitation::generate(
-                email:     $newEmail,
-                invitedBy: Auth::id() ?? 1,
-                personId:  $person->id,
-            );
-            Mail::to($newEmail)->send(new InvitationMail($invitation));
+            // עטוף בטיפול שגיאות: כשל שליחת מייל (למשל הגבלת SMTP זמנית) לא יבטל את שמירת הדמות.
+            try {
+                $invitation = Invitation::generate(
+                    email:     $newEmail,
+                    invitedBy: Auth::id() ?? 1,
+                    personId:  $person->id,
+                );
+                Mail::to($newEmail)->send(new InvitationMail($invitation));
+            } catch (\Throwable $e) {
+                report($e);
+            }
         });
 
         // התראה מיידית למנויים כשנוספת דמות חדשה — רק על יצירה דרך הממשק (משתמש מחובר),
