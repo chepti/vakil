@@ -25,6 +25,9 @@ const submit = () => {
     <Head title="התחברות" />
 
     <div v-if="status" class="auth-status">{{ status }}</div>
+    <div v-if="$page.props.flash?.error" class="auth-error" style="margin-bottom:1rem;text-align:center">
+      {{ $page.props.flash.error }}
+    </div>
 
     <form @submit.prevent="submit">
       <div class="auth-field">

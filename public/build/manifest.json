@@ -266,7 +266,7 @@
     ]
   },
   "resources/js/Pages/Auth/Login.vue": {
-    "file": "assets/Login-B5kziPRW.js",
+    "file": "assets/Login-gtvtHIhk.js",
     "name": "Login",
     "src": "resources/js/Pages/Auth/Login.vue",
     "isDynamicEntry": true,
@@ -825,7 +825,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-BNs1BgBz.js",
+    "file": "assets/app-DBsUHuEm.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
