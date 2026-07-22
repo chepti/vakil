@@ -33,6 +33,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // באתר ההדגמה — נוחתים ישר על העץ המעוגל, לא על רשימת בני המשפחה
+        if (config('app.demo')) {
+            return redirect()->intended(route('family-tree', absolute: false));
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
