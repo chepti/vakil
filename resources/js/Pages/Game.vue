@@ -54,7 +54,7 @@
                 class="trail-node"
                 :class="[node.state, { shake: node.shake }]"
               >
-                <div class="trail-bubble" :class="node.bubbleClass">
+                <div class="trail-bubble" :class="[node.bubbleClass, { zoomable: node.photo }]" @click="node.photo && openLightbox(node.photo)">
                   <img v-if="node.photo" :src="node.photo" :alt="node.name || ''" />
                   <span v-else-if="node.state === 'active'" class="trail-q">?</span>
                   <span v-else-if="node.state === 'goal'" class="trail-crown">👑</span>
@@ -80,9 +80,14 @@
         <section class="stage" :class="{ 'stage-revealed': targetIdentitySolved, 'stage-partial': !targetIdentitySolved && (identityPartsFound.first || identityPartsFound.last) }">
 
           <div class="stage-photo-wrap" :class="{ float: !targetIdentitySolved }">
-            <div class="stage-photo" :class="[genderClass(round.target_id), { revealed: targetIdentitySolved, partial: !targetIdentitySolved && (identityPartsFound.first || identityPartsFound.last) }]">
+            <div
+              class="stage-photo" :class="[genderClass(round.target_id), { revealed: targetIdentitySolved, partial: !targetIdentitySolved && (identityPartsFound.first || identityPartsFound.last), zoomable: photo(round.target_id) }]"
+              @click="photo(round.target_id) && openLightbox(photo(round.target_id))"
+              :title="photo(round.target_id) ? 'הגדלה 🔍' : ''"
+            >
               <img v-if="photo(round.target_id)" :src="photo(round.target_id)" alt="?" />
               <span v-else class="initials-lg">?</span>
+              <span v-if="photo(round.target_id)" class="zoom-hint">🔍</span>
             </div>
             <div v-if="targetDisplayOnStage" class="stage-name-reveal name-reveal" :class="{ partial: !targetIdentitySolved }">
               {{ targetDisplayOnStage }}
@@ -168,7 +173,7 @@
                     :class="genderClass(p.id)"
                     @click="attemptPlace(p.id)"
                   >
-                    <div class="pick-photo">
+                    <div class="pick-photo" :class="{ zoomable: p.photo_url }" @click.stop="p.photo_url && openLightbox(p.photo_url)">
                       <img v-if="p.photo_url" :src="p.photo_url" />
                       <span v-else>{{ initials(p.full_name) }}</span>
                     </div>
@@ -259,7 +264,7 @@
         <h2>הגעתם אל {{ mainPerson.full_name }}!</h2>
 
         <div class="win-reveal">
-          <div class="win-reveal-photo">
+          <div class="win-reveal-photo" :class="{ zoomable: photo(round.target_id) }" @click="photo(round.target_id) && openLightbox(photo(round.target_id))">
             <img v-if="photo(round.target_id)" :src="photo(round.target_id)" :alt="name(round.target_id)" />
             <span v-else class="initials-lg">{{ initials(name(round.target_id)) }}</span>
           </div>
@@ -283,12 +288,20 @@
       </section>
 
       <canvas ref="confettiCanvas" class="confetti-canvas"></canvas>
+
+      <!-- תצוגה מוגדלת של הדמות -->
+      <Transition name="fade">
+        <div v-if="lightboxUrl" class="lightbox" @click="closeLightbox" @keydown.esc="closeLightbox">
+          <button class="lightbox-close" @click="closeLightbox">✕</button>
+          <img :src="lightboxUrl" class="lightbox-img" @click.stop />
+        </div>
+      </Transition>
     </div>
   </AppLayout>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 const props = defineProps({
@@ -339,6 +352,12 @@ const aheadQuery = ref('')
 const trailEl   = ref(null)
 
 const confettiCanvas = ref(null)
+
+// ── תצוגה מוגדלת (לייטבוקס) ──
+const lightboxUrl = ref(null)
+function openLightbox(url) { lightboxUrl.value = url }
+function closeLightbox() { lightboxUrl.value = null }
+function onLightboxKeydown(e) { if (e.key === 'Escape') closeLightbox() }
 
 const currentStep = computed(() => quizSteps.value[currentIndex.value] ?? null)
 const nextStep    = computed(() => quizSteps.value[currentIndex.value + 1] ?? null)
@@ -819,7 +838,11 @@ function fireConfetti(count, ox, oy) {
   requestAnimationFrame(tick)
 }
 
-onMounted(() => { if (props.mainPerson) newRound() })
+onMounted(() => {
+  if (props.mainPerson) newRound()
+  window.addEventListener('keydown', onLightboxKeydown)
+})
+onUnmounted(() => window.removeEventListener('keydown', onLightboxKeydown))
 </script>
 
 <style scoped>
@@ -974,6 +997,14 @@ onMounted(() => { if (props.mainPerson) newRound() })
 .stage-photo.partial { border-color: #60a5fa; box-shadow: 0 10px 32px rgba(96,165,250,.2); }
 .stage-photo img { width: 100%; height: 100%; object-fit: cover; }
 .initials-lg { font-size: 3rem; font-weight: 800; color: #2d6be4; }
+.zoomable { cursor: zoom-in; position: relative; }
+.stage-photo .zoom-hint {
+  position: absolute; bottom: 6px; left: 6px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(0,0,0,0.5); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; pointer-events: none;
+}
 
 .stage-mystery { font-size: 1.1rem; color: #b45309; font-weight: 700; margin-top: 0.65rem; }
 .stage-name-reveal {
@@ -1148,6 +1179,29 @@ onMounted(() => { if (props.mainPerson) newRound() })
 .pulse-btn { animation: pulse-btn 2s ease-in-out infinite; }
 
 .confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 9999; }
+
+/* ── תצוגה מוגדלת (לייטבוקס) ── */
+.lightbox {
+  position: fixed; inset: 0; z-index: 10000;
+  background: rgba(10, 20, 40, 0.88);
+  display: flex; align-items: center; justify-content: center;
+  padding: 2rem; cursor: zoom-out;
+}
+.lightbox-img {
+  max-width: min(90vw, 640px); max-height: 85vh;
+  border-radius: 14px; object-fit: contain;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+  cursor: default;
+}
+.lightbox-close {
+  position: absolute; top: 1rem; left: 1rem;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3);
+  color: white; font-size: 1.1rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+.lightbox-close:hover { background: rgba(255,255,255,0.3); }
 
 /* ── אנימציות ── */
 @keyframes score-bump { 0%,100%{transform:scale(1)} 40%{transform:scale(1.15)} }

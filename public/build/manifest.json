@@ -439,7 +439,7 @@
     ]
   },
   "resources/js/Pages/Game.vue": {
-    "file": "assets/Game-DouSPlhH.js",
+    "file": "assets/Game-DASo6omo.js",
     "name": "Game",
     "src": "resources/js/Pages/Game.vue",
     "isDynamicEntry": true,
@@ -450,7 +450,7 @@
       "_AppLayout-CX1YdrEx.js"
     ],
     "css": [
-      "assets/Game-DL1fIkUx.css"
+      "assets/Game-DbJpbbdN.css"
     ]
   },
   "resources/js/Pages/Guide.vue": {
@@ -825,7 +825,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-BWB5bQO9.js",
+    "file": "assets/app-FM4iU6b-.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
