@@ -14,6 +14,7 @@ use App\Http\Controllers\PersonImportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\InvitationController;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -163,5 +164,18 @@ Route::middleware(['auth'])->post('/invitations', [InvitationController::class, 
 
 // כניסת אורח בדמו נעשית דרך ה-login הרגיל עם פרטי האורח (ראו Login.vue) —
 // לא דרך endpoint ייעודי, שנחסם ע"י שכבת ה-edge/cache של האחסון.
+
+// הרצת המייל החודשי דרך קריאת HTTP חתומה בסוד — תחליף ל-cron של Hostinger שאינו פועל.
+// הפקודה עצמה בודקת בפנים אם היום ראש חודש, כך שקריאה יומית בטוחה.
+Route::get('/internal/cron/digest', function (\Illuminate\Http\Request $request) {
+    $secret = (string) config('services.cron.secret');
+    if (blank($secret) || ! hash_equals($secret, (string) $request->query('token'))) {
+        abort(404);
+    }
+
+    Artisan::call('digest:monthly');
+
+    return response(Artisan::output(), 200)->header('Content-Type', 'text/plain; charset=UTF-8');
+})->name('cron.digest');
 
 require __DIR__.'/auth.php';
