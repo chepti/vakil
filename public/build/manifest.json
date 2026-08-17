@@ -71,12 +71,12 @@
     "file": "assets/GuestLayout-tLrf6cny.css",
     "src": "_GuestLayout-tLrf6cny.css"
   },
-  "_PhotoLightbox-CBi-UcFL.css": {
-    "file": "assets/PhotoLightbox-CBi-UcFL.css",
-    "src": "_PhotoLightbox-CBi-UcFL.css"
+  "_PhotoLightbox-BtNgFLoG.css": {
+    "file": "assets/PhotoLightbox-BtNgFLoG.css",
+    "src": "_PhotoLightbox-BtNgFLoG.css"
   },
-  "_PhotoLightbox-CjaIr5y3.js": {
-    "file": "assets/PhotoLightbox-CjaIr5y3.js",
+  "_PhotoLightbox-D59EYUuZ.js": {
+    "file": "assets/PhotoLightbox-D59EYUuZ.js",
     "name": "PhotoLightbox",
     "imports": [
       "__plugin-vue_export-helper-BDNMzG2s.js",
@@ -85,7 +85,7 @@
       "_createLucideIcon-DmUe2pNm.js"
     ],
     "css": [
-      "assets/PhotoLightbox-CBi-UcFL.css"
+      "assets/PhotoLightbox-BtNgFLoG.css"
     ]
   },
   "_RadialTree-D3Ou2TjE.css": {
@@ -440,7 +440,7 @@
     ]
   },
   "resources/js/Pages/FamilyTree.vue": {
-    "file": "assets/FamilyTree-CdB8dzzB.js",
+    "file": "assets/FamilyTree-x8KF0wmo.js",
     "name": "FamilyTree",
     "src": "resources/js/Pages/FamilyTree.vue",
     "isDynamicEntry": true,
@@ -450,7 +450,7 @@
       "_index.esm-CLfdJrog.js",
       "_runtime-core.esm-bundler-B8t4V_Hw.js",
       "_AppLayout-CX1YdrEx.js",
-      "_PhotoLightbox-CjaIr5y3.js"
+      "_PhotoLightbox-D59EYUuZ.js"
     ],
     "css": [
       "assets/FamilyTree-BAYSXBGH.css"
@@ -633,7 +633,7 @@
     ]
   },
   "resources/js/Pages/People/Show.vue": {
-    "file": "assets/Show-DNlMjdpa.js",
+    "file": "assets/Show-CAHDMA6B.js",
     "name": "Show",
     "src": "resources/js/Pages/People/Show.vue",
     "isDynamicEntry": true,
@@ -643,7 +643,7 @@
       "_index.esm-CLfdJrog.js",
       "_runtime-core.esm-bundler-B8t4V_Hw.js",
       "_AppLayout-CX1YdrEx.js",
-      "_PhotoLightbox-CjaIr5y3.js",
+      "_PhotoLightbox-D59EYUuZ.js",
       "_richText-BGrPrj2U.js"
     ],
     "css": [
@@ -844,7 +844,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-pfFySKpN.js",
+    "file": "assets/app-FOiSr3q3.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

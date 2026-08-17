@@ -14,14 +14,17 @@
       </button>
 
       <div class="lb-stage">
-        <div v-if="loading" class="lb-spinner"></div>
-        <img
-          v-else
-          :src="displayUrl"
-          class="lb-img"
-          @click.stop
-          @load="loading = false"
-        />
+        <div class="lb-img-wrap">
+          <div v-if="loading" class="lb-spinner"></div>
+          <img
+            :src="displayUrl"
+            class="lb-img"
+            :class="{ 'lb-img-hidden': loading }"
+            @click.stop
+            @load="loading = false"
+            @error="loading = false"
+          />
+        </div>
         <div class="lb-meta">
           <span v-if="current.label" class="lb-caption">{{ current.label }}</span>
           <button
@@ -122,11 +125,16 @@ onUnmounted(() => {
   display: flex; flex-direction: column; align-items: center; gap: 0.75rem;
   max-width: 90vw;
 }
+.lb-img-wrap {
+  position: relative; min-width: 120px; min-height: 120px;
+  display: flex; align-items: center; justify-content: center;
+}
 .lb-img {
   max-width: 90vw; max-height: 78vh; object-fit: contain;
   border-radius: 14px; box-shadow: 0 16px 56px rgba(0,0,0,0.5);
   cursor: default;
 }
+.lb-img-hidden { position: absolute; opacity: 0; pointer-events: none; }
 .lb-spinner {
   width: 42px; height: 42px; border-radius: 50%;
   border: 3px solid rgba(255,255,255,0.25); border-top-color: white;
