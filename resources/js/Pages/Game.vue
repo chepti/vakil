@@ -54,7 +54,7 @@
                 class="trail-node"
                 :class="[node.state, { shake: node.shake }]"
               >
-                <div class="trail-bubble" :class="[node.bubbleClass, { zoomable: node.photo }]" @click="node.photo && openLightboxDirect(node.photo, node.originalPhoto, node.name || node.shortLabel)">
+                <div class="trail-bubble" :class="[node.bubbleClass, { zoomable: node.photo }]" @click="node.photo && (node.key === 'start' ? openPersonPhoto(round.target_id) : openLightboxDirect(node.photo, node.originalPhoto, node.name || node.shortLabel))">
                   <img v-if="node.photo" :src="node.photo" :alt="node.name || ''" />
                   <span v-else-if="node.state === 'active'" class="trail-q">?</span>
                   <span v-else-if="node.state === 'goal'" class="trail-crown">👑</span>
@@ -296,6 +296,7 @@
         :index="lightbox.index"
         @update:index="lightbox.index = $event"
         @close="lightbox = null"
+        @unlock-original="onUnlockOriginal"
       />
     </div>
   </AppLayout>
@@ -315,6 +316,7 @@ const BASE_POINTS = 150
 const OPTIONS_COST = 60
 const AHEAD_BONUS = 120
 const TARGET_HINT_COST = { 1: 40, 2: 30, 3: 20 }
+const ORIGINAL_REVEAL_COST = 100   // חשיפת התמונה המקורית (הרחבה/הקשר) לפני הפתרון — עוקפת את הניחוש, אז יש לה מחיר
 const TARGET_IDENTITY_BONUS = { 0: 300, 1: 120, 2: 50, 3: 0 }
 const PART_BONUS = { first: 120, last: 100 }
 const PART_HINT_SCALE = { 0: 1, 1: 0.5, 2: 0.25, 3: 0 }
@@ -362,10 +364,35 @@ function openLightboxDirect(url, originalUrl, label) {
   if (!url) return
   lightbox.value = { photos: [{ url, originalUrl, label }], index: 0 }
 }
+
+// תמונת המסתורין (round.target_id) לפני שנפתרה: בלי שם (מגלה את הפתרון בטקסט), ובלי
+// גישה חינמית לתמונה המקורית — היא בד"כ תמונה משפחתית שיכולה לחשוף הקשר/סביבה ולפתור
+// את החידה בזול. אחרי שנפתרה (targetRevealed) — אין יותר מה להסתיר, מציגים הכל חינם.
 function openPersonPhoto(id) {
   const p = peopleById.value[id]
   if (!p?.photo_url) return
+  const isSecretTarget = round.value && id === round.value.target_id && !targetRevealed.value
+  if (isSecretTarget) {
+    lightbox.value = {
+      photos: [{
+        url: p.photo_url,
+        locked: { label: `הצגת התמונה המקורית (−${ORIGINAL_REVEAL_COST})`, personId: id },
+      }],
+      index: 0,
+    }
+    return
+  }
   openLightboxDirect(p.photo_url, p.original_photo_url, p.full_name)
+}
+
+function onUnlockOriginal() {
+  const entry = lightbox.value?.photos?.[0]
+  if (!entry?.locked) return
+  const person = peopleById.value[entry.locked.personId]
+  applyPenalty(ORIGINAL_REVEAL_COST)
+  feedback.value = { type: 'info', text: `חשפתם את התמונה המקורית · −${ORIGINAL_REVEAL_COST} נק'` }
+  entry.originalUrl = person?.original_photo_url || entry.url
+  entry.locked = null
 }
 
 const currentStep = computed(() => quizSteps.value[currentIndex.value] ?? null)
@@ -387,7 +414,6 @@ const trailNodes = computed(() => {
     shortLabel: 'התחלה',
     name: targetRevealed.value ? name(round.value.target_id) : null,
     photo: photo(round.value.target_id),
-    originalPhoto: peopleById.value[round.value.target_id]?.original_photo_url,
     initials: initials(name(round.value.target_id)),
     bubbleClass: genderClass(round.value.target_id),
     shake: false,

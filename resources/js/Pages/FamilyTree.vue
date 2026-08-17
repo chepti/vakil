@@ -362,16 +362,16 @@
         </div>
         <template v-else>
           <button
-            v-for="(bp, i) in branchPhotos.slice(0, 5)"
+            v-for="(bp, i) in branchPhotos.slice(0, 3)"
             :key="i"
             class="branch-photo-card"
-            :style="{ '--rot': branchCardRotate(i) + 'deg', '--shift': branchCardShiftX(i) + 'px', '--i': i }"
+            :style="{ '--rot': branchCardRotate(i) + 'deg' }"
             @click="openBranchLightbox(i)"
           >
             <img :src="bp.url" loading="lazy" decoding="async" :alt="bp.label || ''" />
           </button>
-          <div v-if="branchPhotos.length > 5" class="branch-photos-more" @click="openBranchLightbox(5)">
-            +{{ branchPhotos.length - 5 }}
+          <div v-if="branchPhotos.length > 3" class="branch-photos-more" @click="openBranchLightbox(3)">
+            +{{ branchPhotos.length - 3 }}
           </div>
         </template>
       </div>
@@ -2354,7 +2354,6 @@ function openBranchLightbox(i) {
 
 // רוטציה עדינה ועקבית לכל כרטיס בערמת התמונות (לא רנדומלי — כדי שלא "יקפוץ" בכל רינדור)
 function branchCardRotate(i) { return ((i * 47) % 13) - 6 }
-function branchCardShiftX(i) { return ((i * 31) % 9) - 4 }
 
 function toggleRadialMode() {
   radialMode.value = !radialMode.value
@@ -2986,63 +2985,64 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   .radial-hint { font-size: 0.72rem; }
 }
 
-/* ═══ מסדרון תמונות ענף — צף בצד שמאל, שקוף עד שמרחפים ═══ */
+/* ═══ מסדרון תמונות ענף — עמודה שממלאת את גובה הצד, שקופה עד שמרחפים ═══ */
 .branch-photos-rail {
   position: absolute;
-  left: 14px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
+  height: min(82vh, 640px);
+  width: clamp(110px, 13vw, 180px);
   z-index: 25;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  opacity: 0.5;
+  gap: 10px;
+  opacity: 0.6;
   transition: opacity 0.25s ease;
 }
 .branch-photos-rail:hover { opacity: 1; }
 .branch-photo-card {
-  width: 92px;
-  height: 112px;
-  padding: 4px;
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  padding: 5px;
   background: white;
   border: none;
-  border-radius: 8px;
-  box-shadow: 0 4px 14px rgba(0,50,150,0.2);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,50,150,0.22);
   cursor: zoom-in;
-  margin-top: -34px;
-  transform: rotate(var(--rot)) translateX(var(--shift));
+  transform: rotate(var(--rot));
   transition: transform 0.2s ease, box-shadow 0.2s ease, z-index 0s;
   position: relative;
 }
-.branch-photo-card:first-child { margin-top: 0; }
 .branch-photo-card:hover {
-  transform: rotate(0deg) translateX(0) scale(1.25);
-  box-shadow: 0 10px 28px rgba(0,50,150,0.35);
+  transform: rotate(0deg) scale(1.06);
+  box-shadow: 0 10px 30px rgba(0,50,150,0.38);
   z-index: 5;
 }
 .branch-photo-card img {
-  width: 100%; height: 100%; object-fit: cover; border-radius: 4px; display: block;
+  width: 100%; height: 100%; object-fit: cover; border-radius: 6px; display: block;
 }
 .branch-photo-skeleton {
   display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.75);
 }
 .branch-photo-skeleton .mini-spinner {
-  width: 22px; height: 22px; border-radius: 50%;
+  width: 26px; height: 26px; border-radius: 50%;
   border: 2.5px solid rgba(45,107,228,0.25); border-top-color: #2d6be4;
   animation: mini-spin 0.8s linear infinite;
 }
 @keyframes mini-spin { to { transform: rotate(360deg); } }
 .branch-photos-more {
-  margin-top: -34px;
-  width: 92px; height: 112px;
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
   background: rgba(26,58,107,0.85);
-  color: white; font-size: 0.85rem; font-weight: 700;
-  border-radius: 8px;
+  color: white; font-size: 0.9rem; font-weight: 700;
+  border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0,50,150,0.2);
-  transform: rotate(-4deg);
+  box-shadow: 0 4px 16px rgba(0,50,150,0.22);
 }
 @media (max-width: 700px) {
   .branch-photos-rail { display: none; }
