@@ -182,4 +182,25 @@ Route::get('/internal/cron/digest', function (\Illuminate\Http\Request $request)
     return response(Artisan::output(), 200)->header('Content-Type', 'text/plain; charset=UTF-8');
 })->name('cron.digest');
 
+// התראת כשל למייל — חלופה ל-push (שדורש Remote Control, לא זמין בחשבון Team).
+// נקרא ע"י המשימה היומית בענן אם קריאת ה-digest נכשלה.
+Route::get('/internal/cron/alert', function (\Illuminate\Http\Request $request) {
+    $secret = (string) config('services.cron.secret');
+    if (blank($secret) || ! hash_equals($secret, (string) $request->query('token'))) {
+        abort(404);
+    }
+
+    $message = (string) $request->query('message', 'שגיאה לא ידועה');
+    $to      = config('app.admin_alert_email', env('CONTACT_EMAIL'));
+
+    if ($to) {
+        \Illuminate\Support\Facades\Mail::raw(
+            "המשימה היומית של המייל החודשי נכשלה:\n\n{$message}",
+            fn ($m) => $m->to($to)->subject('⚠️ תקלה במשימת המייל החודשי — vakil')
+        );
+    }
+
+    return response('alerted', 200);
+})->name('cron.alert');
+
 require __DIR__.'/auth.php';
