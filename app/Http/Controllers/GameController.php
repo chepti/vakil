@@ -17,21 +17,34 @@ class GameController extends Controller
 
         $allPeople = Person::select('id', 'first_name', 'last_name', 'gender', 'profile_photo')
             ->orderBy('first_name')
-            ->get()
-            ->map(fn($p) => [
-                'id'        => $p->id,
-                'full_name' => $p->full_name,
-                'gender'    => $p->gender,
-                'photo_url' => $p->profile_photo_url,
-            ]);
+            ->get();
+
+        // תמונת פרופיל היא לרוב חיתוך של תמונה גדולה יותר — כדי שההגדלה בלייטבוקס תהיה
+        // הגדלה של ממש (ולא מתיחה של תמונה זעירה), מאתרים לכל דמות את התמונה המקורית
+        // (לפני החיתוך) דרך רשומת Photo המתאימה, בשליפה אחת ולא N+1.
+        $originalByThumb = \App\Models\Photo::whereIn('thumb_path', $allPeople->pluck('profile_photo')->filter())
+            ->get()->keyBy('thumb_path');
+
+        $peopleData = $allPeople->map(fn($p) => [
+            'id'                 => $p->id,
+            'full_name'          => $p->full_name,
+            'gender'             => $p->gender,
+            'photo_url'          => $p->profile_photo_url,
+            'original_photo_url' => $p->profile_photo
+                ? ($originalByThumb[$p->profile_photo]->original_url ?? $p->profile_photo_url)
+                : null,
+        ]);
 
         return Inertia::render('Game', [
             'mainPerson' => $main ? [
-                'id'        => $main->id,
-                'full_name' => $main->full_name,
-                'photo_url' => $main->profile_photo_url,
+                'id'                 => $main->id,
+                'full_name'          => $main->full_name,
+                'photo_url'          => $main->profile_photo_url,
+                'original_photo_url' => $main->profile_photo
+                    ? ($originalByThumb[$main->profile_photo]->original_url ?? $main->profile_photo_url)
+                    : null,
             ] : null,
-            'allPeople' => $allPeople,
+            'allPeople' => $peopleData,
         ]);
     }
 

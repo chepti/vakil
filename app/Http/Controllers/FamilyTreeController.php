@@ -413,12 +413,17 @@ class FamilyTreeController extends Controller
         $person = Person::findOrFail($id);
         $ids = array_unique(array_merge([$person->id], $person->descendantIds()));
 
+        // latest() + limit נשען על אינדקס ה-id — מהיר. ORDER BY RAND() נמנע בכוונה: הוא סורק
+        // את כל הטבלה ובונה טבלת עזר, ומורגש כאיטי במיוחד בכל בקשה על שרת שיתופי.
+        // הגיוון "שכל ביקור מציג תמונות אחרות" מושג בעירבוב הרשימה בזיכרון אחרי השליפה.
         $photos = \App\Models\FamilyPhoto::query()
             ->whereHas('tags', fn($q) => $q->whereIn('person_id', $ids))
             ->with(['tags' => fn($q) => $q->whereIn('person_id', $ids)->with('person:id,first_name')])
-            ->inRandomOrder()
-            ->limit(12)
+            ->latest('id')
+            ->limit(24)
             ->get()
+            ->shuffle()
+            ->take(10)
             ->map(fn($p) => [
                 'url'   => $p->url,
                 'label' => $p->title ?: ($p->taken_year ? 'שנת ' . $p->taken_year : null),

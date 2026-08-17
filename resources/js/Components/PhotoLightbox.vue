@@ -15,8 +15,9 @@
 
       <div class="lb-stage">
         <div class="lb-img-wrap">
-          <div v-if="loading" class="lb-spinner"></div>
+          <div v-if="loading || !displayUrl" class="lb-spinner"></div>
           <img
+            v-if="displayUrl"
             :src="displayUrl"
             class="lb-img"
             :class="{ 'lb-img-hidden': loading }"

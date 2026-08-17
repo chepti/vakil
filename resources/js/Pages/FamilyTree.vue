@@ -137,6 +137,7 @@
             :class="{ 'radial-spouse': node.relType === 'spouse', 'radial-deceased': node.isDeceased }"
             @pointerdown.stop
             @click.stop="onRadialNodeClick(node.id)"
+            @dblclick.stop="node.hasPhotos && openPersonLightbox(node.id)"
             @mouseenter="node.spouse && (hoveredNodeId = node.id)"
             @mouseleave="hoveredNodeId === node.id && (hoveredNodeId = null)"
           >
@@ -280,17 +281,6 @@
               <title>נוחש/ה {{ node.gameGuesses }} פעמים · {{ node.gamePoints }} נקודות</title>
             </g>
 
-            <!-- 🔍 תג הגדלה — פותח לייטבוקס עם כל תמונות הדמות, כולל המקור לפני חיתוך -->
-            <g v-if="node.hasPhotos"
-               class="zoom-badge"
-               :transform="`translate(${-(node.nodeR - 3)}, ${(node.nodeR - 3)})`"
-               @click.stop="openPersonLightbox(node.id)">
-              <circle r="9" fill="rgba(30,58,95,0.6)" stroke="#fff" stroke-width="1.2" />
-              <circle cx="-1.3" cy="-1.3" r="2.4" fill="none" stroke="#fff" stroke-width="1.3" />
-              <line x1="0.4" y1="0.4" x2="2.4" y2="2.4" stroke="#fff" stroke-width="1.3" stroke-linecap="round" />
-              <title>הגדלת תמונות {{ node.fullName }}</title>
-            </g>
-
             <!-- קיפול ענפים שכבר נפתחו -->
             <g v-if="node.openBranches?.length" class="branch-collapses">
               <g
@@ -329,7 +319,7 @@
                 <title>{{ branch.title }} ({{ branch.count }}) — לחצו לפתיחה</title>
               </g>
             </g>
-            <title>{{ node.fullName }}{{ node.relType === 'spouse' ? ' (בן/בת זוג)' : node.relType === 'parent' ? ' (הורה)' : '' }}</title>
+            <title>{{ node.fullName }}{{ node.relType === 'spouse' ? ' (בן/בת זוג)' : node.relType === 'parent' ? ' (הורה)' : '' }}{{ node.hasPhotos ? ' — לחיצה כפולה להגדלת תמונה' : '' }}</title>
           </g>
         </svg>
         <div v-if="!timelineOn" class="radial-hint">{{ radialHintText }}</div>
@@ -363,22 +353,27 @@
 
       <!-- ═══ מסדרון תמונות ענף — שקוף, צף בצד שמאל כשמתמקדים בענף מסוים ═══ -->
       <div
-        v-if="radialMode && !timelineOn && isBranchFocused && branchPhotos.length"
+        v-if="radialMode && !timelineOn && isBranchFocused && (branchPhotos.length || branchPhotosLoading)"
         class="branch-photos-rail"
         title="תמונות מהענף הזה — לחצו להגדלה"
       >
-        <button
-          v-for="(bp, i) in branchPhotos.slice(0, 6)"
-          :key="i"
-          class="branch-photo-card"
-          :style="{ '--rot': branchCardRotate(i) + 'deg', '--shift': branchCardShiftX(i) + 'px', '--i': i }"
-          @click="openBranchLightbox(i)"
-        >
-          <img :src="bp.url" loading="lazy" decoding="async" :alt="bp.label || ''" />
-        </button>
-        <div v-if="branchPhotos.length > 6" class="branch-photos-more" @click="openBranchLightbox(6)">
-          +{{ branchPhotos.length - 6 }}
+        <div v-if="branchPhotosLoading && !branchPhotos.length" class="branch-photo-card branch-photo-skeleton">
+          <div class="mini-spinner"></div>
         </div>
+        <template v-else>
+          <button
+            v-for="(bp, i) in branchPhotos.slice(0, 5)"
+            :key="i"
+            class="branch-photo-card"
+            :style="{ '--rot': branchCardRotate(i) + 'deg', '--shift': branchCardShiftX(i) + 'px', '--i': i }"
+            @click="openBranchLightbox(i)"
+          >
+            <img :src="bp.url" loading="lazy" decoding="async" :alt="bp.label || ''" />
+          </button>
+          <div v-if="branchPhotos.length > 5" class="branch-photos-more" @click="openBranchLightbox(5)">
+            +{{ branchPhotos.length - 5 }}
+          </div>
+        </template>
       </div>
 
       <!-- ═══ Floating overlay buttons (radial view only) ═══ -->
@@ -1240,7 +1235,7 @@ const RADIAL_MOBILE_MQ = '(max-width: 640px)'
 const isRadialMobile   = ref(false)
 const radialHintText   = computed(() => isRadialMobile.value
   ? 'גרירה להזזה · לחיצה על דמות למרכז · לחיצה נוספת לתפריט · על ענף קטן לפתיחת קרובים נסתרים'
-  : 'גלגל לזום · גרירה להזזה · לחיצה על דמות למרכז · על ענף קטן לפתיחת קרובים נסתרים')
+  : 'גלגל לזום · גרירה להזזה · לחיצה על דמות למרכז · לחיצה כפולה להגדלת תמונה · על ענף קטן לפתיחת קרובים נסתרים')
 let radialMobileMq = null
 const syncRadialMobile = () => {
   const was = isRadialMobile.value
@@ -2303,16 +2298,19 @@ async function openPersonLightbox(id) {
     lightbox.value = { photos: personGalleryCache.get(id), index: 0 }
     return
   }
+  // פותחים מיידית עם placeholder טוען — כך הלחיצה מקבלת משוב מיידי במקום "לא קורה כלום"
+  // בזמן שהרשת עובדת. url: null מסמן ל-PhotoLightbox להראות ספינר במקום תמונה שבורה.
+  lightbox.value = { photos: [{ url: null }], index: 0 }
   try {
     const res = await fetch(`/api/people/${id}/photos`)
     if (!res.ok) throw new Error()
     const data = await res.json()
     const photos = data.photos || []
-    if (!photos.length) return
+    if (!photos.length) { lightbox.value = null; return }
     personGalleryCache.set(id, photos)
-    lightbox.value = { photos, index: 0 }
+    if (lightbox.value) lightbox.value = { photos, index: 0 }
   } catch {
-    // שגיאת רשת — לא חוסם את שאר האתר
+    lightbox.value = null   // שגיאת רשת — סוגרים את ה-placeholder בלי לתקוע ספינר לנצח
   }
 }
 
@@ -2323,15 +2321,19 @@ const isBranchFocused = computed(() =>
   radialCenterId.value !== String(props.defaultMainPersonId || props.rootPersonId || props.nodes[0]?.id)
 )
 const branchPhotos = ref([])
+const branchPhotosLoading = ref(false)
 const branchPhotosCache = new Map()
 let branchPhotosTimer = null
 
 watch([radialCenterId, isBranchFocused], () => {
   clearTimeout(branchPhotosTimer)
+  branchPhotosLoading.value = false
   if (!isBranchFocused.value) { branchPhotos.value = []; return }
   const id = radialCenterId.value
   if (branchPhotosCache.has(id)) { branchPhotos.value = branchPhotosCache.get(id); return }
+  branchPhotos.value = []
   branchPhotosTimer = setTimeout(async () => {
+    branchPhotosLoading.value = true
     try {
       const res = await fetch(`/api/family-tree/branch-photos/${id}`)
       if (!res.ok) throw new Error()
@@ -2340,6 +2342,8 @@ watch([radialCenterId, isBranchFocused], () => {
       if (radialCenterId.value === id) branchPhotos.value = data
     } catch {
       // שגיאת רשת — המסדרון פשוט לא יופיע
+    } finally {
+      branchPhotosLoading.value = false
     }
   }, 500)
 })
@@ -2997,37 +3001,47 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 }
 .branch-photos-rail:hover { opacity: 1; }
 .branch-photo-card {
-  width: 56px;
-  height: 68px;
-  padding: 3px;
+  width: 92px;
+  height: 112px;
+  padding: 4px;
   background: white;
   border: none;
-  border-radius: 6px;
-  box-shadow: 0 3px 10px rgba(0,50,150,0.18);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,50,150,0.2);
   cursor: zoom-in;
-  margin-top: -20px;
+  margin-top: -34px;
   transform: rotate(var(--rot)) translateX(var(--shift));
   transition: transform 0.2s ease, box-shadow 0.2s ease, z-index 0s;
   position: relative;
 }
 .branch-photo-card:first-child { margin-top: 0; }
 .branch-photo-card:hover {
-  transform: rotate(0deg) translateX(0) scale(1.35);
-  box-shadow: 0 8px 22px rgba(0,50,150,0.32);
+  transform: rotate(0deg) translateX(0) scale(1.25);
+  box-shadow: 0 10px 28px rgba(0,50,150,0.35);
   z-index: 5;
 }
 .branch-photo-card img {
-  width: 100%; height: 100%; object-fit: cover; border-radius: 3px; display: block;
+  width: 100%; height: 100%; object-fit: cover; border-radius: 4px; display: block;
 }
+.branch-photo-skeleton {
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.75);
+}
+.branch-photo-skeleton .mini-spinner {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2.5px solid rgba(45,107,228,0.25); border-top-color: #2d6be4;
+  animation: mini-spin 0.8s linear infinite;
+}
+@keyframes mini-spin { to { transform: rotate(360deg); } }
 .branch-photos-more {
-  margin-top: -20px;
-  width: 56px; height: 68px;
+  margin-top: -34px;
+  width: 92px; height: 112px;
   background: rgba(26,58,107,0.85);
-  color: white; font-size: 0.78rem; font-weight: 700;
-  border-radius: 6px;
+  color: white; font-size: 0.85rem; font-weight: 700;
+  border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  box-shadow: 0 3px 10px rgba(0,50,150,0.18);
+  box-shadow: 0 4px 14px rgba(0,50,150,0.2);
   transform: rotate(-4deg);
 }
 @media (max-width: 700px) {
@@ -3242,9 +3256,6 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 .story-spark { cursor: pointer; }
 .recipe-badge { cursor: pointer; }
 .recipe-badge:hover circle { fill: #c2410c; }
-.zoom-badge { cursor: zoom-in; opacity: 0.65; transition: opacity 0.15s; }
-.zoom-badge:hover { opacity: 1; }
-.zoom-badge:hover circle:first-child { fill: #2d6be4; }
 .bday-ring { animation: bday-pulse 1.8s ease-in-out infinite; transform-origin: center; }
 @keyframes bday-pulse {
   0%, 100% { opacity: 0.75; }

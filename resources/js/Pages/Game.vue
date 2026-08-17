@@ -54,7 +54,7 @@
                 class="trail-node"
                 :class="[node.state, { shake: node.shake }]"
               >
-                <div class="trail-bubble" :class="[node.bubbleClass, { zoomable: node.photo }]" @click="node.photo && openLightbox(node.photo)">
+                <div class="trail-bubble" :class="[node.bubbleClass, { zoomable: node.photo }]" @click="node.photo && openLightboxDirect(node.photo, node.originalPhoto, node.name || node.shortLabel)">
                   <img v-if="node.photo" :src="node.photo" :alt="node.name || ''" />
                   <span v-else-if="node.state === 'active'" class="trail-q">?</span>
                   <span v-else-if="node.state === 'goal'" class="trail-crown">👑</span>
@@ -82,7 +82,7 @@
           <div class="stage-photo-wrap" :class="{ float: !targetIdentitySolved }">
             <div
               class="stage-photo" :class="[genderClass(round.target_id), { revealed: targetIdentitySolved, partial: !targetIdentitySolved && (identityPartsFound.first || identityPartsFound.last), zoomable: photo(round.target_id) }]"
-              @click="photo(round.target_id) && openLightbox(photo(round.target_id))"
+              @click="photo(round.target_id) && openPersonPhoto(round.target_id)"
               :title="photo(round.target_id) ? 'הגדלה 🔍' : ''"
             >
               <img v-if="photo(round.target_id)" :src="photo(round.target_id)" alt="?" />
@@ -173,7 +173,7 @@
                     :class="genderClass(p.id)"
                     @click="attemptPlace(p.id)"
                   >
-                    <div class="pick-photo" :class="{ zoomable: p.photo_url }" @click.stop="p.photo_url && openLightbox(p.photo_url)">
+                    <div class="pick-photo" :class="{ zoomable: p.photo_url }" @click.stop="p.photo_url && openLightboxDirect(p.photo_url, p.original_photo_url, p.full_name)">
                       <img v-if="p.photo_url" :src="p.photo_url" />
                       <span v-else>{{ initials(p.full_name) }}</span>
                     </div>
@@ -264,7 +264,7 @@
         <h2>הגעתם אל {{ mainPerson.full_name }}!</h2>
 
         <div class="win-reveal">
-          <div class="win-reveal-photo" :class="{ zoomable: photo(round.target_id) }" @click="photo(round.target_id) && openLightbox(photo(round.target_id))">
+          <div class="win-reveal-photo" :class="{ zoomable: photo(round.target_id) }" @click="photo(round.target_id) && openPersonPhoto(round.target_id)">
             <img v-if="photo(round.target_id)" :src="photo(round.target_id)" :alt="name(round.target_id)" />
             <span v-else class="initials-lg">{{ initials(name(round.target_id)) }}</span>
           </div>
@@ -289,20 +289,22 @@
 
       <canvas ref="confettiCanvas" class="confetti-canvas"></canvas>
 
-      <!-- תצוגה מוגדלת של הדמות -->
-      <Transition name="fade">
-        <div v-if="lightboxUrl" class="lightbox" @click="closeLightbox" @keydown.esc="closeLightbox">
-          <button class="lightbox-close" @click="closeLightbox">✕</button>
-          <img :src="lightboxUrl" class="lightbox-img" @click.stop />
-        </div>
-      </Transition>
+      <!-- תצוגה מוגדלת של הדמות — כולל מעבר לתמונה המקורית (לפני חיתוך) כשקיימת -->
+      <PhotoLightbox
+        v-if="lightbox"
+        :photos="lightbox.photos"
+        :index="lightbox.index"
+        @update:index="lightbox.index = $event"
+        @close="lightbox = null"
+      />
     </div>
   </AppLayout>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import PhotoLightbox from '@/Components/PhotoLightbox.vue'
 
 const props = defineProps({
   mainPerson: { type: Object, default: null },
@@ -353,11 +355,18 @@ const trailEl   = ref(null)
 
 const confettiCanvas = ref(null)
 
-// ── תצוגה מוגדלת (לייטבוקס) ──
-const lightboxUrl = ref(null)
-function openLightbox(url) { lightboxUrl.value = url }
-function closeLightbox() { lightboxUrl.value = null }
-function onLightboxKeydown(e) { if (e.key === 'Escape') closeLightbox() }
+// ── תצוגה מוגדלת (לייטבוקס) — כולל מעבר לתמונה המקורית (לפני חיתוך) כשקיימת ──
+const lightbox = ref(null)   // { photos: [{url, originalUrl, label}], index: 0 } | null
+
+function openLightboxDirect(url, originalUrl, label) {
+  if (!url) return
+  lightbox.value = { photos: [{ url, originalUrl, label }], index: 0 }
+}
+function openPersonPhoto(id) {
+  const p = peopleById.value[id]
+  if (!p?.photo_url) return
+  openLightboxDirect(p.photo_url, p.original_photo_url, p.full_name)
+}
 
 const currentStep = computed(() => quizSteps.value[currentIndex.value] ?? null)
 const nextStep    = computed(() => quizSteps.value[currentIndex.value + 1] ?? null)
@@ -378,6 +387,7 @@ const trailNodes = computed(() => {
     shortLabel: 'התחלה',
     name: targetRevealed.value ? name(round.value.target_id) : null,
     photo: photo(round.value.target_id),
+    originalPhoto: peopleById.value[round.value.target_id]?.original_photo_url,
     initials: initials(name(round.value.target_id)),
     bubbleClass: genderClass(round.value.target_id),
     shake: false,
@@ -395,6 +405,7 @@ const trailNodes = computed(() => {
       shortLabel: shortStepLabel(step.label),
       name: pid ? name(pid) : null,
       photo: pid ? photo(pid) : null,
+      originalPhoto: pid ? peopleById.value[pid]?.original_photo_url : null,
       initials: pid ? initials(name(pid)) : null,
       bubbleClass: pid ? genderClass(pid) : '',
       shake: shakeIdx.value === idx,
@@ -407,6 +418,7 @@ const trailNodes = computed(() => {
     shortLabel: 'יעד',
     name: props.mainPerson?.full_name,
     photo: props.mainPerson?.photo_url,
+    originalPhoto: props.mainPerson?.original_photo_url,
     initials: initials(props.mainPerson?.full_name),
     bubbleClass: 'grandma',
     shake: false,
@@ -838,11 +850,7 @@ function fireConfetti(count, ox, oy) {
   requestAnimationFrame(tick)
 }
 
-onMounted(() => {
-  if (props.mainPerson) newRound()
-  window.addEventListener('keydown', onLightboxKeydown)
-})
-onUnmounted(() => window.removeEventListener('keydown', onLightboxKeydown))
+onMounted(() => { if (props.mainPerson) newRound() })
 </script>
 
 <style scoped>
@@ -1179,29 +1187,6 @@ onUnmounted(() => window.removeEventListener('keydown', onLightboxKeydown))
 .pulse-btn { animation: pulse-btn 2s ease-in-out infinite; }
 
 .confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 9999; }
-
-/* ── תצוגה מוגדלת (לייטבוקס) ── */
-.lightbox {
-  position: fixed; inset: 0; z-index: 10000;
-  background: rgba(10, 20, 40, 0.88);
-  display: flex; align-items: center; justify-content: center;
-  padding: 2rem; cursor: zoom-out;
-}
-.lightbox-img {
-  max-width: min(90vw, 640px); max-height: 85vh;
-  border-radius: 14px; object-fit: contain;
-  box-shadow: 0 12px 48px rgba(0,0,0,0.5);
-  cursor: default;
-}
-.lightbox-close {
-  position: absolute; top: 1rem; left: 1rem;
-  width: 40px; height: 40px; border-radius: 50%;
-  background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3);
-  color: white; font-size: 1.1rem; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.2s;
-}
-.lightbox-close:hover { background: rgba(255,255,255,0.3); }
 
 /* ── אנימציות ── */
 @keyframes score-bump { 0%,100%{transform:scale(1)} 40%{transform:scale(1.15)} }
