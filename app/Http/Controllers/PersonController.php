@@ -6,6 +6,7 @@ use App\Models\Person;
 use App\Models\Photo;
 use App\Models\PhotoTag;
 use App\Models\Relationship;
+use App\Services\Family\RelationshipSync;
 use App\Services\Photos\PhotoStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -172,7 +173,26 @@ class PersonController extends Controller
             ]);
         }
 
-        return redirect()->route('people.show', $person)->with('success', 'הדמות נוספה בהצלחה');
+        // השלמת הורות אוטומטית: בן/בת הזוג נהיה הורה של הילדים (הקיימים והחדשים),
+        // וכשנבחר הורה יחיד — בן/בת הזוג שלו נרשם כהורה השני.
+        $sync      = app(RelationshipSync::class);
+        $completed = [];
+
+        if (! empty($data['spouse_id'])) {
+            $completed = $sync->completeParenthoodForCouple($person, Person::findOrFail($data['spouse_id']));
+        }
+
+        $parentIds = $data['parent_ids'] ?? [];
+        if (! $explicit && count($parentIds) === 1) {
+            $completed = array_merge($completed, $sync->completeSecondParent($person, Person::findOrFail($parentIds[0])));
+        }
+
+        $message = 'הדמות נוספה בהצלחה';
+        if ($extra = RelationshipSync::summarize($completed)) {
+            $message .= ' · ' . $extra;
+        }
+
+        return redirect()->route('people.show', $person)->with('success', $message);
     }
 
     public function show(Person $person)
@@ -329,7 +349,16 @@ class PersonController extends Controller
             'type'       => 'parent_child',
         ]);
 
-        return redirect()->route('people.show', $person)->with('success', 'ההורה נוסף');
+        // אם להורה שנוסף יש בן/בת זוג יחיד — גם הוא נרשם כהורה
+        $completed = app(RelationshipSync::class)
+            ->completeSecondParent($person, Person::findOrFail($parentId));
+
+        $message = 'ההורה נוסף';
+        if ($extra = RelationshipSync::summarize($completed)) {
+            $message .= ' · ' . $extra;
+        }
+
+        return redirect()->route('people.show', $person)->with('success', $message);
     }
 
     /**
@@ -416,7 +445,16 @@ class PersonController extends Controller
             ]
         );
 
-        return redirect()->route('people.show', $person)->with('success', 'בן/בת הזוג נוסף/ה');
+        // בן/בת הזוג נהיה אוטומטית הורה של הילדים הקיימים (ולהיפך), כשזה חד-משמעי
+        $completed = app(RelationshipSync::class)
+            ->completeParenthoodForCouple($person, Person::findOrFail($data['spouse_id']));
+
+        $message = 'בן/בת הזוג נוסף/ה';
+        if ($extra = RelationshipSync::summarize($completed)) {
+            $message .= ' · ' . $extra;
+        }
+
+        return redirect()->route('people.show', $person)->with('success', $message);
     }
 
     public function edit(Person $person)
@@ -487,6 +525,16 @@ class PersonController extends Controller
         $message = ($newEmail && $newEmail !== $oldEmail)
             ? "הפרטים עודכנו — הזמנה נשלחה ל-{$newEmail}"
             : 'הפרטים עודכנו';
+
+        // זוגיות שנקבעה כאן גוררת השלמת הורות בשני הכיוונים, כמו במסך הוספת בן/בת זוג
+        if (! empty($data['spouse_id'])) {
+            $completed = app(RelationshipSync::class)
+                ->completeParenthoodForCouple($person, Person::findOrFail($data['spouse_id']));
+
+            if ($extra = RelationshipSync::summarize($completed)) {
+                $message .= ' · ' . $extra;
+            }
+        }
 
         return redirect()->route('people.show', $person)->with('success', $message);
     }

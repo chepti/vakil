@@ -634,7 +634,7 @@
     ]
   },
   "resources/js/Pages/People/Show.vue": {
-    "file": "assets/Show-DPRdVa9V.js",
+    "file": "assets/Show-DNm4OT0u.js",
     "name": "Show",
     "src": "resources/js/Pages/People/Show.vue",
     "isDynamicEntry": true,
@@ -648,7 +648,7 @@
       "_richText-BGrPrj2U.js"
     ],
     "css": [
-      "assets/Show-7wEb1n5H.css"
+      "assets/Show-Brz9nSZ0.css"
     ]
   },
   "resources/js/Pages/Print/AncestorNode.vue": {
@@ -845,7 +845,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-_I-hYpPy.js",
+    "file": "assets/app-Cs0cinB2.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

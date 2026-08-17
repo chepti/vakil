@@ -1169,13 +1169,15 @@ const showAddChild = ref(false)
 const savingChild  = ref(false)
 const childForm    = reactive({
   first_name: '', last_name: '', gender: '', birth_date_gregorian: '', birth_date_hebrew: '',
-  add_spouse_as_parent: false, co_parent_id: null,
+  add_spouse_as_parent: true, co_parent_id: null,
 })
 
 function openAddChild() {
   childForm.first_name = ''; childForm.last_name = ''; childForm.gender = ''
   childForm.birth_date_gregorian = ''; childForm.birth_date_hebrew = ''
-  childForm.add_spouse_as_parent = false; childForm.co_parent_id = null
+  // ברירת מחדל: בן/בת הזוג היחיד/ה הוא ההורה השני — זה המצב הרגיל,
+  // והורדת הסימון היא הצהרה מפורשת שהילד משויך להורה אחד בלבד
+  childForm.add_spouse_as_parent = true; childForm.co_parent_id = null
   showAddChild.value = true
 }
 
@@ -1185,6 +1187,9 @@ function submitChild() {
   let explicit = false
   if (props.spouses.length === 1 && childForm.add_spouse_as_parent) {
     parentIds.push(props.spouses[0].id)
+  } else if (props.spouses.length === 1) {
+    // הסימון הורד במפורש — הילד נשאר עם הורה אחד, בלי השלמה אוטומטית בשרת
+    explicit = true
   } else if (props.spouses.length > 1 && childForm.co_parent_id) {
     // With several spouses the choice must be explicit, or the auto-merge would re-add the others
     parentIds.push(childForm.co_parent_id)

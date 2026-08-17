@@ -26,12 +26,15 @@ class SendMonthlyDigest extends Command
             ? Carbon::parse($this->option('date'))
             : Carbon::today();
 
-        if (! $this->option('force') && ! HebrewDate::isRoshChodesh($when)) {
+        [$sendToday, $effectiveWhen] = $this->resolveSendDate($when);
+
+        if (! $this->option('force') && ! $sendToday) {
             $this->info('היום אינו ראש חודש (' . HebrewDate::format($when) . ') — לא נשלח דבר. להרצה כפויה: --force');
 
             return self::SUCCESS;
         }
 
+        $when = $effectiveWhen;
         $data = $builder->build($when);
         $this->info("מכין מייל לחודש {$data['monthName']} {$data['yearGematria']}:");
         $this->line('  תינוקות: ' . count($data['newBabies'])
@@ -93,5 +96,33 @@ class SendMonthlyDigest extends Command
         $this->info("נשלחו {$sent} מיילים" . ($failed ? " ({$failed} נכשלו)" : '') . '.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * קובע אם לשלוח היום, ואת התאריך ה"אפקטיבי" לבניית התוכן.
+     *
+     * בכל ראש חודש רגיל — שולחים באותו יום.
+     * בראש חודש תשרי (ראש השנה) — לא שולחים בחג עצמו, אלא יום לפני
+     * (כ״ט באלול, ערב ראש השנה), עם תוכן שמתאר את תשרי כאילו זה 1 בתשרי.
+     *
+     * @return array{0:bool, 1:Carbon} [האם לשלוח היום, התאריך לבניית התוכן]
+     */
+    private function resolveSendDate(Carbon $when): array
+    {
+        $parts = HebrewDate::parts($when);
+
+        // ראש חודש רגיל (לא תשרי) — שולחים היום, כרגיל
+        if ($parts['day'] === 1 && $parts['month'] !== 1) {
+            return [true, $when];
+        }
+
+        // כ״ט באלול — מחר הוא א׳ בתשרי (ראש השנה): שולחים היום עם תוכן של תשרי
+        $tomorrow = $when->copy()->addDay();
+        $tomorrowParts = HebrewDate::parts($tomorrow);
+        if ($tomorrowParts['day'] === 1 && $tomorrowParts['month'] === 1) {
+            return [true, $tomorrow];
+        }
+
+        return [false, $when];
     }
 }
