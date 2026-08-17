@@ -55,7 +55,10 @@ class BranchTransferTest extends TestCase
         Relationship::create(['person1_id' => $wifeA->id, 'person2_id' => $grandkid->id, 'type' => 'parent_child']);
 
         $event = Event::create(['person_id' => $grandkid->id, 'type' => 'birthday', 'title' => 'יום הולדת לנכד', 'event_date' => '2026-08-01', 'created_by' => $this->admin->id]);
-        NameStory::create(['person_id' => $grandkid->id, 'created_by' => $this->admin->id, 'content' => 'נקרא על שם הסבא']);
+        // סיפור שם שמצביע על דמות מחוץ לענף המיוצא (הסבא) — ה-FK חייב להתאפס בייבוא
+        NameStory::create(['person_id' => $grandkid->id, 'created_by' => $this->admin->id, 'content' => 'נקרא על שם הסבא', 'named_after_person_id' => $grandpa->id]);
+        // וסיפור שם שמצביע פנימה (על האבא) — ה-FK חייב להתמפות לזהות החדשה
+        NameStory::create(['person_id' => $wifeA->id, 'created_by' => $this->admin->id, 'content' => 'על שם בעלה', 'named_after_person_id' => $sonA->id]);
         Photo::create(['person_id' => $grandkid->id, 'thumb_path' => 'photos/kid-thumb.jpg', 'uploaded_by' => $this->admin->id]);
 
         // תמונת אלבום עם תיוג בתוך הענף ומחוצה לו
@@ -127,6 +130,11 @@ class BranchTransferTest extends TestCase
         $this->assertSame(1, Event::count());
         $this->assertSame($grandkid->id, Event::first()->person_id);
         $this->assertSame('נקרא על שם הסבא', $grandkid->nameStory->content);
+
+        // named_after_person_id: מחוץ לענף → null, בתוך הענף → מופה לזהות החדשה
+        $this->assertNull($grandkid->nameStory->named_after_person_id, 'הסבא לא נסע בענף — הקישור אליו חייב להתאפס');
+        $wife = Person::where('first_name', 'כלה')->firstOrFail();
+        $this->assertSame($root->id, $wife->nameStory->named_after_person_id);
         $this->assertSame(1, Photo::where('person_id', $grandkid->id)->count());
 
         // אלבום: התמונה הגיעה, אבל רק התיוג של חבר-הענף (לא של בת ב')

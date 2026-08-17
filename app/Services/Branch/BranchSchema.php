@@ -60,7 +60,9 @@ class BranchSchema
             ],
             'name_stories' => [
                 'model'   => NameStory::class,
-                'fk'      => ['person_id' => 'people'],
+                // named_after_person_id מצביע לרוב על דמות מחוץ לענף (מי שהשם ניתן על שמו) —
+                // אז הוא ייצא כ-uuid ויתאפס ל-null בייבוא כשהדמות לא נסעה איתו.
+                'fk'      => ['person_id' => 'people', 'named_after_person_id' => 'people'],
                 'media'   => [],
                 'creator' => 'created_by',
             ],
