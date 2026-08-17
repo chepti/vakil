@@ -362,7 +362,7 @@
         </div>
         <template v-else>
           <button
-            v-for="(bp, i) in branchPhotos.slice(0, 3)"
+            v-for="(bp, i) in branchPhotos"
             :key="i"
             class="branch-photo-card"
             :style="{ '--rot': branchCardRotate(i) + 'deg' }"
@@ -370,9 +370,6 @@
           >
             <img :src="bp.url" loading="lazy" decoding="async" :alt="bp.label || ''" />
           </button>
-          <div v-if="branchPhotos.length > 3" class="branch-photos-more" @click="openBranchLightbox(3)">
-            +{{ branchPhotos.length - 3 }}
-          </div>
         </template>
       </div>
 
@@ -2985,19 +2982,17 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   .radial-hint { font-size: 0.72rem; }
 }
 
-/* ═══ מסדרון תמונות ענף — עמודה שממלאת את גובה הצד, שקופה עד שמרחפים ═══ */
+/* ═══ מסדרון תמונות ענף — עמודה חופפת שממלאת ממש את כל גובה הצד ═══ */
 .branch-photos-rail {
   position: absolute;
   left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  height: min(82vh, 640px);
-  width: clamp(110px, 13vw, 180px);
+  top: 74px;
+  bottom: 14px;
+  width: clamp(100px, 11vw, 160px);
   z-index: 25;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  opacity: 0.6;
+  opacity: 0.62;
   transition: opacity 0.25s ease;
 }
 .branch-photos-rail:hover { opacity: 1; }
@@ -3005,19 +3000,21 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   flex: 1 1 0;
   min-height: 0;
   width: 100%;
-  padding: 5px;
+  padding: 4px;
   background: white;
   border: none;
-  border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0,50,150,0.22);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,50,150,0.22);
   cursor: zoom-in;
+  margin-top: -18px;
   transform: rotate(var(--rot));
   transition: transform 0.2s ease, box-shadow 0.2s ease, z-index 0s;
   position: relative;
 }
+.branch-photo-card:first-child { margin-top: 0; }
 .branch-photo-card:hover {
-  transform: rotate(0deg) scale(1.06);
-  box-shadow: 0 10px 30px rgba(0,50,150,0.38);
+  transform: rotate(0deg) scale(1.15);
+  box-shadow: 0 10px 30px rgba(0,50,150,0.4);
   z-index: 5;
 }
 .branch-photo-card img {
@@ -3033,17 +3030,6 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   animation: mini-spin 0.8s linear infinite;
 }
 @keyframes mini-spin { to { transform: rotate(360deg); } }
-.branch-photos-more {
-  flex: 1 1 0;
-  min-height: 0;
-  width: 100%;
-  background: rgba(26,58,107,0.85);
-  color: white; font-size: 0.9rem; font-weight: 700;
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0,50,150,0.22);
-}
 @media (max-width: 700px) {
   .branch-photos-rail { display: none; }
 }
