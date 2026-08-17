@@ -257,6 +257,12 @@ class FamilyTreeController extends Controller
         // ניקוד המשחק — כמה פעמים ניחשו כל דמות וכמה נקודות נצברו
         $gameStats = \App\Models\GameStat::get()->keyBy('person_id');
 
+        // יש תמונות להגדיל? (תמונות פרופיל שהועלו + תיוגים בתמונות משפחתיות) — לתג ההגדלה בעץ
+        $photoCounts = \App\Models\Photo::selectRaw('person_id, COUNT(*) as c')
+            ->groupBy('person_id')->pluck('c', 'person_id');
+        $tagCounts = \App\Models\PhotoTag::selectRaw('person_id, COUNT(*) as c')
+            ->groupBy('person_id')->pluck('c', 'person_id');
+
         // סדר משני יציב (person2_id) כדי שילדים ללא sort_order לא יחליפו מקומות בין רענונים
         $relationships = Relationship::orderByRaw('COALESCE(sort_order, 999) ASC')
             ->orderBy('person2_id')
@@ -356,7 +362,7 @@ class FamilyTreeController extends Controller
         }
         unset($childIds);
 
-        $nodes = $people->map(function ($p) use ($children, $parents, $spouses, $marriages, $recipeCounts, $storyIds, $namedAfter, $gameStats) {
+        $nodes = $people->map(function ($p) use ($children, $parents, $spouses, $marriages, $recipeCounts, $storyIds, $namedAfter, $gameStats, $photoCounts, $tagCounts) {
             $id = (string) $p->id;
             return [
                 'id'   => $id,
@@ -380,6 +386,7 @@ class FamilyTreeController extends Controller
                     'named_after'    => isset($namedAfter[$p->id]) ? (string) $namedAfter[$p->id] : null,
                     'game_guesses'   => (int) ($gameStats[$p->id]->correct_guesses ?? 0),
                     'game_points'    => (int) ($gameStats[$p->id]->points ?? 0),
+                    'has_photos'     => !empty($p->profile_photo) || ($photoCounts[$p->id] ?? 0) > 0 || ($tagCounts[$p->id] ?? 0) > 0,
                     'marriages'     => (object) ($marriages[$p->id] ?? []),
                     'avatar'      => $p->profile_photo
                         ? asset('storage/' . $p->profile_photo)
@@ -394,6 +401,31 @@ class FamilyTreeController extends Controller
         })->values()->toArray();
 
         return $nodes;
+    }
+
+    /**
+     * תמונות משפחתיות של ענף מסוים (דמות + כל צאצאיה) — למסדרון התמונות השקוף
+     * שצף בצד המסך כשמתמקדים בענף בתצוגה העגולה. נטען לפי דרישה (lazy), לא חלק
+     * מטעינת העץ הראשונית — כדי לא להכביד על הטעינה הראשונה.
+     */
+    public function apiBranchPhotos(int $id): JsonResponse
+    {
+        $person = Person::findOrFail($id);
+        $ids = array_unique(array_merge([$person->id], $person->descendantIds()));
+
+        $photos = \App\Models\FamilyPhoto::query()
+            ->whereHas('tags', fn($q) => $q->whereIn('person_id', $ids))
+            ->with(['tags' => fn($q) => $q->whereIn('person_id', $ids)->with('person:id,first_name')])
+            ->inRandomOrder()
+            ->limit(12)
+            ->get()
+            ->map(fn($p) => [
+                'url'   => $p->url,
+                'label' => $p->title ?: ($p->taken_year ? 'שנת ' . $p->taken_year : null),
+                'names' => $p->tags->pluck('person.first_name')->filter()->unique()->values(),
+            ]);
+
+        return response()->json($photos);
     }
 
     /**

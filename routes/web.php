@@ -141,8 +141,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/api/game/round', [GameController::class, 'round'])->name('game.round');
     Route::post('/api/game/finish', [GameController::class, 'finish'])->name('game.finish');
 
+    // גלריית תמונות של דמות (לייטבוקס) — נטען לפי דרישה מכל מקום באתר
+    Route::get('/api/people/{person}/photos', [PersonController::class, 'apiPhotosGallery'])->name('api.people.photos');
+
     // JSON API — inline tree editing (no page reload)
     Route::get('/api/family-tree', [FamilyTreeController::class, 'apiData'])->name('api.tree');
+    Route::get('/api/family-tree/branch-photos/{id}', [FamilyTreeController::class, 'apiBranchPhotos'])->name('api.tree.branch-photos');
     Route::post('/api/family-tree/person', [FamilyTreeController::class, 'apiSavePerson'])->name('api.tree.save');
     Route::delete('/api/family-tree/person/{id}', [FamilyTreeController::class, 'apiDeletePerson'])->name('api.tree.delete');
     Route::post('/api/family-tree/set-main/{id}', [FamilyTreeController::class, 'apiSetMain'])->name('api.tree.main');

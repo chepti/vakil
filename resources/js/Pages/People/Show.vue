@@ -214,8 +214,8 @@
         <p class="photos-hint">אפשר להגדיר כל תמונה כפרופיל, לערוך את החיתוך, או למחוק</p>
         <div class="photos-grid">
           <div v-for="(pp, i) in profilePhotos" :key="pp.id ?? 'cur-' + i" class="profile-photo-wrap">
-            <div class="profile-photo-thumb" :class="{ current: pp.is_current }">
-              <img :src="pp.thumb_url" alt="תמונת פרופיל" />
+            <div class="profile-photo-thumb zoomable" :class="{ current: pp.is_current }" @click="openProfileLightbox(i)" title="הגדלה 🔍">
+              <img :src="pp.thumb_url" alt="תמונת פרופיל" loading="lazy" decoding="async" />
               <span v-if="pp.is_current" class="current-badge">פרופיל נוכחי</span>
             </div>
             <div class="profile-photo-actions">
@@ -713,6 +713,14 @@
       </div>
     </div>
 
+    <PhotoLightbox
+      v-if="lightbox"
+      :photos="lightboxPhotos"
+      :index="lightbox.index"
+      @update:index="lightbox.index = $event"
+      @close="lightbox = null"
+    />
+
   </AppLayout>
 </template>
 
@@ -720,6 +728,7 @@
 import { ref, computed, reactive, nextTick } from 'vue'
 import { Link, router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import PhotoLightbox from '@/Components/PhotoLightbox.vue'
 import { gregorianToHebrew, hebrewToGregorian } from '@/utils/hebrewDate'
 import { renderRichText } from '@/utils/richText'
 
@@ -757,6 +766,15 @@ function closePhotoModal() {
   showChangePhoto.value = false
   if (!props.person.photo_url) photoPreview.value = null
 }
+
+// ─── תצוגה מוגדלת (לייטבוקס) — מציג את כל תמונות הפרופיל, כולל המקור לפני חיתוך ──
+const lightbox = ref(null)
+const lightboxPhotos = computed(() => props.profilePhotos.map(pp => ({
+  url: pp.thumb_url,
+  originalUrl: pp.original_url,
+  label: pp.is_current ? 'תמונת פרופיל נוכחית' : null,
+})))
+function openProfileLightbox(i) { lightbox.value = { index: i } }
 
 function submitPhoto() {
   photoForm.post(`/people/${props.person.id}/photo`, {
@@ -1596,6 +1614,8 @@ h2 { font-size: 1rem; color: #2d4a7a; margin: 0; font-weight: 600; }
 }
 .profile-photo-thumb.current { border-color: #22c55e; box-shadow: 0 0 0 2px #bbf7d0; }
 .profile-photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.profile-photo-thumb.zoomable { cursor: zoom-in; transition: transform 0.15s; }
+.profile-photo-thumb.zoomable:hover { transform: scale(1.03); }
 .current-badge {
   position: absolute; bottom: 0; right: 0; left: 0; background: rgba(34,197,94,.92);
   color: white; font-size: 0.68rem; text-align: center; padding: 0.15rem;

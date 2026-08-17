@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Person;
+use App\Models\Photo;
+use App\Models\PhotoTag;
 use App\Models\Relationship;
 use App\Services\Photos\PhotoStorage;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -27,6 +30,49 @@ class PersonController extends Controller
             ]);
 
         return Inertia::render('People/Index', ['people' => $people]);
+    }
+
+    /**
+     * גלריית תמונות של דמות — לתצוגה מוגדלת (לייטבוקס) מכל מקום באתר.
+     * מאחד: תמונת הפרופיל הנוכחית + תמונות פרופיל שהועלו + כל תמונה משפחתית שבה הדמות מתויגת,
+     * עם קישור לתמונה המקורית (לפני חיתוך) כשקיימת. נטען לפי דרישה (lazy) — לא חלק מטעינת העץ.
+     */
+    public function apiPhotosGallery(Person $person): JsonResponse
+    {
+        $items = collect();
+
+        foreach ($person->photos()->latest()->get() as $p) {
+            $items->push([
+                'url'         => $p->thumb_url,
+                'originalUrl' => $p->original_url,
+                'label'       => $p->thumb_path === $person->profile_photo ? 'תמונת פרופיל' : null,
+            ]);
+        }
+
+        if ($person->profile_photo && !$items->contains(fn($i) => str_contains($i['url'], $person->profile_photo))) {
+            $items->prepend([
+                'url'         => $person->profile_photo_url,
+                'originalUrl' => $person->profile_photo_url,
+                'label'       => 'תמונת פרופיל',
+            ]);
+        }
+
+        foreach (PhotoTag::where('person_id', $person->id)->with('familyPhoto')->get() as $tag) {
+            if (!$tag->familyPhoto) continue;
+            $url = $tag->familyPhoto->url;
+            if ($items->contains(fn($i) => $i['url'] === $url)) continue;
+            $items->push([
+                'url'         => $url,
+                'originalUrl' => $url,
+                'label'       => $tag->familyPhoto->title
+                    ?: ($tag->familyPhoto->taken_year ? 'שנת ' . $tag->familyPhoto->taken_year : 'תמונה משפחתית'),
+            ]);
+        }
+
+        return response()->json([
+            'name'   => $person->full_name,
+            'photos' => $items->values(),
+        ]);
     }
 
     public function create()

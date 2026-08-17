@@ -280,6 +280,17 @@
               <title>נוחש/ה {{ node.gameGuesses }} פעמים · {{ node.gamePoints }} נקודות</title>
             </g>
 
+            <!-- 🔍 תג הגדלה — פותח לייטבוקס עם כל תמונות הדמות, כולל המקור לפני חיתוך -->
+            <g v-if="node.hasPhotos"
+               class="zoom-badge"
+               :transform="`translate(${-(node.nodeR - 3)}, ${(node.nodeR - 3)})`"
+               @click.stop="openPersonLightbox(node.id)">
+              <circle r="9" fill="rgba(30,58,95,0.6)" stroke="#fff" stroke-width="1.2" />
+              <circle cx="-1.3" cy="-1.3" r="2.4" fill="none" stroke="#fff" stroke-width="1.3" />
+              <line x1="0.4" y1="0.4" x2="2.4" y2="2.4" stroke="#fff" stroke-width="1.3" stroke-linecap="round" />
+              <title>הגדלת תמונות {{ node.fullName }}</title>
+            </g>
+
             <!-- קיפול ענפים שכבר נפתחו -->
             <g v-if="node.openBranches?.length" class="branch-collapses">
               <g
@@ -348,6 +359,26 @@
             <button class="tl-btn tl-close" @click="stopTimeline()" title="סגירת ציר הזמן">✕</button>
           </div>
         </template>
+      </div>
+
+      <!-- ═══ מסדרון תמונות ענף — שקוף, צף בצד שמאל כשמתמקדים בענף מסוים ═══ -->
+      <div
+        v-if="radialMode && !timelineOn && isBranchFocused && branchPhotos.length"
+        class="branch-photos-rail"
+        title="תמונות מהענף הזה — לחצו להגדלה"
+      >
+        <button
+          v-for="(bp, i) in branchPhotos.slice(0, 6)"
+          :key="i"
+          class="branch-photo-card"
+          :style="{ '--rot': branchCardRotate(i) + 'deg', '--shift': branchCardShiftX(i) + 'px', '--i': i }"
+          @click="openBranchLightbox(i)"
+        >
+          <img :src="bp.url" loading="lazy" decoding="async" :alt="bp.label || ''" />
+        </button>
+        <div v-if="branchPhotos.length > 6" class="branch-photos-more" @click="openBranchLightbox(6)">
+          +{{ branchPhotos.length - 6 }}
+        </div>
       </div>
 
       <!-- ═══ Floating overlay buttons (radial view only) ═══ -->
@@ -536,6 +567,14 @@
         </div>
       </Transition>
 
+      <PhotoLightbox
+        v-if="lightbox"
+        :photos="lightbox.photos"
+        :index="lightbox.index"
+        @update:index="lightbox.index = $event"
+        @close="lightbox = null"
+      />
+
     </div>
   </AppLayout>
 </template>
@@ -544,6 +583,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import PhotoLightbox from '@/Components/PhotoLightbox.vue'
 import { createChart } from 'family-chart'
 import 'family-chart/styles/family-chart.css'
 import { gregorianToHebrew, hebrewToGregorian, hebBirthdayInfo, toGematria } from '@/utils/hebrewDate'
@@ -864,6 +904,7 @@ onMounted(() => {
 onUnmounted(() => {
   radialMobileMq?.removeEventListener('change', syncRadialMobile)
   clearInterval(timelineTimer)
+  clearTimeout(branchPhotosTimer)
   cancelAnimationFrame(vbAnimFrame)
   chartInstance = null
   cardHtml = null
@@ -2033,6 +2074,7 @@ const radialData = computed(() => {
       isDeceased: !!n?.data?.is_deceased,
       recipeCount: Number(n?.data?.recipe_count || 0),
       hasNameStory: !!n?.data?.has_name_story,
+      hasPhotos: !!n?.data?.has_photos,
       birthdayHe: gregorianToHebrew(n?.data?.birthday),
       gameGuesses: Number(n?.data?.game_guesses || 0),
       gamePoints:  Number(n?.data?.game_points  || 0),
@@ -2251,6 +2293,64 @@ function resetRadialToRoot() {
   radialExpansions.value = []
   fitRadialView()
 }
+
+// ─── תצוגה מוגדלת (לייטבוקס) — משותפת לתג ההגדלה על דמות ולמסדרון תמונות הענף ──
+const lightbox = ref(null)   // { photos: [...], index: 0 } | null
+const personGalleryCache = new Map()   // person_id → photos[] (נשמר בזיכרון כדי לא לטעון פעמיים)
+
+async function openPersonLightbox(id) {
+  if (personGalleryCache.has(id)) {
+    lightbox.value = { photos: personGalleryCache.get(id), index: 0 }
+    return
+  }
+  try {
+    const res = await fetch(`/api/people/${id}/photos`)
+    if (!res.ok) throw new Error()
+    const data = await res.json()
+    const photos = data.photos || []
+    if (!photos.length) return
+    personGalleryCache.set(id, photos)
+    lightbox.value = { photos, index: 0 }
+  } catch {
+    // שגיאת רשת — לא חוסם את שאר האתר
+  }
+}
+
+// ─── מסדרון תמונות ענף — צף בצד המסך כשמתמקדים בענף מסוים (לא בשורש) ──
+// נטען לפי דרישה (lazy, מבודד מטעינת העץ הראשונית) עם דיבאונס ומטמון קל, כדי לא לפגוע במהירות.
+const isBranchFocused = computed(() =>
+  !!radialCenterId.value &&
+  radialCenterId.value !== String(props.defaultMainPersonId || props.rootPersonId || props.nodes[0]?.id)
+)
+const branchPhotos = ref([])
+const branchPhotosCache = new Map()
+let branchPhotosTimer = null
+
+watch([radialCenterId, isBranchFocused], () => {
+  clearTimeout(branchPhotosTimer)
+  if (!isBranchFocused.value) { branchPhotos.value = []; return }
+  const id = radialCenterId.value
+  if (branchPhotosCache.has(id)) { branchPhotos.value = branchPhotosCache.get(id); return }
+  branchPhotosTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`/api/family-tree/branch-photos/${id}`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      branchPhotosCache.set(id, data)
+      if (radialCenterId.value === id) branchPhotos.value = data
+    } catch {
+      // שגיאת רשת — המסדרון פשוט לא יופיע
+    }
+  }, 500)
+})
+
+function openBranchLightbox(i) {
+  lightbox.value = { photos: branchPhotos.value.map(p => ({ url: p.url, originalUrl: p.url, label: p.label })), index: i }
+}
+
+// רוטציה עדינה ועקבית לכל כרטיס בערמת התמונות (לא רנדומלי — כדי שלא "יקפוץ" בכל רינדור)
+function branchCardRotate(i) { return ((i * 47) % 13) - 6 }
+function branchCardShiftX(i) { return ((i * 31) % 9) - 4 }
 
 function toggleRadialMode() {
   radialMode.value = !radialMode.value
@@ -2882,6 +2982,58 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   .radial-hint { font-size: 0.72rem; }
 }
 
+/* ═══ מסדרון תמונות ענף — צף בצד שמאל, שקוף עד שמרחפים ═══ */
+.branch-photos-rail {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  opacity: 0.5;
+  transition: opacity 0.25s ease;
+}
+.branch-photos-rail:hover { opacity: 1; }
+.branch-photo-card {
+  width: 56px;
+  height: 68px;
+  padding: 3px;
+  background: white;
+  border: none;
+  border-radius: 6px;
+  box-shadow: 0 3px 10px rgba(0,50,150,0.18);
+  cursor: zoom-in;
+  margin-top: -20px;
+  transform: rotate(var(--rot)) translateX(var(--shift));
+  transition: transform 0.2s ease, box-shadow 0.2s ease, z-index 0s;
+  position: relative;
+}
+.branch-photo-card:first-child { margin-top: 0; }
+.branch-photo-card:hover {
+  transform: rotate(0deg) translateX(0) scale(1.35);
+  box-shadow: 0 8px 22px rgba(0,50,150,0.32);
+  z-index: 5;
+}
+.branch-photo-card img {
+  width: 100%; height: 100%; object-fit: cover; border-radius: 3px; display: block;
+}
+.branch-photos-more {
+  margin-top: -20px;
+  width: 56px; height: 68px;
+  background: rgba(26,58,107,0.85);
+  color: white; font-size: 0.78rem; font-weight: 700;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0,50,150,0.18);
+  transform: rotate(-4deg);
+}
+@media (max-width: 700px) {
+  .branch-photos-rail { display: none; }
+}
+
 /* ═══ Floating overlay buttons (radial view) ═══ */
 .tree-fabs {
   position: absolute;
@@ -3090,6 +3242,9 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 .story-spark { cursor: pointer; }
 .recipe-badge { cursor: pointer; }
 .recipe-badge:hover circle { fill: #c2410c; }
+.zoom-badge { cursor: zoom-in; opacity: 0.65; transition: opacity 0.15s; }
+.zoom-badge:hover { opacity: 1; }
+.zoom-badge:hover circle:first-child { fill: #2d6be4; }
 .bday-ring { animation: bday-pulse 1.8s ease-in-out infinite; transform-origin: center; }
 @keyframes bday-pulse {
   0%, 100% { opacity: 0.75; }
