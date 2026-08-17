@@ -27,10 +27,10 @@ const submit = () => {
 
 <template>
     <GuestLayout>
-        <Head title="הצטרפות למשפחת ואקיל" />
+        <Head :title="`הצטרפות ל${$page.props.siteName || 'משפחת ואקיל'}`" />
 
         <div class="mb-6 text-center" dir="rtl">
-            <h1 class="text-xl font-bold text-gray-800">ברוכים הבאים למשפחת ואקיל 🌳</h1>
+            <h1 class="text-xl font-bold text-gray-800">ברוכים הבאים ל{{ $page.props.siteName || 'משפחת ואקיל' }} 🌳</h1>
             <p v-if="personName" class="mt-1 text-sm text-gray-600">
                 הצטרף/י כ-<strong>{{ personName }}</strong>
             </p>

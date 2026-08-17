@@ -4,7 +4,7 @@
       <!-- כותרת -->
       <div class="onboarding-header">
         <div class="family-icon">👨‍👩‍👧‍👦</div>
-        <h1>ברוכים הבאים לעץ משפחת ואקיל</h1>
+        <h1>ברוכים הבאים לעץ {{ $page.props.siteName || 'משפחת ואקיל' }}</h1>
         <p class="subtitle">בואו נתחיל לבנות את עץ המשפחה — ספר לנו קצת על עצמך</p>
       </div>
 
@@ -27,7 +27,7 @@
           </div>
           <div class="form-group">
             <label>שם משפחה *</label>
-            <input v-model="form.last_name" type="text" required placeholder="ואקיל" />
+            <input v-model="form.last_name" type="text" required placeholder="שם המשפחה" />
           </div>
         </div>
 

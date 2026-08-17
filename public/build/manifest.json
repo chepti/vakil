@@ -499,7 +499,7 @@
     ]
   },
   "resources/js/Pages/Invite/Register.vue": {
-    "file": "assets/Register-DinL35SK.js",
+    "file": "assets/Register-BmZFVbxT.js",
     "name": "Register",
     "src": "resources/js/Pages/Invite/Register.vue",
     "isDynamicEntry": true,
@@ -543,7 +543,7 @@
     ]
   },
   "resources/js/Pages/Onboarding.vue": {
-    "file": "assets/Onboarding-Ddiyiuv2.js",
+    "file": "assets/Onboarding-BGkEJMJ9.js",
     "name": "Onboarding",
     "src": "resources/js/Pages/Onboarding.vue",
     "isDynamicEntry": true,
@@ -553,7 +553,7 @@
       "_runtime-core.esm-bundler-B8t4V_Hw.js"
     ],
     "css": [
-      "assets/Onboarding-Cp_3pagF.css"
+      "assets/Onboarding-SdjoGlxv.css"
     ]
   },
   "resources/js/Pages/People/Create.vue": {
@@ -845,7 +845,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-Dem9UZFX.js",
+    "file": "assets/app-_I-hYpPy.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

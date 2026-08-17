@@ -20,7 +20,7 @@ class InvitationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'הוזמנת להצטרף לאתר משפחת ואקיל 🎉',
+            subject: 'הוזמנת להצטרף לאתר ' . config('app.name') . ' 🎉',
         );
     }
 
