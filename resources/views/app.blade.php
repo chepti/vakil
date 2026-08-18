@@ -6,6 +6,8 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        {{-- שם האתר לצד הלקוח (סיומת כותרת הלשונית) — נקרא מכאן ולא מה-build המשותף --}}
+        <meta name="app-name" content="{{ config('app.name', 'Laravel') }}">
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
         <!-- Fonts -->

@@ -6,10 +6,16 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+// שם האתר נקרא בזמן ריצה מתגית ה-meta שהשרת מרנדר, ולא מ-VITE_APP_NAME:
+// את משתני ה-VITE אופים לתוך ה-build, וכל האתרים (ואקיל / בן ארצי / הדגמה)
+// חולקים build אחד — כך שערך מהבנייה היה מציג את שם המשפחה הלא נכון בלשונית.
+const appName =
+    document.querySelector('meta[name="app-name"]')?.content ||
+    import.meta.env.VITE_APP_NAME ||
+    'Laravel';
 
 createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
+    title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) =>
         resolvePageComponent(
             `./Pages/${name}.vue`,
