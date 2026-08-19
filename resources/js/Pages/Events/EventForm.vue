@@ -26,10 +26,12 @@
       </div>
 
       <div class="form-row">
-        <div class="form-group">
-          <label>תאריך (לועזי)</label>
-          <input v-model="form.event_date" type="date" @change="syncHeb" />
-        </div>
+        <GregorianField label="תאריך (לועזי)">
+          <div class="form-group">
+            <label>תאריך (לועזי)</label>
+            <input v-model="form.event_date" type="date" @change="syncHeb" />
+          </div>
+        </GregorianField>
         <div class="form-group">
           <label>תאריך עברי</label>
           <input v-model="form.hebrew_date" type="text" placeholder='כ"ז בתמוז תשפ"ו' @change="syncGreg" />
@@ -117,6 +119,7 @@
 <script setup>
 import { ref } from 'vue'
 import { Link } from '@inertiajs/vue3'
+import GregorianField from '@/Components/GregorianField.vue'
 import { gregorianToHebrew, hebrewToGregorian } from '@/utils/hebrewDate'
 
 const props = defineProps({

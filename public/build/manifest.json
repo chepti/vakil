@@ -1,18 +1,19 @@
 {
-  "_AncestorNode-BX4qCquq.js": {
-    "file": "assets/AncestorNode-BX4qCquq.js",
+  "_AncestorNode-BqRYTuHw.js": {
+    "file": "assets/AncestorNode-BqRYTuHw.js",
     "name": "AncestorNode",
     "imports": [
       "__plugin-vue_export-helper-BDNMzG2s.js",
-      "_runtime-core.esm-bundler-B8t4V_Hw.js"
+      "_runtime-core.esm-bundler-B8t4V_Hw.js",
+      "_dateDisplay-BGAPafks.js"
     ],
     "css": [
-      "assets/AncestorNode-DWrWEUWK.css"
+      "assets/AncestorNode-CYuT4KVq.css"
     ]
   },
-  "_AncestorNode-DWrWEUWK.css": {
-    "file": "assets/AncestorNode-DWrWEUWK.css",
-    "src": "_AncestorNode-DWrWEUWK.css"
+  "_AncestorNode-CYuT4KVq.css": {
+    "file": "assets/AncestorNode-CYuT4KVq.css",
+    "src": "_AncestorNode-CYuT4KVq.css"
   },
   "_AppLayout-C7H2frSl.css": {
     "file": "assets/AppLayout-C7H2frSl.css",
@@ -39,22 +40,39 @@
       "_runtime-core.esm-bundler-B8t4V_Hw.js"
     ]
   },
-  "_EventForm-BYGD1Rr5.js": {
-    "file": "assets/EventForm-BYGD1Rr5.js",
+  "_EventForm-CBmwXCBz.js": {
+    "file": "assets/EventForm-CBmwXCBz.js",
     "name": "EventForm",
     "imports": [
       "__plugin-vue_export-helper-BDNMzG2s.js",
-      "_hebrewDate-CBoJ8BcL.js",
+      "_hebrewDate-BP8T2YGW.js",
       "_index.esm-CLfdJrog.js",
-      "_runtime-core.esm-bundler-B8t4V_Hw.js"
+      "_runtime-core.esm-bundler-B8t4V_Hw.js",
+      "_GregorianField-C7rjZj8F.js"
     ],
     "css": [
-      "assets/EventForm-umX-2Vr_.css"
+      "assets/EventForm-ZQ_diLKv.css"
     ]
   },
-  "_EventForm-umX-2Vr_.css": {
-    "file": "assets/EventForm-umX-2Vr_.css",
-    "src": "_EventForm-umX-2Vr_.css"
+  "_EventForm-ZQ_diLKv.css": {
+    "file": "assets/EventForm-ZQ_diLKv.css",
+    "src": "_EventForm-ZQ_diLKv.css"
+  },
+  "_GregorianField-C7rjZj8F.js": {
+    "file": "assets/GregorianField-C7rjZj8F.js",
+    "name": "GregorianField",
+    "imports": [
+      "__plugin-vue_export-helper-BDNMzG2s.js",
+      "_runtime-core.esm-bundler-B8t4V_Hw.js",
+      "_dateDisplay-BGAPafks.js"
+    ],
+    "css": [
+      "assets/GregorianField-DwqB3Sma.css"
+    ]
+  },
+  "_GregorianField-DwqB3Sma.css": {
+    "file": "assets/GregorianField-DwqB3Sma.css",
+    "src": "_GregorianField-DwqB3Sma.css"
   },
   "_GuestLayout-D7UuVkdT.js": {
     "file": "assets/GuestLayout-D7UuVkdT.js",
@@ -103,35 +121,37 @@
       "assets/RadialTree-D3Ou2TjE.css"
     ]
   },
-  "_TreeNode-BHwTvk-L.js": {
-    "file": "assets/TreeNode-BHwTvk-L.js",
+  "_TreeNode-BP79KU11.js": {
+    "file": "assets/TreeNode-BP79KU11.js",
     "name": "TreeNode",
     "imports": [
       "__plugin-vue_export-helper-BDNMzG2s.js",
-      "_runtime-core.esm-bundler-B8t4V_Hw.js"
+      "_runtime-core.esm-bundler-B8t4V_Hw.js",
+      "_dateDisplay-BGAPafks.js"
     ],
     "css": [
-      "assets/TreeNode-Bd_THGz6.css"
+      "assets/TreeNode-D-u5lGZd.css"
     ]
   },
-  "_TreeNode-Bd_THGz6.css": {
-    "file": "assets/TreeNode-Bd_THGz6.css",
-    "src": "_TreeNode-Bd_THGz6.css"
+  "_TreeNode-D-u5lGZd.css": {
+    "file": "assets/TreeNode-D-u5lGZd.css",
+    "src": "_TreeNode-D-u5lGZd.css"
   },
-  "_TreeNodeVertical-CYFxPPFz.js": {
-    "file": "assets/TreeNodeVertical-CYFxPPFz.js",
+  "_TreeNodeVertical-75nIpf42.css": {
+    "file": "assets/TreeNodeVertical-75nIpf42.css",
+    "src": "_TreeNodeVertical-75nIpf42.css"
+  },
+  "_TreeNodeVertical-F6da9SA8.js": {
+    "file": "assets/TreeNodeVertical-F6da9SA8.js",
     "name": "TreeNodeVertical",
     "imports": [
       "__plugin-vue_export-helper-BDNMzG2s.js",
-      "_runtime-core.esm-bundler-B8t4V_Hw.js"
+      "_runtime-core.esm-bundler-B8t4V_Hw.js",
+      "_dateDisplay-BGAPafks.js"
     ],
     "css": [
-      "assets/TreeNodeVertical-Cwud6xWo.css"
+      "assets/TreeNodeVertical-75nIpf42.css"
     ]
-  },
-  "_TreeNodeVertical-Cwud6xWo.css": {
-    "file": "assets/TreeNodeVertical-Cwud6xWo.css",
-    "src": "_TreeNodeVertical-Cwud6xWo.css"
   },
   "_UpdateNotificationsForm-Bxav6xOJ.js": {
     "file": "assets/UpdateNotificationsForm-Bxav6xOJ.js",
@@ -184,8 +204,17 @@
       "_runtime-core.esm-bundler-B8t4V_Hw.js"
     ]
   },
-  "_hebrewDate-CBoJ8BcL.js": {
-    "file": "assets/hebrewDate-CBoJ8BcL.js",
+  "_dateDisplay-BGAPafks.js": {
+    "file": "assets/dateDisplay-BGAPafks.js",
+    "name": "dateDisplay",
+    "imports": [
+      "_hebrewDate-BP8T2YGW.js",
+      "_index.esm-CLfdJrog.js",
+      "_runtime-core.esm-bundler-B8t4V_Hw.js"
+    ]
+  },
+  "_hebrewDate-BP8T2YGW.js": {
+    "file": "assets/hebrewDate-BP8T2YGW.js",
     "name": "hebrewDate",
     "imports": [
       "_preload-helper-BgbkXLIy.js",
@@ -338,7 +367,7 @@
     ]
   },
   "resources/js/Pages/Events/Create.vue": {
-    "file": "assets/Create-D9qRDZHQ.js",
+    "file": "assets/Create-BbptGeKq.js",
     "name": "Create",
     "src": "resources/js/Pages/Events/Create.vue",
     "isDynamicEntry": true,
@@ -347,14 +376,14 @@
       "_index.esm-CLfdJrog.js",
       "_runtime-core.esm-bundler-B8t4V_Hw.js",
       "_AppLayout-CX1YdrEx.js",
-      "_EventForm-BYGD1Rr5.js"
+      "_EventForm-CBmwXCBz.js"
     ],
     "css": [
       "assets/Create-IYRJNHnJ.css"
     ]
   },
   "resources/js/Pages/Events/Edit.vue": {
-    "file": "assets/Edit-bPhbwPxk.js",
+    "file": "assets/Edit-DIOy7yg_.js",
     "name": "Edit",
     "src": "resources/js/Pages/Events/Edit.vue",
     "isDynamicEntry": true,
@@ -363,29 +392,29 @@
       "_index.esm-CLfdJrog.js",
       "_runtime-core.esm-bundler-B8t4V_Hw.js",
       "_AppLayout-CX1YdrEx.js",
-      "_EventForm-BYGD1Rr5.js"
+      "_EventForm-CBmwXCBz.js"
     ],
     "css": [
       "assets/Edit-B1un3VCG.css"
     ]
   },
   "resources/js/Pages/Events/EventForm.vue": {
-    "file": "assets/EventForm-CJsrf10h.js",
+    "file": "assets/EventForm-P4QEOCgJ.js",
     "name": "EventForm",
     "src": "resources/js/Pages/Events/EventForm.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_EventForm-BYGD1Rr5.js"
+      "_EventForm-CBmwXCBz.js"
     ]
   },
   "resources/js/Pages/Events/Index.vue": {
-    "file": "assets/Index-DMqsfDI_.js",
+    "file": "assets/Index-DImT37_u.js",
     "name": "Index",
     "src": "resources/js/Pages/Events/Index.vue",
     "isDynamicEntry": true,
     "imports": [
       "__plugin-vue_export-helper-BDNMzG2s.js",
-      "_hebrewDate-CBoJ8BcL.js",
+      "_hebrewDate-BP8T2YGW.js",
       "_index.esm-CLfdJrog.js",
       "_runtime-core.esm-bundler-B8t4V_Hw.js",
       "_AppLayout-CX1YdrEx.js"
@@ -440,20 +469,22 @@
     ]
   },
   "resources/js/Pages/FamilyTree.vue": {
-    "file": "assets/FamilyTree-CqeM8-8P.js",
+    "file": "assets/FamilyTree-BPdYvVJT.js",
     "name": "FamilyTree",
     "src": "resources/js/Pages/FamilyTree.vue",
     "isDynamicEntry": true,
     "imports": [
       "__plugin-vue_export-helper-BDNMzG2s.js",
-      "_hebrewDate-CBoJ8BcL.js",
+      "_hebrewDate-BP8T2YGW.js",
       "_index.esm-CLfdJrog.js",
       "_runtime-core.esm-bundler-B8t4V_Hw.js",
       "_AppLayout-CX1YdrEx.js",
-      "_PhotoLightbox-Cmjl7uFS.js"
+      "_PhotoLightbox-Cmjl7uFS.js",
+      "_GregorianField-C7rjZj8F.js",
+      "_dateDisplay-BGAPafks.js"
     ],
     "css": [
-      "assets/FamilyTree-rNWnEbmQ.css"
+      "assets/FamilyTree-CdAq3qZ3.css"
     ]
   },
   "resources/js/Pages/Game.vue": {
@@ -557,35 +588,37 @@
     ]
   },
   "resources/js/Pages/People/Create.vue": {
-    "file": "assets/Create-Df_xAKwt.js",
+    "file": "assets/Create-DzlPwmn8.js",
     "name": "Create",
     "src": "resources/js/Pages/People/Create.vue",
     "isDynamicEntry": true,
     "imports": [
       "__plugin-vue_export-helper-BDNMzG2s.js",
-      "_hebrewDate-CBoJ8BcL.js",
+      "_hebrewDate-BP8T2YGW.js",
       "_index.esm-CLfdJrog.js",
       "_runtime-core.esm-bundler-B8t4V_Hw.js",
-      "_AppLayout-CX1YdrEx.js"
+      "_AppLayout-CX1YdrEx.js",
+      "_GregorianField-C7rjZj8F.js"
     ],
     "css": [
-      "assets/Create-DJ-MyWgn.css"
+      "assets/Create-BgaR9hx4.css"
     ]
   },
   "resources/js/Pages/People/Edit.vue": {
-    "file": "assets/Edit-BH8ahHeW.js",
+    "file": "assets/Edit-C2HLWYPv.js",
     "name": "Edit",
     "src": "resources/js/Pages/People/Edit.vue",
     "isDynamicEntry": true,
     "imports": [
       "__plugin-vue_export-helper-BDNMzG2s.js",
-      "_hebrewDate-CBoJ8BcL.js",
+      "_hebrewDate-BP8T2YGW.js",
       "_index.esm-CLfdJrog.js",
       "_runtime-core.esm-bundler-B8t4V_Hw.js",
-      "_AppLayout-CX1YdrEx.js"
+      "_AppLayout-CX1YdrEx.js",
+      "_GregorianField-C7rjZj8F.js"
     ],
     "css": [
-      "assets/Edit-B48ocYpz.css"
+      "assets/Edit-CiEjAfS8.css"
     ]
   },
   "resources/js/Pages/People/Import/Review.vue": {
@@ -619,7 +652,7 @@
     ]
   },
   "resources/js/Pages/People/Index.vue": {
-    "file": "assets/Index-DWmsHIEG.js",
+    "file": "assets/Index-DBOg16i7.js",
     "name": "Index",
     "src": "resources/js/Pages/People/Index.vue",
     "isDynamicEntry": true,
@@ -627,37 +660,40 @@
       "__plugin-vue_export-helper-BDNMzG2s.js",
       "_index.esm-CLfdJrog.js",
       "_runtime-core.esm-bundler-B8t4V_Hw.js",
-      "_AppLayout-CX1YdrEx.js"
+      "_AppLayout-CX1YdrEx.js",
+      "_dateDisplay-BGAPafks.js"
     ],
     "css": [
-      "assets/Index-BkHoy7lG.css"
+      "assets/Index-BVj_OHyp.css"
     ]
   },
   "resources/js/Pages/People/Show.vue": {
-    "file": "assets/Show-Dhz5VDhf.js",
+    "file": "assets/Show-em8SWaqs.js",
     "name": "Show",
     "src": "resources/js/Pages/People/Show.vue",
     "isDynamicEntry": true,
     "imports": [
       "__plugin-vue_export-helper-BDNMzG2s.js",
-      "_hebrewDate-CBoJ8BcL.js",
+      "_hebrewDate-BP8T2YGW.js",
       "_index.esm-CLfdJrog.js",
       "_runtime-core.esm-bundler-B8t4V_Hw.js",
       "_AppLayout-CX1YdrEx.js",
       "_PhotoLightbox-Cmjl7uFS.js",
+      "_GregorianField-C7rjZj8F.js",
+      "_dateDisplay-BGAPafks.js",
       "_richText-BGrPrj2U.js"
     ],
     "css": [
-      "assets/Show-uXNoZo5U.css"
+      "assets/Show-B1vTDkzP.css"
     ]
   },
   "resources/js/Pages/Print/AncestorNode.vue": {
-    "file": "assets/AncestorNode-DS9YtgI8.js",
+    "file": "assets/AncestorNode-QZoOZOow.js",
     "name": "AncestorNode",
     "src": "resources/js/Pages/Print/AncestorNode.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_AncestorNode-BX4qCquq.js"
+      "_AncestorNode-BqRYTuHw.js"
     ]
   },
   "resources/js/Pages/Print/RadialTree.vue": {
@@ -670,7 +706,7 @@
     ]
   },
   "resources/js/Pages/Print/Tree.vue": {
-    "file": "assets/Tree-DsFqnSwT.js",
+    "file": "assets/Tree-BYAMoRWw.js",
     "name": "Tree",
     "src": "resources/js/Pages/Print/Tree.vue",
     "isDynamicEntry": true,
@@ -678,31 +714,31 @@
       "__plugin-vue_export-helper-BDNMzG2s.js",
       "_index.esm-CLfdJrog.js",
       "_runtime-core.esm-bundler-B8t4V_Hw.js",
-      "_AncestorNode-BX4qCquq.js",
+      "_AncestorNode-BqRYTuHw.js",
       "_RadialTree-pKOll311.js",
-      "_TreeNode-BHwTvk-L.js",
-      "_TreeNodeVertical-CYFxPPFz.js"
+      "_TreeNode-BP79KU11.js",
+      "_TreeNodeVertical-F6da9SA8.js"
     ],
     "css": [
       "assets/Tree-DSA_aas2.css"
     ]
   },
   "resources/js/Pages/Print/TreeNode.vue": {
-    "file": "assets/TreeNode-C1QE6ZtU.js",
+    "file": "assets/TreeNode-DKqhzZyr.js",
     "name": "TreeNode",
     "src": "resources/js/Pages/Print/TreeNode.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_TreeNode-BHwTvk-L.js"
+      "_TreeNode-BP79KU11.js"
     ]
   },
   "resources/js/Pages/Print/TreeNodeVertical.vue": {
-    "file": "assets/TreeNodeVertical-CRmmitFQ.js",
+    "file": "assets/TreeNodeVertical-DYOKJiv2.js",
     "name": "TreeNodeVertical",
     "src": "resources/js/Pages/Print/TreeNodeVertical.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_TreeNodeVertical-CYFxPPFz.js"
+      "_TreeNodeVertical-F6da9SA8.js"
     ]
   },
   "resources/js/Pages/Profile/Edit.vue": {
@@ -805,7 +841,7 @@
     ]
   },
   "resources/js/Pages/Stats/Index.vue": {
-    "file": "assets/Index-DGl4ElGn.js",
+    "file": "assets/Index-DKnLh38R.js",
     "name": "Index",
     "src": "resources/js/Pages/Stats/Index.vue",
     "isDynamicEntry": true,
@@ -813,7 +849,7 @@
       "__plugin-vue_export-helper-BDNMzG2s.js",
       "_chunk-QTnfLwEv.js",
       "_preload-helper-BgbkXLIy.js",
-      "_hebrewDate-CBoJ8BcL.js",
+      "_hebrewDate-BP8T2YGW.js",
       "_index.esm-CLfdJrog.js",
       "_runtime-core.esm-bundler-B8t4V_Hw.js",
       "_AppLayout-CX1YdrEx.js"
@@ -845,7 +881,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-BDI5Q7p3.js",
+    "file": "assets/app--flUJJlZ.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -865,7 +901,7 @@
       "resources/js/Pages/Dashboard.vue",
       "resources/js/Pages/Events/Create.vue",
       "resources/js/Pages/Events/Edit.vue",
-      "_EventForm-BYGD1Rr5.js",
+      "_EventForm-CBmwXCBz.js",
       "resources/js/Pages/Events/Index.vue",
       "resources/js/Pages/Events/Show.vue",
       "resources/js/Pages/FamilyPhotos/Index.vue",
@@ -884,11 +920,11 @@
       "resources/js/Pages/People/Import/Upload.vue",
       "resources/js/Pages/People/Index.vue",
       "resources/js/Pages/People/Show.vue",
-      "_AncestorNode-BX4qCquq.js",
+      "_AncestorNode-BqRYTuHw.js",
       "_RadialTree-pKOll311.js",
       "resources/js/Pages/Print/Tree.vue",
-      "_TreeNode-BHwTvk-L.js",
-      "_TreeNodeVertical-CYFxPPFz.js",
+      "_TreeNode-BP79KU11.js",
+      "_TreeNodeVertical-F6da9SA8.js",
       "resources/js/Pages/Profile/Edit.vue",
       "_DeleteUserForm-DOqby8vT.js",
       "_UpdateNotificationsForm-Bxav6xOJ.js",

@@ -18,7 +18,7 @@ class PersonController extends Controller
 {
     public function index()
     {
-        $people = Person::select('id', 'first_name', 'last_name', 'gender', 'birth_date_gregorian', 'is_deceased', 'profile_photo')
+        $people = Person::select('id', 'first_name', 'last_name', 'gender', 'birth_date_gregorian', 'birth_date_hebrew', 'is_deceased', 'profile_photo')
             ->orderBy('first_name')
             ->get()
             ->map(fn($p) => [
@@ -26,6 +26,9 @@ class PersonController extends Controller
                 'full_name'    => $p->full_name,
                 'gender'       => $p->gender,
                 'birth_year'   => $p->birth_date_gregorian?->year,
+                // התאריכים עצמם — התצוגה בוחרת בין לועזי לעברי לפי הגדרת האתר
+                'birth_date'   => $p->birth_date_gregorian?->format('Y-m-d'),
+                'birth_he'     => $p->birth_date_hebrew,
                 'is_deceased'  => $p->is_deceased,
                 'photo_url'    => $p->profile_photo_url,
             ]);

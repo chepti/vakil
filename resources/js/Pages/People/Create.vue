@@ -37,10 +37,12 @@
               </div>
               <span class="error-msg" v-if="errors.gender">{{ errors.gender }}</span>
             </div>
-            <div class="form-group">
-              <label>תאריך לידה (לועזי)</label>
-              <input v-model="form.birth_date_gregorian" type="date" @change="syncHeb('birth_date_gregorian','birth_date_hebrew')" />
-            </div>
+            <GregorianField label="תאריך לידה (לועזי)">
+              <div class="form-group">
+                <label>תאריך לידה (לועזי)</label>
+                <input v-model="form.birth_date_gregorian" type="date" @change="syncHeb('birth_date_gregorian','birth_date_hebrew')" />
+              </div>
+            </GregorianField>
             <div class="form-group">
               <label>תאריך לידה עברי</label>
               <input v-model="form.birth_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' @change="syncGreg('birth_date_gregorian','birth_date_hebrew')" />
@@ -71,10 +73,12 @@
             </label>
 
             <div v-if="form.is_deceased" class="form-row deceased-dates">
-              <div class="form-group">
-                <label>תאריך פטירה (לועזי)</label>
-                <input v-model="form.death_date_gregorian" type="date" @change="syncHeb('death_date_gregorian','death_date_hebrew')" />
-              </div>
+              <GregorianField label="תאריך פטירה (לועזי)">
+                <div class="form-group">
+                  <label>תאריך פטירה (לועזי)</label>
+                  <input v-model="form.death_date_gregorian" type="date" @change="syncHeb('death_date_gregorian','death_date_hebrew')" />
+                </div>
+              </GregorianField>
               <div class="form-group">
                 <label>תאריך פטירה עברי</label>
                 <input v-model="form.death_date_hebrew" type="text" placeholder='י"ד אדר תשפ"ה' @change="syncGreg('death_date_gregorian','death_date_hebrew')" />
@@ -192,6 +196,7 @@
 import { ref, computed } from 'vue'
 import { Link, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import GregorianField from '@/Components/GregorianField.vue'
 import { gregorianToHebrew, hebrewToGregorian } from '@/utils/hebrewDate'
 
 function syncHeb(gKey, hKey)  { const v = gregorianToHebrew(form[gKey]); if (v) form[hKey] = v }

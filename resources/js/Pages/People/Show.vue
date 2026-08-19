@@ -360,10 +360,12 @@
               <button type="button" :class="{ active: editForm.gender === 'female' }" @click="editForm.gender = 'female'">נקבה</button>
             </div>
           </div>
-          <div class="form-group">
-            <label>תאריך לידה (לועזי)</label>
-            <input v-model="editForm.birth_date_gregorian" type="date" @change="syncH(editForm,'birth_date_gregorian','birth_date_hebrew')" />
-          </div>
+          <GregorianField label="תאריך לידה (לועזי)">
+            <div class="form-group">
+              <label>תאריך לידה (לועזי)</label>
+              <input v-model="editForm.birth_date_gregorian" type="date" @change="syncH(editForm,'birth_date_gregorian','birth_date_hebrew')" />
+            </div>
+          </GregorianField>
           <div class="form-group">
             <label>תאריך לידה עברי</label>
             <input v-model="editForm.birth_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' @change="syncG(editForm,'birth_date_gregorian','birth_date_hebrew')" />
@@ -403,10 +405,12 @@
             <span>נפטר/ה</span>
           </label>
           <div v-if="editForm.is_deceased" class="form-row" style="margin-top: 0.75rem">
-            <div class="form-group">
-              <label>תאריך פטירה (לועזי)</label>
-              <input v-model="editForm.death_date_gregorian" type="date" @change="syncH(editForm,'death_date_gregorian','death_date_hebrew')" />
-            </div>
+            <GregorianField label="תאריך פטירה (לועזי)">
+              <div class="form-group">
+                <label>תאריך פטירה (לועזי)</label>
+                <input v-model="editForm.death_date_gregorian" type="date" @change="syncH(editForm,'death_date_gregorian','death_date_hebrew')" />
+              </div>
+            </GregorianField>
             <div class="form-group">
               <label>תאריך פטירה עברי</label>
               <input v-model="editForm.death_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' @change="syncG(editForm,'death_date_gregorian','death_date_hebrew')" />
@@ -451,10 +455,12 @@
                 <button type="button" :class="{ active: parentForm.gender === 'female' }" @click="parentForm.gender = 'female'">נקבה</button>
               </div>
             </div>
-            <div class="form-group">
-              <label>תאריך לידה (לועזי)</label>
-              <input v-model="parentForm.birth_date_gregorian" type="date" @change="syncH(parentForm,'birth_date_gregorian','birth_date_hebrew')" />
-            </div>
+            <GregorianField label="תאריך לידה (לועזי)">
+              <div class="form-group">
+                <label>תאריך לידה (לועזי)</label>
+                <input v-model="parentForm.birth_date_gregorian" type="date" @change="syncH(parentForm,'birth_date_gregorian','birth_date_hebrew')" />
+              </div>
+            </GregorianField>
             <div class="form-group">
               <label>תאריך לידה עברי</label>
               <input v-model="parentForm.birth_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' @change="syncG(parentForm,'birth_date_gregorian','birth_date_hebrew')" />
@@ -519,20 +525,24 @@
                 <button type="button" :class="{ active: spouseForm.gender === 'female' }" @click="spouseForm.gender = 'female'">נקבה</button>
               </div>
             </div>
-            <div class="form-group">
-              <label>תאריך לידה (לועזי)</label>
-              <input v-model="spouseForm.birth_date_gregorian" type="date" @change="syncH(spouseForm,'birth_date_gregorian','birth_date_hebrew')" />
-            </div>
+            <GregorianField label="תאריך לידה (לועזי)">
+              <div class="form-group">
+                <label>תאריך לידה (לועזי)</label>
+                <input v-model="spouseForm.birth_date_gregorian" type="date" @change="syncH(spouseForm,'birth_date_gregorian','birth_date_hebrew')" />
+              </div>
+            </GregorianField>
             <div class="form-group">
               <label>תאריך לידה עברי</label>
               <input v-model="spouseForm.birth_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' @change="syncG(spouseForm,'birth_date_gregorian','birth_date_hebrew')" />
             </div>
           </div>
           <div class="form-row">
-            <div class="form-group">
-              <label>תאריך נישואין (לועזי)</label>
-              <input v-model="spouseForm.marriage_date_gregorian" type="date" @change="syncH(spouseForm,'marriage_date_gregorian','marriage_date_hebrew')" />
-            </div>
+            <GregorianField label="תאריך נישואין (לועזי)">
+              <div class="form-group">
+                <label>תאריך נישואין (לועזי)</label>
+                <input v-model="spouseForm.marriage_date_gregorian" type="date" @change="syncH(spouseForm,'marriage_date_gregorian','marriage_date_hebrew')" />
+              </div>
+            </GregorianField>
             <div class="form-group">
               <label>תאריך נישואין עברי</label>
               <input v-model="spouseForm.marriage_date_hebrew" type="text" placeholder='כ"ב אייר תש"פ' @change="syncG(spouseForm,'marriage_date_gregorian','marriage_date_hebrew')" />
@@ -558,10 +568,12 @@
             <div v-if="filteredForSpouse.length === 0" class="empty-family">לא נמצאו תוצאות</div>
           </div>
           <div class="form-row" style="margin-top: 0.75rem">
-            <div class="form-group">
-              <label>תאריך נישואין (לועזי)</label>
-              <input v-model="spouseForm.marriage_date_gregorian" type="date" @change="syncH(spouseForm,'marriage_date_gregorian','marriage_date_hebrew')" />
-            </div>
+            <GregorianField label="תאריך נישואין (לועזי)">
+              <div class="form-group">
+                <label>תאריך נישואין (לועזי)</label>
+                <input v-model="spouseForm.marriage_date_gregorian" type="date" @change="syncH(spouseForm,'marriage_date_gregorian','marriage_date_hebrew')" />
+              </div>
+            </GregorianField>
             <div class="form-group">
               <label>תאריך נישואין עברי</label>
               <input v-model="spouseForm.marriage_date_hebrew" type="text" placeholder='כ"ב אייר תש"פ' @change="syncG(spouseForm,'marriage_date_gregorian','marriage_date_hebrew')" />
@@ -603,10 +615,12 @@
               <button type="button" :class="{ active: siblingForm.gender === 'female' }" @click="siblingForm.gender = 'female'">נקבה</button>
             </div>
           </div>
-          <div class="form-group">
-            <label>תאריך לידה (לועזי)</label>
-            <input v-model="siblingForm.birth_date_gregorian" type="date" @change="syncH(siblingForm,'birth_date_gregorian','birth_date_hebrew')" />
-          </div>
+          <GregorianField label="תאריך לידה (לועזי)">
+            <div class="form-group">
+              <label>תאריך לידה (לועזי)</label>
+              <input v-model="siblingForm.birth_date_gregorian" type="date" @change="syncH(siblingForm,'birth_date_gregorian','birth_date_hebrew')" />
+            </div>
+          </GregorianField>
           <div class="form-group">
             <label>תאריך לידה עברי</label>
             <input v-model="siblingForm.birth_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' @change="syncG(siblingForm,'birth_date_gregorian','birth_date_hebrew')" />
@@ -645,10 +659,12 @@
               <button type="button" :class="{ active: childForm.gender === 'female' }" @click="childForm.gender = 'female'">נקבה</button>
             </div>
           </div>
-          <div class="form-group">
-            <label>תאריך לידה (לועזי)</label>
-            <input v-model="childForm.birth_date_gregorian" type="date" @change="syncH(childForm,'birth_date_gregorian','birth_date_hebrew')" />
-          </div>
+          <GregorianField label="תאריך לידה (לועזי)">
+            <div class="form-group">
+              <label>תאריך לידה (לועזי)</label>
+              <input v-model="childForm.birth_date_gregorian" type="date" @change="syncH(childForm,'birth_date_gregorian','birth_date_hebrew')" />
+            </div>
+          </GregorianField>
           <div class="form-group">
             <label>תאריך לידה עברי</label>
             <input v-model="childForm.birth_date_hebrew" type="text" placeholder='כ"ה תשרי תשפ"ה' @change="syncG(childForm,'birth_date_gregorian','birth_date_hebrew')" />
@@ -731,6 +747,8 @@ import { ref, computed, reactive, nextTick } from 'vue'
 import { Link, router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import PhotoLightbox from '@/Components/PhotoLightbox.vue'
+import DateText from '@/Components/DateText.vue'
+import GregorianField from '@/Components/GregorianField.vue'
 import { gregorianToHebrew, hebrewToGregorian } from '@/utils/hebrewDate'
 import { renderRichText } from '@/utils/richText'
 

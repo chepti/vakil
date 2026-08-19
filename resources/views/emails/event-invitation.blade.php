@@ -34,11 +34,7 @@
         </div>
 
         <div class="body">
-            <p class="text">
-                @if ($recipientGender === 'female') ברוכה הבאה @elseif ($recipientGender === 'male') ברוך הבא @else שלום @endif
-                @if ($recipientName), {{ $recipientName }} @endif
-                — יש אירוע חדש ב-{{ config('app.name') }}:
-            </p>
+            <p class="text">{{ $greeting }} — יש אירוע חדש ב-{{ config('app.name') }}:</p>
 
             @if (count($audienceParts))
             <p class="text" style="color:#a07830; font-size:13.5px;">

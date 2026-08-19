@@ -348,8 +348,8 @@
             </button>
             <button class="tl-btn tl-speed" @click="cycleTimelineSpeed" title="מהירות ההרצה">×{{ timelineSpeed }}</button>
             <div class="tl-year-wrap">
-              <div class="tl-year">{{ timelineYear }}</div>
-              <div class="tl-year-he">{{ tlHebYear }}</div>
+              <div v-if="!hideGregorian" class="tl-year">{{ timelineYear }}</div>
+              <div class="tl-year-he" :class="{ 'tl-year-he-solo': hideGregorian }">{{ tlHebYear }}</div>
             </div>
             <input
               class="tl-slider" type="range"
@@ -493,10 +493,14 @@
             <div v-if="addRelType" class="add-rel-form">
               <input v-model="addRelForm.first_name" type="text" placeholder="שם פרטי *" class="rel-input" />
               <input v-model="addRelForm.last_name" type="text" placeholder="שם משפחה" class="rel-input" />
-              <input v-model="addRelForm.birth_date_gregorian" type="date" class="rel-input" @change="addRelForm.birth_date_hebrew = gregorianToHebrew(addRelForm.birth_date_gregorian) || addRelForm.birth_date_hebrew" />
+              <GregorianField label="🎂 תאריך לידה (לועזי)">
+                <input v-model="addRelForm.birth_date_gregorian" type="date" class="rel-input" @change="addRelForm.birth_date_hebrew = gregorianToHebrew(addRelForm.birth_date_gregorian) || addRelForm.birth_date_hebrew" />
+              </GregorianField>
               <input v-model="addRelForm.birth_date_hebrew" type="text" placeholder='תאריך לידה עברי (כ"ה תשרי תשפ"ה)' class="rel-input" @change="addRelForm.birth_date_gregorian = hebrewToGregorian(addRelForm.birth_date_hebrew) || addRelForm.birth_date_gregorian" />
               <template v-if="addRelType === 'spouse'">
-                <input v-model="addRelForm.marriage_date_gregorian" type="date" class="rel-input" @change="addRelForm.marriage_date_hebrew = gregorianToHebrew(addRelForm.marriage_date_gregorian) || addRelForm.marriage_date_hebrew" />
+                <GregorianField label="💍 תאריך נישואין (לועזי)">
+                  <input v-model="addRelForm.marriage_date_gregorian" type="date" class="rel-input" @change="addRelForm.marriage_date_hebrew = gregorianToHebrew(addRelForm.marriage_date_gregorian) || addRelForm.marriage_date_hebrew" />
+                </GregorianField>
                 <input v-model="addRelForm.marriage_date_hebrew" type="text" placeholder='תאריך נישואין עברי (כ"ב אייר תש"פ)' class="rel-input" @change="addRelForm.marriage_date_gregorian = hebrewToGregorian(addRelForm.marriage_date_hebrew) || addRelForm.marriage_date_gregorian" />
               </template>
               <div class="rel-gender">
@@ -524,7 +528,9 @@
           <!-- ─── Edit details — compact, placeholder-based, at bottom ─── -->
           <div class="ef-form">
             <div class="ef-pair">
-              <input type="date" v-model="ef.birth_date_gregorian" class="ef-input" title="תאריך לידה (לועזי)" @change="autoFillHebrew('birth')" />
+              <GregorianField label="🎂 תאריך לידה (לועזי)">
+                <input type="date" v-model="ef.birth_date_gregorian" class="ef-input" title="תאריך לידה (לועזי)" @change="autoFillHebrew('birth')" />
+              </GregorianField>
               <input type="text" v-model="ef.birth_date_hebrew" class="ef-input" placeholder='🎂 לידה עברי' @change="autoFillGregorian('birth')" />
             </div>
             <input v-if="selectedPerson.gender === 'F'" type="text" v-model="ef.maiden_name" class="ef-input" placeholder="👰 שם נעורים" />
@@ -540,7 +546,9 @@
                   {{ m.is_former ? '💔' : '💍' }} {{ m.is_former ? 'לשעבר: ' : '' }}{{ getSpouseName(spouseId) }}
                 </div>
                 <div class="ef-pair">
-                  <input type="date" v-model="m.date" class="ef-input" title="תאריך נישואין (לועזי)" @change="autoFillHebrew('marriage', spouseId)" />
+                  <GregorianField label="💍 תאריך נישואין (לועזי)">
+                    <input type="date" v-model="m.date" class="ef-input" title="תאריך נישואין (לועזי)" @change="autoFillHebrew('marriage', spouseId)" />
+                  </GregorianField>
                   <input type="text" v-model="m.date_he" class="ef-input" placeholder='נישואין עברי' @change="autoFillGregorian('marriage', spouseId)" />
                 </div>
                 <label class="ef-former-toggle">
@@ -562,7 +570,9 @@
               </label>
               <template v-if="ef.is_deceased">
                 <div class="ef-pair">
-                  <input type="date" v-model="ef.death_date_gregorian" class="ef-input" title="תאריך פטירה (לועזי)" @change="autoFillHebrew('death')" />
+                  <GregorianField label="🕯 תאריך פטירה (לועזי)">
+                    <input type="date" v-model="ef.death_date_gregorian" class="ef-input" title="תאריך פטירה (לועזי)" @change="autoFillHebrew('death')" />
+                  </GregorianField>
                   <input type="text" v-model="ef.death_date_hebrew" class="ef-input" placeholder='🕯 פטירה עברי' @change="autoFillGregorian('death')" />
                 </div>
               </template>
@@ -590,7 +600,18 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import PhotoLightbox from '@/Components/PhotoLightbox.vue'
 import { createChart } from 'family-chart'
 import 'family-chart/styles/family-chart.css'
-import { gregorianToHebrew, hebrewToGregorian, hebBirthdayInfo, toGematria } from '@/utils/hebrewDate'
+import GregorianField from '@/Components/GregorianField.vue'
+import { gregorianToHebrew, hebrewToGregorian, hebBirthdayInfo, hebrewDayMonth, toGematria } from '@/utils/hebrewDate'
+import { useDateDisplay } from '@/utils/dateDisplay'
+
+// תצוגת תאריכים לפי הגדרת האתר (עברי בלבד / הסתרת שנת לידה לנשים נשואות)
+const { birthYearHidden, hideGregorian } = useDateDisplay()
+
+/** תווית תאריך הלידה מתחת לצומת בעץ — בלי שנה כשהיא מוסתרת לאותה דמות */
+function nodeBirthdayLabel(personId, gregorian) {
+  if (!gregorian) return ''
+  return birthYearHidden(personId) ? hebrewDayMonth(gregorian) : gregorianToHebrew(gregorian)
+}
 
 const props = defineProps({
   nodes:               { type: Array,   default: () => [] },
@@ -1707,7 +1728,10 @@ const timelineEvents = computed(() => {
   const out = []
   for (const n of localNodes.value) {
     const id = String(n.id)
-    if (birthYear[id] === y) out.push({ key: 'b' + id, text: `🎉 נולד${n.data?.gender === 'F' ? 'ה' : ''} ${personName(n)}` })
+    // דמות ששנת הלידה שלה מוסתרת לא מקבלת אירוע לידה על הציר — הוא היה חושף אותה
+    if (birthYear[id] === y && !birthYearHidden(id)) {
+      out.push({ key: 'b' + id, text: `🎉 נולד${n.data?.gender === 'F' ? 'ה' : ''} ${personName(n)}` })
+    }
   }
   const seen = new Set()
   for (const n of localNodes.value) {
@@ -2093,7 +2117,7 @@ const radialData = computed(() => {
       recipeCount: Number(n?.data?.recipe_count || 0),
       hasNameStory: !!n?.data?.has_name_story,
       hasPhotos: !!n?.data?.has_photos,
-      birthdayHe: gregorianToHebrew(n?.data?.birthday),
+      birthdayHe: nodeBirthdayLabel(id, n?.data?.birthday),
       gameGuesses: Number(n?.data?.game_guesses || 0),
       gamePoints:  Number(n?.data?.game_points  || 0),
       isRoot, centerSpouse: !!pos.centerSpouse, spouse,
@@ -3330,6 +3354,8 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
   line-height: 1.1; font-variant-numeric: tabular-nums;
 }
 .tl-year-he { font-size: 0.68rem; color: #b45309; font-weight: 600; }
+/* כשאין שנה לועזית מעליה — השנה העברית היא הכותרת ולכן גדולה יותר */
+.tl-year-he-solo { font-size: 0.95rem; color: #92400e; }
 .tl-slider {
   flex: 1;
   accent-color: #2d6be4;

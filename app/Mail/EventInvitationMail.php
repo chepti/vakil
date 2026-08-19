@@ -52,12 +52,19 @@ class EventInvitationMail extends Mailable
             $audienceParts[] = $tag;
         }
 
+        // פתיחה מותאמת-מגדר, בלי לשון חיוב הגעה — "יש עדכון", לא "מוזמנים להגיע"
+        $greetingWord = match ($this->recipientGender) {
+            'female' => 'ברוכה הבאה',
+            'male'   => 'ברוך הבא',
+            default  => 'שלום',
+        };
+        $greeting = $greetingWord . ($this->recipientName ? ', ' . $this->recipientName : '');
+
         return new Content(
             view: 'emails.event-invitation',
             with: [
                 'event'           => $this->event,
-                'recipientName'   => $this->recipientName,
-                'recipientGender' => $this->recipientGender,
+                'greeting'        => $greeting,
                 'eventUrl'        => route('events.show', $this->event->id),
                 'personName'      => $this->event->person?->full_name,
                 'addedBy'         => $this->event->creator?->name,

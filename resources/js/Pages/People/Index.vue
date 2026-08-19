@@ -40,7 +40,7 @@
           <div class="person-info">
             <div class="person-name">{{ person.full_name }}</div>
             <div class="person-meta">
-              <span v-if="person.birth_year">{{ person.gender === 'female' ? 'נולדה' : 'נולד' }} {{ person.birth_year }}</span>
+              <span v-if="birthLabel(person)">{{ person.gender === 'female' ? 'נולדה' : 'נולד' }} {{ birthLabel(person) }}</span>
               <span v-if="person.is_deceased" class="deceased-badge">ז"ל</span>
             </div>
           </div>
@@ -54,6 +54,7 @@
 import { ref, computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { useDateDisplay } from '@/utils/dateDisplay'
 
 const props = defineProps({
   people: { type: Array, default: () => [] },
@@ -69,6 +70,17 @@ const filtered = computed(() => {
 
 function initials(name) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2)
+}
+
+// שנת הלידה בכרטיסייה — עברית או לועזית לפי הגדרת האתר, וריקה למי ששנתה מוסתרת
+const { yearParts } = useDateDisplay()
+
+function birthLabel(person) {
+  return yearParts({
+    gregorian: person.birth_date,
+    hebrew:    person.birth_he,
+    personId:  person.id,
+  }).text
 }
 </script>
 

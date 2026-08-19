@@ -28,19 +28,20 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useDateDisplay } from '@/utils/dateDisplay'
 
 const props = defineProps({ node: { type: Object, required: true } })
 
 const initial = computed(() => (props.node.person['first name'] || '?').charAt(0))
 
-const years = computed(() => {
-  const b = props.node.person.birthday
-  const by = b ? new Date(b).getFullYear() : null
-  const d = props.node.person.death_date
-  const dy = d ? new Date(d).getFullYear() : null
-  if (by && dy) return `${by}–${dy}`
-  return by ? `${by}` : ''
-})
+const { yearParts } = useDateDisplay()
+
+const years = computed(() => yearParts({
+  gregorian:      props.node.person.birthday,
+  hebrew:         props.node.person.birthday_he,
+  deathGregorian: props.node.person.death_date,
+  personId:       props.node.id,
+}).text)
 </script>
 
 <style scoped>
