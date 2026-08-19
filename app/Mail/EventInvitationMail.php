@@ -13,7 +13,11 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
 
-class NewEventMail extends Mailable
+/**
+ * הזמנה לאירוע — נשלחת ביד (כפתור "שלח הזמנה במייל" בעמוד האירוע), בשונה מ-NewEventMail
+ * שנשלחת אוטומטית ליוצר האירוע. אותו עיצוב ותוכן, כותרת ונושא שמתאימים לשליחה מפורשת.
+ */
+class EventInvitationMail extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -25,10 +29,10 @@ class NewEventMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $label = $this->event->title ?: 'אירוע חדש';
+        $label = $this->event->title ?: 'אירוע';
 
         return new Envelope(
-            subject: "אירוע חדש בעץ: {$label} 📅",
+            subject: "💌 הזמנה לאירוע: {$label}",
         );
     }
 
@@ -38,21 +42,21 @@ class NewEventMail extends Mailable
             ?: ($this->event->event_date ? HebrewDate::format(Carbon::parse($this->event->event_date)) : null);
 
         return new Content(
-            view: 'emails.new-event',
+            view: 'emails.event-invitation',
             with: [
-                'event'       => $this->event,
+                'event'         => $this->event,
                 'recipientName' => $this->recipientName,
-                'eventUrl'    => route('events.show', $this->event->id),
-                'personName'  => $this->event->person?->full_name,
-                'addedBy'     => $this->event->creator?->name,
-                'hebrewDate'  => $hebrewDate,
-                'gregDate'    => $this->event->event_date ? Carbon::parse($this->event->event_date)->format('d/m/Y') : null,
-                'profileUrl'  => route('profile.edit'),
+                'eventUrl'      => route('events.show', $this->event->id),
+                'personName'    => $this->event->person?->full_name,
+                'addedBy'       => $this->event->creator?->name,
+                'hebrewDate'    => $hebrewDate,
+                'gregDate'      => $this->event->event_date ? Carbon::parse($this->event->event_date)->format('d/m/Y') : null,
+                'profileUrl'    => route('profile.edit'),
             ],
         );
     }
 
-    /** מצרפת את תמונת ההזמנה כקובץ ממשי (בנוסף להטמעה בגוף המייל). */
+    /** מצרפת את תמונת ההזמנה כקובץ ממשי (בנוסף להטמעה בגוף המייל) — כדי שיהיה מה "לשמור/להעביר". */
     public function attachments(): array
     {
         if (! $this->event->invitation_image) return [];

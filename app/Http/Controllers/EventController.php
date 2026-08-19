@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\EventInvitationMail;
 use App\Models\Blessing;
 use App\Models\Event;
 use App\Models\EventReaction;
 use App\Models\Person;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -230,6 +233,48 @@ class EventController extends Controller
         }
 
         return redirect()->route('events.show', $event);
+    }
+
+    /**
+     * שליחת הזמנה ופרטי האירוע במייל — לענף המוזמן (audience_branch) או לכל המשפחה.
+     * מייל מעוצב עם כל הפרטים, תמונת ההזמנה (מוטמעת + מצורפת כקובץ), וכפתור לעמוד
+     * האירוע לכתיבת ברכה.
+     */
+    public function sendInvitation(Request $request, Event $event)
+    {
+        abort_unless($this->canManage($event), 403);
+
+        $data = $request->validate([
+            'scope' => 'required|in:branch,all',
+        ]);
+
+        $event->load(['person', 'audienceBranch', 'creator']);
+
+        $query = User::where('status', 'active')->whereNotNull('email');
+
+        $audienceLabel = 'כל המשפחה';
+        if ($data['scope'] === 'branch' && $event->audienceBranch) {
+            $root = $event->audienceBranch;
+            $ids  = Person::withSpouses(array_merge([$root->id], $root->descendantIds()));
+            $query->whereIn('person_id', $ids);
+            $audienceLabel = 'ענף ' . $root->full_name;
+        }
+
+        $recipients = $query->get();
+        $sent = $failed = 0;
+
+        foreach ($recipients as $user) {
+            try {
+                Mail::to($user->email)->send(new EventInvitationMail($event, $user->name));
+                $sent++;
+            } catch (\Throwable $e) {
+                $failed++;
+                report($e);
+            }
+        }
+
+        $msg = "ההזמנה נשלחה ל-{$sent} אנשים ({$audienceLabel})" . ($failed ? " · {$failed} נכשלו" : '') . '.';
+        return redirect()->route('events.show', $event)->with('success', $msg);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────

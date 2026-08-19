@@ -85,6 +85,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('events', EventController::class);
     Route::post('/events/{event}/blessings', [EventController::class, 'addBlessing'])->name('events.blessings');
     Route::post('/events/{event}/reactions', [EventController::class, 'toggleReaction'])->name('events.reactions');
+    Route::post('/events/{event}/send-invitation', [EventController::class, 'sendInvitation'])->name('events.send-invitation');
 
     // סטטיסטיקות — פתוח לכל המשתמשים
     Route::get('/stats', [StatsController::class, 'index'])->name('stats');

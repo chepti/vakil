@@ -66,6 +66,25 @@
         </div>
       </div>
 
+      <!-- שליחת הזמנה במייל -->
+      <div v-if="event.can_edit" class="invite-card">
+        <div class="invite-title">💌 שליחת ההזמנה במייל</div>
+        <p class="invite-hint">מייל מעוצב עם כל פרטי האירוע, ההזמנה עצמה, וכפתור לכתיבת ברכה.</p>
+        <div class="invite-actions">
+          <button
+            v-if="event.audience_branch"
+            class="btn-invite"
+            :disabled="sendingInvite"
+            @click="sendInvitation('branch')"
+          >{{ sendingInvite ? 'שולח...' : `שלח לענף ${event.audience_branch.person_name}` }}</button>
+          <button
+            class="btn-invite btn-invite-all"
+            :disabled="sendingInvite"
+            @click="sendInvitation('all')"
+          >{{ sendingInvite ? 'שולח...' : 'שלח לכל המשפחה' }}</button>
+        </div>
+      </div>
+
       <!-- תגובות פרטיות -->
       <div class="reactions-card">
         <div class="reactions-header">
@@ -111,7 +130,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Link, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
@@ -156,6 +175,17 @@ function submitBlessing() {
   blessingForm.post(`/events/${props.event.id}/blessings`, {
     preserveScroll: true,
     onSuccess: () => blessingForm.reset('message'),
+  })
+}
+
+const sendingInvite = ref(false)
+function sendInvitation(scope) {
+  const label = scope === 'branch' ? `לענף ${props.event.audience_branch?.person_name}` : 'לכל המשפחה'
+  if (!confirm(`לשלוח הזמנה במייל ${label}? הפעולה שולחת מייל בפועל לכל הנמענים.`)) return
+  sendingInvite.value = true
+  router.post(`/events/${props.event.id}/send-invitation`, { scope }, {
+    preserveScroll: true,
+    onFinish: () => { sendingInvite.value = false },
   })
 }
 
@@ -243,6 +273,28 @@ h1 { font-size: 1.6rem; color: #1a3a6b; margin: 0.6rem 0 0.5rem; }
   font-size: 0.95rem; margin-top: 0.5rem;
 }
 .btn-photos:hover { background: #1a55c8; }
+
+/* שליחת הזמנה */
+.invite-card {
+  background: white;
+  border-radius: 18px;
+  box-shadow: 0 4px 20px rgba(0,50,150,0.08);
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+.invite-title { font-size: 1.05rem; color: #1a3a6b; font-weight: 700; margin-bottom: 0.35rem; }
+.invite-hint { font-size: 0.85rem; color: #8a9ab5; margin: 0 0 1rem; }
+.invite-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.btn-invite {
+  background: #fdf6ec; color: #a07830; border: 1.5px solid #f0d898;
+  padding: 0.6rem 1.4rem; border-radius: 10px; cursor: pointer;
+  font-family: 'Rubik', sans-serif; font-weight: 600; font-size: 0.9rem;
+  transition: background 0.2s;
+}
+.btn-invite:hover:not(:disabled) { background: #fbecd0; }
+.btn-invite:disabled { opacity: 0.6; cursor: default; }
+.btn-invite-all { background: #eef4ff; color: #2d6be4; border-color: #c7d8f5; }
+.btn-invite-all:hover:not(:disabled) { background: #dfeaff; }
 
 /* תגובות */
 .reactions-card {
