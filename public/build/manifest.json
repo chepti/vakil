@@ -246,7 +246,7 @@
     ]
   },
   "resources/js/Pages/Admin/Index.vue": {
-    "file": "assets/Index-m-uvpS11.js",
+    "file": "assets/Index-DX74QtV1.js",
     "name": "Index",
     "src": "resources/js/Pages/Admin/Index.vue",
     "isDynamicEntry": true,
@@ -257,7 +257,7 @@
       "_AppLayout-CX1YdrEx.js"
     ],
     "css": [
-      "assets/Index-BnZLuinc.css"
+      "assets/Index-DzR9zJvr.css"
     ]
   },
   "resources/js/Pages/Auth/ConfirmPassword.vue": {
@@ -845,7 +845,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-B-9FkRrY.js",
+    "file": "assets/app-YBmmrc53.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

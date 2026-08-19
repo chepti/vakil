@@ -7,6 +7,7 @@ use App\Mail\MonthlyDigestMail;
 use App\Models\Document;
 use App\Models\Invitation;
 use App\Models\Person;
+use App\Models\Relationship;
 use App\Models\User;
 use App\Services\Branch\BranchExportService;
 use App\Services\DigestBuilder;
@@ -91,6 +92,9 @@ class AdminController extends Controller
 
         return Inertia::render('Admin/Index', [
             'people'  => $people,
+            'exportFields' => collect($this->exportableFields())
+                ->map(fn($def, $key) => ['key' => $key, 'label' => $def['label']])
+                ->values(),
             'summary' => [
                 'users_total'    => $users->count(),
                 'users_pending'  => $users->where('status', 'pending')->count(),
@@ -194,6 +198,118 @@ class AdminController extends Controller
     }
 
     // ─── ייצוא CSV ─────────────────────────────────────────────────
+
+    /**
+     * הגדרת שדות הייצוא המותאם: מפתח → תווית + עמודות CSV + פונקציית חילוץ ערכים לדמות.
+     * מקור יחיד לאמת — גם רשימת הצ'קבוקסים בפרונט וגם בניית ה-CSV משתמשים באותה הגדרה.
+     */
+    private function exportableFields(): array
+    {
+        return [
+            'gender' => [
+                'label' => 'מגדר',
+                'cols'  => ['מגדר'],
+                'get'   => fn($p) => [$p->gender === 'female' ? 'נקבה' : ($p->gender === 'male' ? 'זכר' : '')],
+            ],
+            'birthday' => [
+                'label' => 'תאריך לידה',
+                'cols'  => ['תאריך לידה', 'תאריך לידה עברי'],
+                'get'   => fn($p) => [$p->birth_date_gregorian?->format('d/m/Y'), $p->birth_date_hebrew],
+            ],
+            'death' => [
+                'label' => 'פטירה',
+                'cols'  => ['סטטוס', 'תאריך פטירה', 'תאריך פטירה עברי'],
+                'get'   => fn($p) => [$p->is_deceased ? 'ז"ל' : '', $p->death_date_gregorian?->format('d/m/Y'), $p->death_date_hebrew],
+            ],
+            'marriage' => [
+                'label' => 'נישואין',
+                'cols'  => ['בן/בת זוג', 'תאריך נישואין'],
+                'get'   => function ($p) {
+                    $rels = Relationship::where('type', 'spouse')
+                        ->where(fn($q) => $q->where('person1_id', $p->id)->orWhere('person2_id', $p->id))
+                        ->get();
+                    $names = $dates = [];
+                    foreach ($rels as $r) {
+                        $spouseId = $r->person1_id == $p->id ? $r->person2_id : $r->person1_id;
+                        $spouse   = Person::find($spouseId);
+                        if ($spouse) $names[] = $spouse->full_name;
+                        $date = $r->marriage_date_gregorian?->format('d/m/Y') ?: $r->marriage_date_hebrew;
+                        if ($date) $dates[] = $date;
+                    }
+                    return [implode(', ', $names), implode(', ', $dates)];
+                },
+            ],
+            'parents' => [
+                'label' => 'הורים',
+                'cols'  => ['הורים'],
+                'get'   => fn($p) => [$p->parents->map(fn($pp) => $pp->full_name)->implode(', ')],
+            ],
+            'occupation' => [
+                'label' => 'עיסוק',
+                'cols'  => ['עיסוק'],
+                'get'   => fn($p) => [$p->current_occupation],
+            ],
+            'city' => [
+                'label' => 'עיר',
+                'cols'  => ['עיר'],
+                'get'   => fn($p) => [$p->city],
+            ],
+            'contact' => [
+                'label' => 'פרטי קשר',
+                'cols'  => ['מייל', 'טלפון'],
+                'get'   => fn($p) => [$p->email, $p->phone],
+            ],
+            'maiden_name' => [
+                'label' => 'שם נעורים',
+                'cols'  => ['שם נעורים'],
+                'get'   => fn($p) => [$p->maiden_name],
+            ],
+            'bio' => [
+                'label' => 'מידע נוסף',
+                'cols'  => ['מידע נוסף'],
+                'get'   => fn($p) => [$p->bio],
+            ],
+        ];
+    }
+
+    /**
+     * ייצוא CSV מותאם — בוחרים אילו שדות לכלול ואופציונלית ענף ספציפי (דמות-שורש + צאצאיה)
+     * במקום כל המשפחה.
+     */
+    public function exportCustom(Request $request): StreamedResponse
+    {
+        $this->ensureAdmin();
+
+        $data = $request->validate([
+            'fields'           => 'nullable|array',
+            'fields.*'         => 'string',
+            'branch_person_id' => 'nullable|integer|exists:people,id',
+        ]);
+
+        $allFields = $this->exportableFields();
+        $selected  = array_values(array_intersect($data['fields'] ?? [], array_keys($allFields)));
+        if (empty($selected)) $selected = array_keys($allFields);
+
+        $query = Person::orderBy('last_name')->orderBy('first_name');
+        $isBranch = !empty($data['branch_person_id']);
+        if ($isBranch) {
+            $root = Person::findOrFail($data['branch_person_id']);
+            $ids  = array_unique(array_merge([$root->id], $root->descendantIds()));
+            $query->whereIn('id', $ids);
+        }
+        $people = $query->get();
+
+        $header = ['שם מלא'];
+        foreach ($selected as $key) $header = array_merge($header, $allFields[$key]['cols']);
+
+        $rows = $people->map(function ($p) use ($selected, $allFields) {
+            $row = [$p->full_name];
+            foreach ($selected as $key) $row = array_merge($row, $allFields[$key]['get']($p));
+            return $row;
+        });
+
+        return $this->csv($isBranch ? 'vakil-export-branch.csv' : 'vakil-export.csv', $header, $rows);
+    }
 
     /** רשימת כל המשפחה — שם, מה עושה, עיר, מייל, טלפון, תאריך לידה. */
     public function exportFamily(): StreamedResponse

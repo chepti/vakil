@@ -27,6 +27,32 @@
         </div>
       </section>
 
+      <!-- ייצוא מותאם — בחירת שדות + ענף ספציפי -->
+      <section class="panel">
+        <h2>🧩 ייצוא מותאם</h2>
+        <p class="hint">בוחרים אילו נתונים לכלול, ואופציונלית ענף ספציפי בלבד (דמות-שורש וכל צאצאיה) במקום כל המשפחה.</p>
+
+        <div class="export-fields-row">
+          <label v-for="f in exportFields" :key="f.key" class="export-field-chip">
+            <input type="checkbox" :value="f.key" v-model="exportSelectedFields" />
+            {{ f.label }}
+          </label>
+        </div>
+        <div class="export-fields-actions">
+          <button type="button" class="link-btn" @click="exportSelectAll">בחר הכל</button>
+          <span class="sep">·</span>
+          <button type="button" class="link-btn" @click="exportSelectNone">נקה בחירה</button>
+        </div>
+
+        <div class="download-row" style="margin-top: 0.75rem;">
+          <select v-model="exportBranchId" class="custom-input" style="max-width: 280px;">
+            <option :value="null">כל המשפחה</option>
+            <option v-for="p in people" :key="p.id" :value="p.id">🌿 ענף {{ p.name }} וצאצאיו</option>
+          </select>
+          <a :href="exportCustomUrl" class="dl-btn">⬇️ הורדת CSV מותאם</a>
+        </div>
+      </section>
+
       <!-- ייבוא דמויות מ-CSV -->
       <section class="panel">
         <h2>📤 ייבוא דמויות מ-CSV</h2>
@@ -208,11 +234,11 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Link, router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
-defineProps({
+const props = defineProps({
   summary:         { type: Object, default: () => ({}) },
   users:           { type: Array, default: () => [] },
   invitations:     { type: Array, default: () => [] },
@@ -220,6 +246,7 @@ defineProps({
   missingPhoto:    { type: Array, default: () => [] },
   documents:       { type: Array, default: () => [] },
   people:          { type: Array, default: () => [] },
+  exportFields:    { type: Array, default: () => [] },
 })
 
 const fileInput = ref(null)
@@ -232,6 +259,20 @@ const digestMessage = ref(usePage().props.flash?.digest_success ?? null)
 // העברת ענף
 const branchRootId = ref(null)
 const branchLight = ref(true)
+
+// ייצוא מותאם — בחירת שדות + ענף ספציפי
+const exportSelectedFields = ref(props.exportFields.map(f => f.key))   // הכל מסומן כברירת מחדל
+const exportBranchId       = ref(null)
+
+function exportSelectAll()  { exportSelectedFields.value = props.exportFields.map(f => f.key) }
+function exportSelectNone() { exportSelectedFields.value = [] }
+
+const exportCustomUrl = computed(() => {
+  const params = new URLSearchParams()
+  exportSelectedFields.value.forEach(k => params.append('fields[]', k))
+  if (exportBranchId.value) params.set('branch_person_id', exportBranchId.value)
+  return `/admin/export/custom?${params.toString()}`
+})
 
 // הודעה מותאמת
 const customOpen    = ref(false)
@@ -359,6 +400,24 @@ function deleteUser(u) {
 /* הורדות */
 .download-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 .branch-light { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: #9aa7c0; margin-top: 0.7rem; cursor: pointer; }
+
+/* ייצוא מותאם */
+.export-fields-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.export-field-chip {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: #f5f8ff; border: 1.5px solid #e0e9fb; border-radius: 20px;
+  padding: 0.4rem 0.85rem; font-size: 0.85rem; color: #1a3a6b;
+  cursor: pointer; transition: background 0.15s, border-color 0.15s;
+}
+.export-field-chip:has(input:checked) { background: #e8f0fe; border-color: #2d6be4; font-weight: 600; }
+.export-field-chip input { accent-color: #2d6be4; }
+.export-fields-actions { margin-top: 0.6rem; font-size: 0.8rem; }
+.link-btn {
+  background: none; border: none; padding: 0; color: #2d6be4;
+  font-size: 0.8rem; font-family: 'Rubik', sans-serif; cursor: pointer; text-decoration: underline;
+}
+.link-btn:hover { color: #1a55c8; }
+.export-fields-actions .sep { color: #cbd5e1; margin: 0 0.4rem; }
 .dl-btn {
   background: #edf3ff; color: #2d6be4; text-decoration: none;
   padding: 0.6rem 1rem; border-radius: 9px; font-size: 0.9rem; font-weight: 500;

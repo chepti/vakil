@@ -105,6 +105,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/export/family', [AdminController::class, 'exportFamily'])->name('export.family');
         Route::get('/export/users', [AdminController::class, 'exportUsers'])->name('export.users');
         Route::get('/export/birthdays', [AdminController::class, 'exportBirthdays'])->name('export.birthdays');
+        Route::get('/export/custom', [AdminController::class, 'exportCustom'])->name('export.custom');
 
         // דיגסט מייל — שליחה ידנית
         Route::post('/digest/preview',  [AdminController::class, 'digestPreview'])->name('digest.preview');
