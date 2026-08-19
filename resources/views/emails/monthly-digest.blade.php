@@ -109,7 +109,7 @@
                             <td width="96" align="center" valign="middle" style="padding-left:12px; width:96px;">
                                 <div class="date-chip">
                                     <span class="dc-heb">{{ $ev['hebrewDate'] }}</span>
-                                    <span class="dc-greg">{{ $ev['date'] }}</span>
+                                    <span class="dc-greg">{{ $ev['date'] ?? '' }}</span>
                                 </div>
                             </td>
                             <td width="54" align="center" valign="middle" style="padding-left:14px; width:54px;">
@@ -154,7 +154,8 @@
                             </td>
                             <td valign="middle">
                                 <div><a href="{{ $bd['url'] }}">{{ $bd['name'] }}</a>@if ($bd['context'] ?? '') <span class="meta"> {{ $bd['context'] }}</span>@endif</div>
-                                <div class="meta">חוגג/ת {{ $bd['age'] }}</div>
+                                {{-- כשהגיל מוסתר (שנת לידה מקופלת) מברכים בלי מספר --}}
+                                <div class="meta">{{ ($bd['age'] ?? null) ? "חוגג/ת {$bd['age']}" : 'חוגג/ת יום הולדת' }}</div>
                             </td>
                         </tr>
                     </table>

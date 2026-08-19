@@ -39,10 +39,12 @@
               <button type="button" :class="{ active: form.gender === 'female' }" @click="form.gender = 'female'">נקבה</button>
             </div>
           </div>
-          <div class="form-group">
-            <label>תאריך לידה</label>
-            <input v-model="form.birth_date_gregorian" type="date" />
-          </div>
+          <GregorianField label="תאריך לידה (לועזי)">
+            <div class="form-group">
+              <label>תאריך לידה</label>
+              <input v-model="form.birth_date_gregorian" type="date" />
+            </div>
+          </GregorianField>
         </div>
 
         <div class="form-group">
@@ -133,7 +135,7 @@
             <strong>שם:</strong> {{ form.first_name }} {{ form.last_name }}
           </div>
           <div class="summary-item" v-if="form.birth_date_gregorian">
-            <strong>תאריך לידה:</strong> {{ form.birth_date_gregorian }}
+            <strong>תאריך לידה:</strong> <DateText :gregorian="form.birth_date_gregorian" />
           </div>
           <div class="summary-item" v-if="form.current_occupation">
             <strong>עיסוק:</strong> {{ form.current_occupation }}
@@ -162,6 +164,8 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { router } from '@inertiajs/vue3'
+import DateText from '@/Components/DateText.vue'
+import GregorianField from '@/Components/GregorianField.vue'
 
 const step = ref(1)
 const saving = ref(false)

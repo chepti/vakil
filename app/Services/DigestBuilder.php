@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Event;
 use App\Models\Person;
 use App\Models\Relationship;
+use App\Services\Family\DateVisibility;
 use App\Support\HebrewDate;
 use Carbon\Carbon;
 
@@ -88,9 +89,12 @@ class DigestBuilder
                 }
                 $birthdays[] = [
                     'name'     => $p->full_name,
-                    'age'      => $age,
+                    // הגיל מסגיר את שנת הלידה — לכן הוא נופל יחד איתה
+                    'age'      => DateVisibility::birthYearHidden($p->id) ? null : $age,
                     'dayMonth' => HebrewDate::dayMonth(Carbon::parse($p->birth_date_gregorian)),
-                    'dateGreg' => Carbon::parse($p->birth_date_gregorian)->format('d/m'),
+                    'dateGreg' => DateVisibility::hideGregorian()
+                        ? null
+                        : Carbon::parse($p->birth_date_gregorian)->format('d/m'),
                     'day'      => $b['day'],
                     'url'      => route('people.show', $p->id),
                     'photoUrl' => $p->profile_photo_url,
@@ -123,7 +127,9 @@ class DigestBuilder
                     'names'    => "{$p1->full_name} ו{$p2->full_name}",
                     'years'    => $years,
                     'dayMonth' => HebrewDate::dayMonth(Carbon::parse($r->marriage_date_gregorian)),
-                    'dateGreg' => Carbon::parse($r->marriage_date_gregorian)->format('d/m'),
+                    'dateGreg' => DateVisibility::hideGregorian()
+                        ? null
+                        : Carbon::parse($r->marriage_date_gregorian)->format('d/m'),
                     'day'      => $m['day'],
                     'url'      => route('people.show', $p1->id),
                 ];
@@ -153,7 +159,9 @@ class DigestBuilder
                 'name'        => $p->full_name,
                 'url'         => route('people.show', $p->id),
                 'hebrewBirth' => HebrewDate::format(Carbon::parse($p->birth_date_gregorian)),
-                'dateGreg'    => Carbon::parse($p->birth_date_gregorian)->format('d/m/Y'),
+                'dateGreg'    => DateVisibility::hideGregorian()
+                    ? null
+                    : Carbon::parse($p->birth_date_gregorian)->format('d/m/Y'),
                 'photoUrl'    => $p->profile_photo_url,
                 'context'     => $p->ancestralContext(),
                 'gender'      => $p->gender,
@@ -175,7 +183,9 @@ class DigestBuilder
                 'title'            => $e->title ?: $this->eventTypeLabel($e->type),
                 'type'             => $e->type,
                 'typeLabel'        => $this->eventTypeLabel($e->type),
-                'date'             => Carbon::parse($e->event_date)->format('d/m/Y'),
+                'date'             => DateVisibility::hideGregorian()
+                    ? null
+                    : Carbon::parse($e->event_date)->format('d/m/Y'),
                 'hebrewDate'       => $e->hebrew_date ?: HebrewDate::format(Carbon::parse($e->event_date)),
                 'location'         => $e->location,
                 'personName'       => $e->person?->full_name,
@@ -205,11 +215,17 @@ class DigestBuilder
                 if ($age <= 0 || $age % 10 !== 0) {
                     return;
                 }
+                // יום הולדת עגול הוא הגיל עצמו — למי ששנת הלידה שלה מוסתרת פשוט לא מציינים
+                if (DateVisibility::birthYearHidden($p->id)) {
+                    return;
+                }
                 $out[] = [
                     'name'     => $p->full_name,
                     'age'      => $age,
                     'dayMonth' => HebrewDate::dayMonth(Carbon::parse($p->birth_date_gregorian)),
-                    'dateGreg' => Carbon::parse($p->birth_date_gregorian)->format('d/m'),
+                    'dateGreg' => DateVisibility::hideGregorian()
+                        ? null
+                        : Carbon::parse($p->birth_date_gregorian)->format('d/m'),
                     'url'      => route('people.show', $p->id),
                     'photoUrl' => $p->profile_photo_url,
                     'context'  => $p->ancestralContext(),
@@ -249,7 +265,9 @@ class DigestBuilder
                     'names'    => "{$p1->full_name} ו{$p2->full_name}",
                     'years'    => $years,
                     'dayMonth' => HebrewDate::dayMonth(Carbon::parse($r->marriage_date_gregorian)),
-                    'dateGreg' => Carbon::parse($r->marriage_date_gregorian)->format('d/m'),
+                    'dateGreg' => DateVisibility::hideGregorian()
+                        ? null
+                        : Carbon::parse($r->marriage_date_gregorian)->format('d/m'),
                     'url'      => route('people.show', $p1->id),
                 ];
             });

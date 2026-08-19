@@ -44,7 +44,7 @@
                   </span>
                   <span class="baby-date">
                     <b>{{ b.hebFull }}</b>
-                    <span class="greg"> · {{ b.greg }}</span>
+                    <span v-if="!hideGregorian" class="greg"> · {{ b.greg }}</span>
                   </span>
                 </span>
               </Link>
@@ -60,13 +60,14 @@
               <Link :href="`/people/${b.id}`" class="event-link">
                 <span class="event-date">
                   <b>{{ b.hebDM }}</b>
-                  <span class="greg">{{ b.greg }}</span>
+                  <span v-if="!hideGregorian" class="greg">{{ b.greg }}</span>
                 </span>
                 <span class="event-name">
                   {{ b.name }}
                   <span v-if="b.context" class="event-context">{{ b.gender === 'female' ? 'בת' : 'בן' }}{{ b.context }}</span>
                 </span>
-                <span class="event-extra">{{ b.turning }} 🎉</span>
+                <!-- הגיל מוסתר יחד עם שנת הלידה — אחרת הוא מסגיר אותה -->
+                <span class="event-extra">{{ birthYearHidden(b.id) ? '🎉' : `${b.turning} 🎉` }}</span>
               </Link>
             </li>
           </ul>
@@ -148,7 +149,7 @@
             <li v-for="(a, i) in anniversaries" :key="i">
               <span class="event-date">
                 <b>{{ a.hebDM }}</b>
-                <span class="greg">{{ a.greg }}</span>
+                <span v-if="!hideGregorian" class="greg">{{ a.greg }}</span>
               </span>
               <span class="event-name">{{ a.couple }}</span>
               <span class="event-extra">{{ a.years }} שנה</span>
@@ -195,8 +196,11 @@ import {
   hebrewDayMonth,
   currentHebrewMonth,
 } from '@/utils/hebrewDate'
+import { useDateDisplay } from '@/utils/dateDisplay'
 import { geocodeCity, ISRAEL_CENTER, wgs84ToITM } from '@/utils/israelGeo'
 import 'leaflet/dist/leaflet.css'
+
+const { hideGregorian, birthYearHidden } = useDateDisplay()
 
 const props = defineProps({
   stats:                 { type: Object, default: () => ({}) },

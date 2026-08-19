@@ -75,7 +75,10 @@
             <div class="up-title">{{ ev.title }}</div>
             <div class="up-date">
               <span v-if="ev.hebrew_date">{{ ev.hebrew_date }}</span>
-              <span v-if="ev.event_date" class="up-greg">{{ formatGreg(ev.event_date) }}<span v-if="ev.event_time"> · {{ ev.event_time }}</span></span>
+              <span v-if="ev.event_date" class="up-greg">
+                <template v-if="!hideGregorian">{{ formatGreg(ev.event_date) }}</template>
+                <span v-if="ev.event_time">{{ hideGregorian ? '' : ' · ' }}{{ ev.event_time }}</span>
+              </span>
             </div>
           </div>
         </Link>
@@ -139,7 +142,10 @@ import { ref, computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { gregorianToHebrewParts, gregorianToHebrew } from '@/utils/hebrewDate'
+import { useDateDisplay } from '@/utils/dateDisplay'
 import { HDate } from '@hebcal/core'
+
+const { hideGregorian } = useDateDisplay()
 
 const props = defineProps({
   events: { type: Array, default: () => [] },

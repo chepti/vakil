@@ -133,6 +133,8 @@
 import { computed, ref } from 'vue'
 import { Link, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { gregorianToHebrew } from '@/utils/hebrewDate'
+import { useDateDisplay } from '@/utils/dateDisplay'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -148,8 +150,14 @@ const typeLabel = computed(() => TYPE_LABELS[props.event.type] || 'אירוע')
 
 const palette = ['❤️', '🎉', '😍', '👏', '🥳', '🙏', '🌸', '✨']
 
+const { hideGregorian } = useDateDisplay()
+
 const gregLabel = computed(() => {
   if (!props.event.event_date) return ''
+  if (hideGregorian.value) {
+    // באתר עברי-בלבד: כשאין תאריך עברי שמור, ממירים את הלועזי במקום להציג אותו
+    return props.event.hebrew_date ? '' : gregorianToHebrew(props.event.event_date)
+  }
   const [y, m, d] = props.event.event_date.split('-')
   return `${d}.${m}.${y}`
 })
