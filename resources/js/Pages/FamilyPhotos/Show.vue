@@ -441,6 +441,9 @@ async function uploadFaceBackground(rect, person) {
     fd.append('crop_y', rect.y_percent)
     fd.append('crop_w', rect.w_percent)
     fd.append('crop_h', rect.h_percent)
+    // תיוג אגבי בתוך תמונה משפחתית — לא פעולה מפורשת על כרטיס הדמות, אז לא דורס
+    // תמונת פרופיל עדכנית יותר (השרת בודק שנה; ראו PersonController::uploadPhoto)
+    fd.append('auto', '1')
 
     const upRes = await fetch(`/people/${person.id}/photo`, {
       method:  'POST',

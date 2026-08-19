@@ -12,7 +12,7 @@ class Photo extends Model
 
     protected $fillable = [
         'person_id', 'event_id', 'thumb_path', 'original_path',
-        'crop_x', 'crop_y', 'crop_w', 'crop_h',
+        'crop_x', 'crop_y', 'crop_w', 'crop_h', 'taken_year',
         'caption', 'taken_at', 'uploaded_by', 'origin_uuid',
     ];
 

@@ -547,6 +547,11 @@ class PersonController extends Controller
             'source_path'   => 'nullable|string',            // נתיב אחסון של מקור קיים (גלריה / פרופיל ישן)
             'crop_x' => 'nullable|numeric', 'crop_y' => 'nullable|numeric',
             'crop_w' => 'nullable|numeric', 'crop_h' => 'nullable|numeric',
+            // auto=1 — תיוג פנים אגבי בתמונה משפחתית (לא פעולה מפורשת על כרטיס הדמות):
+            // לא דורס תמונת פרופיל "חדשה יותר" בכוונה, כדי שתמונה ישנה שתויגה במקרה
+            // לא תהפוך לפתע לתמונת הפרופיל של כולם. הגדרה מפורשת (הכוכב / העלאה מהכרטיס)
+            // דורסת תמיד — היא הדרך היחידה לבחור בכוונה תמונה ישנה כפרופיל.
+            'auto' => 'nullable|boolean',
         ]);
 
         // התמונה המוצגת (avatar)
@@ -562,18 +567,34 @@ class PersonController extends Controller
             $originalPath = $data['source_path'];
         }
 
+        // שנת הצילום של המקור — אם המקור הוא תמונה משפחתית עם שנה מתויגת
+        $sourceYear = \App\Models\FamilyPhoto::where('path', $originalPath)->value('taken_year');
+
         \App\Models\Photo::create([
             'person_id'     => $person->id,
             'thumb_path'    => $thumbPath,
             'original_path' => $originalPath,
             'crop_x' => $data['crop_x'] ?? null, 'crop_y' => $data['crop_y'] ?? null,
             'crop_w' => $data['crop_w'] ?? null, 'crop_h' => $data['crop_h'] ?? null,
+            'taken_year'    => $sourceYear,
             'uploaded_by'   => Auth::id(),
         ]);
 
-        $person->update(['profile_photo' => $thumbPath]);
+        $isAuto = $request->boolean('auto');
+        $shouldSetProfile = true;
+        if ($isAuto && $person->profile_photo && $person->profile_photo_year !== null && $sourceYear !== null) {
+            $shouldSetProfile = $sourceYear >= $person->profile_photo_year;
+        }
 
-        return redirect()->back()->with('success', 'התמונה עודכנה');
+        if ($shouldSetProfile) {
+            // בפעולה מפורשת (לא auto), תמונה בלי שנה ידועה נחשבת עדכנית — מישהו רק העלה אותה עכשיו
+            $yearToStore = $isAuto ? $sourceYear : ($sourceYear ?? (int) date('Y'));
+            $person->update(['profile_photo' => $thumbPath, 'profile_photo_year' => $yearToStore]);
+        }
+
+        return redirect()->back()->with('success', $shouldSetProfile
+            ? 'התמונה עודכנה'
+            : 'התמונה נשמרה בגלריה — לא הוגדרה כפרופיל כי יש תמונה עדכנית יותר');
     }
 
     /** עריכת חיתוך של תמונת פרופיל קיימת — מקבל מהלקוח את הקטע החתוך מחדש */
@@ -615,7 +636,11 @@ class PersonController extends Controller
     public function setProfilePhoto(Person $person, \App\Models\Photo $photo)
     {
         abort_unless($photo->person_id === $person->id, 404);
-        $person->update(['profile_photo' => $photo->thumb_path]);
+        // פעולה מפורשת (הכוכב על כרטיס הדמות) — דורסת תמיד, בלי קשר לשנה
+        $person->update([
+            'profile_photo'      => $photo->thumb_path,
+            'profile_photo_year' => $photo->taken_year ?? (int) date('Y'),
+        ]);
         return redirect()->back()->with('success', 'תמונת הפרופיל עודכנה');
     }
 

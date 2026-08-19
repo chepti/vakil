@@ -70,7 +70,7 @@ class Person extends Model
         'first_name', 'last_name', 'maiden_name', 'gender',
         'birth_date_gregorian', 'birth_date_hebrew',
         'death_date_gregorian', 'death_date_hebrew',
-        'is_deceased', 'is_main_person', 'profile_photo', 'bio',
+        'is_deceased', 'is_main_person', 'profile_photo', 'profile_photo_year', 'bio',
         'current_occupation', 'city', 'email', 'phone', 'created_by',
         'origin_uuid',
     ];
