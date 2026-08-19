@@ -582,8 +582,11 @@ class PersonController extends Controller
 
         $isAuto = $request->boolean('auto');
         $shouldSetProfile = true;
-        if ($isAuto && $person->profile_photo && $person->profile_photo_year !== null && $sourceYear !== null) {
-            $shouldSetProfile = $sourceYear >= $person->profile_photo_year;
+        if ($isAuto && $person->profile_photo && $person->profile_photo_year !== null) {
+            // לפרופיל הנוכחי יש שנה ידועה — תמונה חדשה חוסמת רק אם גם לה יש שנה ידועה
+            // שהיא לפחות כמו הנוכחית. תמונה חדשה בלי שנה (למשל תמונה שלא תויגה בשנה)
+            // לא נחשבת "עדכנית יותר" ולא דורסת פרופיל מתוארך — זה מה שגרם לבאג הקודם.
+            $shouldSetProfile = $sourceYear !== null && $sourceYear >= $person->profile_photo_year;
         }
 
         if ($shouldSetProfile) {
