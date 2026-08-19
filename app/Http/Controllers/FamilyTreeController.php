@@ -411,7 +411,7 @@ class FamilyTreeController extends Controller
     public function apiBranchPhotos(int $id): JsonResponse
     {
         $person = Person::findOrFail($id);
-        $ids = array_unique(array_merge([$person->id], $person->descendantIds()));
+        $ids = Person::withSpouses(array_merge([$person->id], $person->descendantIds()));
 
         // latest() + limit נשען על אינדקס ה-id — מהיר. ORDER BY RAND() נמנע בכוונה: הוא סורק
         // את כל הטבלה ובונה טבלת עזר, ומורגש כאיטי במיוחד בכל בקשה על שרת שיתופי.

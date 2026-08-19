@@ -63,7 +63,9 @@ class DigestBuilder
         $currentMonthNorm  = HebrewDate::normalizeAdar($parts['month']);
         $currentHebrewYear = $parts['year'];
 
-        $ids = $root->descendantIds();
+        // צאצאים + מי שהתחתן/ה לתוך הענף (נישואין מצרפים למשפחה) — כדי שגם ימי ההולדת
+        // של מי שנישא/ה לתוך הענף יופיעו כאן, לא רק תאריכי הנישואין שלהם.
+        $ids = Person::withSpouses($root->descendantIds());
 
         if (empty($ids)) {
             return ['rootName' => $root->full_name, 'birthdays' => [], 'anniversaries' => []];

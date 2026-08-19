@@ -42,21 +42,10 @@ class BranchExportService
     public function collectBranchMemberIds(Person $root): array
     {
         $core = array_merge([$root->id], $root->descendantIds());
-        $coreSet = array_flip($core);
 
-        // בני/בנות זוג של חברי הליבה (כולל גרושים/אלמנים — is_former נשמר בקשר עצמו)
-        $spouseIds = Relationship::where('type', 'spouse')
-            ->where(function ($q) use ($core) {
-                $q->whereIn('person1_id', $core)->orWhereIn('person2_id', $core);
-            })
-            ->get()
-            ->flatMap(fn ($r) => [$r->person1_id, $r->person2_id])
-            ->filter(fn ($id) => ! isset($coreSet[$id]))
-            ->unique()
-            ->values()
-            ->all();
-
-        return array_values(array_unique(array_merge($core, $spouseIds)));
+        // includeFormer: true — זהו ייצוא ארכיוני מלא לאתר-אח, אז גם גרושים/אלמנים
+        // (is_former) נשארים בפנים; ה"ענף" של שאר האתר (הזמנות/עדכונים/CSV) מחריג אותם.
+        return Person::withSpouses($core, includeFormer: true);
     }
 
     /**

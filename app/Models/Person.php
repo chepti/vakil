@@ -250,4 +250,34 @@ class Person extends Model
 
         return array_keys($collected);
     }
+
+    /**
+     * מרחיב רשימת מזהי דמויות לכלול גם בני/בנות זוג — נישואין מצרפים למשפחה, אז מי
+     * שהתחתן/ה עם צאצא בענף שייך/ת לאותו ענף בעצמו (לצורך הזמנות, עדכונים וייצוא).
+     * גירושין מוחרגים כברירת מחדל — מי שהתגרש/ה אינו/ה נחשב/ת עוד בן/בת משפחה לעניין זה.
+     *
+     * מקור יחיד לאמת: כל מקום באתר שמגדיר "ענף" (ייצוא, הזמנות לאירוע, עדכון חודשי,
+     * הודעה מותאמת, גלריית תמונות ענף) צריך לעבור את התוצאה של descendantIds() בפונקציה
+     * הזו כדי שההגדרה תישאר עקבית בכל האתר.
+     *
+     * @param int[] $ids
+     * @return int[] הרשימה המקורית + מזהי בני/בנות הזוג החדשים (בלי כפילויות)
+     */
+    public static function withSpouses(array $ids, bool $includeFormer = false): array
+    {
+        if (empty($ids)) return $ids;
+        $existing = array_flip($ids);
+
+        $spouseIds = Relationship::where('type', 'spouse')
+            ->when(! $includeFormer, fn($q) => $q->where('is_former', false))
+            ->where(fn($q) => $q->whereIn('person1_id', $ids)->orWhereIn('person2_id', $ids))
+            ->get()
+            ->flatMap(fn($r) => [$r->person1_id, $r->person2_id])
+            ->filter(fn($id) => ! isset($existing[$id]))
+            ->unique()
+            ->values()
+            ->all();
+
+        return array_values(array_unique(array_merge($ids, $spouseIds)));
+    }
 }

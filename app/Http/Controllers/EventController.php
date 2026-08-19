@@ -102,7 +102,7 @@ class EventController extends Controller
 
         $branch = null;
         if ($event->audienceBranch) {
-            $ids   = $event->audienceBranch->descendantIds();
+            $ids   = Person::withSpouses($event->audienceBranch->descendantIds());
             $names = Person::whereIn('id', $ids)->get()->map->full_name->values();
             $branch = [
                 'person_name' => $event->audienceBranch->full_name,

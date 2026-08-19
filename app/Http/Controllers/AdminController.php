@@ -294,7 +294,7 @@ class AdminController extends Controller
         $isBranch = !empty($data['branch_person_id']);
         if ($isBranch) {
             $root = Person::findOrFail($data['branch_person_id']);
-            $ids  = array_unique(array_merge([$root->id], $root->descendantIds()));
+            $ids  = Person::withSpouses(array_merge([$root->id], $root->descendantIds()));
             $query->whereIn('id', $ids);
         }
         $people = $query->get();
@@ -449,9 +449,8 @@ class AdminController extends Controller
         $query = User::where('status', 'active')->whereNotNull('email');
 
         if ($data['branch_person_id']) {
-            $root         = Person::findOrFail($data['branch_person_id']);
-            $ids          = $root->descendantIds();
-            $ids[]        = $root->id;
+            $root = Person::findOrFail($data['branch_person_id']);
+            $ids  = Person::withSpouses(array_merge([$root->id], $root->descendantIds()));
             $query->whereIn('person_id', $ids);
         }
 
