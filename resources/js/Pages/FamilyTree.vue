@@ -186,7 +186,18 @@
               :stroke-width="node.isDeceased ? 2.5 : (node.isRoot || node.centerSpouse ? 3 : 1.5)"
               :opacity="node.isDeceased ? 0.82 : 1"
             />
-            <!-- פנים לפי תקופה — חיתוך התיוג מהתמונה המשפחתית של אותה שנה -->
+            <!-- פנים לפי תקופה — חיתוך התיוג מהתמונה המשפחתית של אותה שנה.
+                 כשהתמונה מתחלפת, השכבה הקודמת (tlFacePrev) מצוירת מתחת ודועכת יחד עם
+                 הכניסה של החדשה מעליה — קרוסספייד רך במקום החלפה מיידית ומהבהבת. -->
+            <image
+              v-if="node.tlFacePrev"
+              :href="node.tlFacePrev.url"
+              :x="node.tlFacePrev.x" :y="node.tlFacePrev.y"
+              :width="node.tlFacePrev.w" :height="node.tlFacePrev.h"
+              :clip-path="`url(#rclip-${node.id})`"
+              preserveAspectRatio="none"
+              class="tl-face-out"
+            />
             <image
               v-if="node.tlFace"
               :href="node.tlFace.url"
@@ -194,6 +205,7 @@
               :width="node.tlFace.w" :height="node.tlFace.h"
               :clip-path="`url(#rclip-${node.id})`"
               preserveAspectRatio="none"
+              :class="{ 'tl-face-in': node.tlFacePrev }"
             />
             <image
               v-else-if="node.avatar"
@@ -1730,6 +1742,17 @@ function pickTimelineFace(personId, year) {
   return best
 }
 
+// גודל/מיקום התמונה החתוכה בתוך המעגל, בהינתן הפנים הנבחרות ורדיוס הצומת
+function buildFaceDisplay(f, nodeR) {
+  const dispW = (2 * nodeR) * 100 / f.w
+  const dispH = (2 * nodeR) * 100 / f.h
+  return { url: f.url, x: -nodeR - dispW * f.x / 100, y: -nodeR - dispH * f.y / 100, w: dispW, h: dispH }
+}
+
+// זוכר את הפנים האחרונות שהוצגו לכל דמות — כך שכשהתמונה מתחלפת אפשר לצייר את הישנה
+// דועכת מתחת לחדשה (קרוסספייד עדין) במקום החלפה מיידית שנראית מהבהבת.
+const lastFaceByPerson = {}
+
 function startTimeline() {
   selectedPerson.value   = null
   addRelType.value       = null
@@ -1748,6 +1771,7 @@ function startTimeline() {
   timelineOn.value      = true
   timelinePlaying.value = true
   lastFitSize = 0
+  for (const k in lastFaceByPerson) delete lastFaceByPerson[k]   // ריצה חדשה — בלי קרוסספייד משאריות מהריצה הקודמת
   scheduleTimelineTick()
   smoothFitRadial()
 }
@@ -2038,26 +2062,28 @@ const radialData = computed(() => {
       }
     }
 
-    // פנים לפי תקופה — בזמן ריצת ציר הזמן התמונה בעיגול מתחלפת לפי שנת הצילום
-    let tlFace = null
+    // פנים לפי תקופה — בזמן ריצת ציר הזמן התמונה בעיגול מתחלפת לפי שנת הצילום.
+    // כשהפנים מתחלפות מציירים גם את השכבה הקודמת (tlFacePrev) — ה-CSS מדעך אותה
+    // מתחת לחדשה, כדי שההחלפה תיראה כקרוסספייד רך ולא כהבהוב.
+    let tlFace = null, tlFacePrev = null
     if (timelineOn.value) {
       const f = pickTimelineFace(id, timelineYear.value)
       if (f) {
-        const dispW = (2 * nodeR) * 100 / f.w
-        const dispH = (2 * nodeR) * 100 / f.h
-        tlFace = {
-          url: f.url,
-          x: -nodeR - dispW * f.x / 100,
-          y: -nodeR - dispH * f.y / 100,
-          w: dispW, h: dispH,
+        tlFace = buildFaceDisplay(f, nodeR)
+        const prevF = lastFaceByPerson[id]
+        if (prevF && prevF.url !== f.url) {
+          tlFacePrev = buildFaceDisplay(prevF, nodeR)
         }
+        lastFaceByPerson[id] = f
+      } else {
+        delete lastFaceByPerson[id]
       }
     }
 
     return {
       id,
       x: pos.x, y: pos.y, level: pos.level, relType: pos.relType,
-      nodeR, labelArc, tlFace,
+      nodeR, labelArc, tlFace, tlFacePrev,
       gender:    n?.data?.gender,
       avatar:    n?.data?.avatar || null,
       firstName: n?.data?.['first name'] || '',
@@ -3355,6 +3381,12 @@ h1 { font-size: 1.1rem; color: #1a3a6b; margin: 0; }
 .timeline-live .radial-link-anim { animation: tl-link-in 0.9s ease-out both; }
 @keyframes tl-born { from { opacity: 0; scale: 0.25; } to { opacity: 1; scale: 1; } }
 @keyframes tl-link-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* קרוסספייד עדין בין תמונות בהרצת ציר הזמן — במקום החלפה מיידית ומהבהבת */
+.tl-face-out { animation: tl-face-fade-out 0.8s ease-in-out both; }
+.tl-face-in { animation: tl-face-fade-in 0.8s ease-in-out both; }
+@keyframes tl-face-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes tl-face-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 @media (max-width: 640px) {
   .timeline-bar { gap: 6px; padding: 6px 10px; bottom: 0.6rem; width: 94%; }

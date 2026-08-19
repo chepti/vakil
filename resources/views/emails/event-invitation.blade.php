@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>הזמנה לאירוע</title>
+    <title>אירוע חדש</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Rubik', Arial, sans-serif; background-color: #fdf6ec; direction: rtl; text-align: right; }
@@ -30,14 +30,21 @@
     <div class="wrapper">
         <div class="header">
             <div class="header-emoji">💌</div>
-            <h1>הוזמנת לאירוע משפחתי!</h1>
+            <h1>אירוע משפחתי חדש</h1>
         </div>
 
         <div class="body">
             <p class="text">
-                @if ($recipientName) שלום {{ $recipientName }}, @else שלום, @endif
-                מוזמנים/ות בשמחה לאירוע הבא ב-{{ config('app.name') }}:
+                @if ($recipientGender === 'female') ברוכה הבאה @elseif ($recipientGender === 'male') ברוך הבא @else שלום @endif
+                @if ($recipientName), {{ $recipientName }} @endif
+                — יש אירוע חדש ב-{{ config('app.name') }}:
             </p>
+
+            @if (count($audienceParts))
+            <p class="text" style="color:#a07830; font-size:13.5px;">
+                <b>מיועד ל:</b> {{ implode(' · ', $audienceParts) }}
+            </p>
+            @endif
 
             @php
                 $eventImg = $event->invitation_image_url ?? ($event->person?->profile_photo_url ?? null);
@@ -67,7 +74,7 @@
         </div>
 
         <div class="footer">
-            קיבלת הזמנה זו מ-{{ config('app.name') }}.<br>
+            קיבלת עדכון זה מ-{{ config('app.name') }}.<br>
             לא רוצה לקבל עדכוני אירועים? <a href="{{ $profileUrl }}">עדכן/י העדפות בפרופיל</a>.
         </div>
     </div>

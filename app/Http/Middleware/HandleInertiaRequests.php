@@ -2,7 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Person;
+use App\Models\Relationship;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -45,6 +48,36 @@ class HandleInertiaRequests extends Middleware
             'demo'          => (bool) config('app.demo'),
             // שם המשפחה בכל הכותרות — נקבע ב-APP_NAME של כל אתר (ואקיל / בן ארצי-כוגן / הדגמה)
             'siteName'      => config('app.name', 'משפחת ואקיל'),
+            // התאמות תצוגת תאריכים לאתר הנוכחי (ראו config/app.php → dates)
+            'dateDisplay'   => [
+                'hideGregorian'    => (bool) config('app.dates.hide_gregorian'),
+                'hideBirthYearIds' => $this->hiddenBirthYearIds(),
+            ],
         ];
+    }
+
+    /**
+     * מזהי הדמויות שלא מציגים להן את שנת הלידה — נשים עם קשר זוגיות.
+     * מחושב פעם אחת ונשמר במטמון לדקה: זו שאילתה קטנה שרצה בכל בקשה.
+     *
+     * @return int[]
+     */
+    private function hiddenBirthYearIds(): array
+    {
+        if (! config('app.dates.hide_married_women_birth_year')) {
+            return [];
+        }
+
+        return Cache::remember('dates.hidden_birth_year_ids', 60, function () {
+            $spouseIds = Relationship::where('type', 'spouse')
+                ->get(['person1_id', 'person2_id'])
+                ->flatMap(fn ($r) => [$r->person1_id, $r->person2_id])
+                ->unique();
+
+            return Person::whereIn('id', $spouseIds)
+                ->where('gender', 'female')
+                ->pluck('id')
+                ->all();
+        });
     }
 }

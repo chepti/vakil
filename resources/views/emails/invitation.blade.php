@@ -152,7 +152,7 @@
         <!-- Body -->
         <div class="body">
 
-            <p class="greeting">שלום! 👋</p>
+            <p class="greeting">שלום 👋</p>
 
             <p class="text">
                 <strong>{{ $inviterName }}</strong> הזמין/ה אותך להצטרף לאתר העץ המשפחתי של {{ config('app.name') }}.

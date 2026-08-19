@@ -250,7 +250,7 @@ class EventController extends Controller
 
         $event->load(['person', 'audienceBranch', 'creator']);
 
-        $query = User::where('status', 'active')->whereNotNull('email');
+        $query = User::where('status', 'active')->whereNotNull('email')->with('person:id,gender');
 
         $audienceLabel = 'כל המשפחה';
         if ($data['scope'] === 'branch' && $event->audienceBranch) {
@@ -265,7 +265,7 @@ class EventController extends Controller
 
         foreach ($recipients as $user) {
             try {
-                Mail::to($user->email)->send(new EventInvitationMail($event, $user->name));
+                Mail::to($user->email)->send(new EventInvitationMail($event, $user->name, $user->person?->gender));
                 $sent++;
             } catch (\Throwable $e) {
                 $failed++;

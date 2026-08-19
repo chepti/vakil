@@ -44,7 +44,7 @@
     <div class="wrapper">
         <div class="header">
             <div class="header-emoji">🌳</div>
-            <h1>חודש טוב&rlm;!</h1>
+            <h1>חודש טוב</h1>
             <p>{{ $d['monthName'] }} {{ $d['yearGematria'] }} · {{ config('app.name') }}</p>
         </div>
 

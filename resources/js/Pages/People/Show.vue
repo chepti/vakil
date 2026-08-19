@@ -19,13 +19,15 @@
               <span v-if="person.is_deceased" class="deceased-badge">ז"ל</span>
             </div>
             <div class="meta-chips">
-              <span v-if="person.birth_date_gregorian" class="chip">
-                🎂 {{ formatDate(person.birth_date_gregorian) }}
-                <span v-if="person.birth_date_hebrew" class="hebrew-date"> / {{ person.birth_date_hebrew }}</span>
+              <span v-if="person.birth_date_gregorian || person.birth_date_hebrew" class="chip">
+                🎂 <DateText
+                     :gregorian="person.birth_date_gregorian"
+                     :hebrew="person.birth_date_hebrew"
+                     :person-id="person.id"
+                     is-birth />
               </span>
-              <span v-if="person.is_deceased && person.death_date_gregorian" class="chip chip-gray">
-                🕯 {{ formatDate(person.death_date_gregorian) }}
-                <span v-if="person.death_date_hebrew"> / {{ person.death_date_hebrew }}</span>
+              <span v-if="person.is_deceased && (person.death_date_gregorian || person.death_date_hebrew)" class="chip chip-gray">
+                🕯 <DateText :gregorian="person.death_date_gregorian" :hebrew="person.death_date_hebrew" />
               </span>
               <span v-if="person.city" class="chip">📍 {{ person.city }}</span>
               <span v-if="person.current_occupation" class="chip">💼 {{ person.current_occupation }}</span>
@@ -118,7 +120,7 @@
                 </div>
                 <span>{{ p.full_name }}</span>
                 <span v-if="p.marriage_date_gregorian || p.marriage_date_hebrew" class="mini-marriage">
-                  💍 {{ p.marriage_date_gregorian ? formatDate(p.marriage_date_gregorian) : '' }}{{ p.marriage_date_hebrew ? ' / ' + p.marriage_date_hebrew : '' }}
+                  💍 <DateText :gregorian="p.marriage_date_gregorian" :hebrew="p.marriage_date_hebrew" />
                 </span>
               </Link>
               <button class="btn-unlink" @click.prevent.stop="removeSpouse(p)" title="נתק קשר זוגיות (לא מוחק את הדמות)">✕</button>

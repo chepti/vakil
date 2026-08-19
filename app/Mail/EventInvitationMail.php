@@ -24,6 +24,7 @@ class EventInvitationMail extends Mailable
     public function __construct(
         public Event $event,
         public ?string $recipientName = null,
+        public ?string $recipientGender = null,
     ) {
     }
 
@@ -32,7 +33,7 @@ class EventInvitationMail extends Mailable
         $label = $this->event->title ?: 'אירוע';
 
         return new Envelope(
-            subject: "💌 הזמנה לאירוע: {$label}",
+            subject: "אירוע חדש: {$label} 💌",
         );
     }
 
@@ -41,17 +42,29 @@ class EventInvitationMail extends Mailable
         $hebrewDate = $this->event->hebrew_date
             ?: ($this->event->event_date ? HebrewDate::format(Carbon::parse($this->event->event_date)) : null);
 
+        // "מיועד ל" — ענף היעד (אם הוגדר) + תגי קהל בשפה חופשית, כפי שהוגדרו באירוע עצמו.
+        // מוצג בגוף המייל בלי קשר לקהל שאליו נשלחה ההרצה הנוכחית.
+        $audienceParts = [];
+        if ($this->event->audienceBranch) {
+            $audienceParts[] = 'ענף ' . $this->event->audienceBranch->full_name;
+        }
+        foreach ($this->event->audience ?? [] as $tag) {
+            $audienceParts[] = $tag;
+        }
+
         return new Content(
             view: 'emails.event-invitation',
             with: [
-                'event'         => $this->event,
-                'recipientName' => $this->recipientName,
-                'eventUrl'      => route('events.show', $this->event->id),
-                'personName'    => $this->event->person?->full_name,
-                'addedBy'       => $this->event->creator?->name,
-                'hebrewDate'    => $hebrewDate,
-                'gregDate'      => $this->event->event_date ? Carbon::parse($this->event->event_date)->format('d/m/Y') : null,
-                'profileUrl'    => route('profile.edit'),
+                'event'           => $this->event,
+                'recipientName'   => $this->recipientName,
+                'recipientGender' => $this->recipientGender,
+                'eventUrl'        => route('events.show', $this->event->id),
+                'personName'      => $this->event->person?->full_name,
+                'addedBy'         => $this->event->creator?->name,
+                'hebrewDate'      => $hebrewDate,
+                'gregDate'        => $this->event->event_date ? Carbon::parse($this->event->event_date)->format('d/m/Y') : null,
+                'profileUrl'      => route('profile.edit'),
+                'audienceParts'   => $audienceParts,
             ],
         );
     }
