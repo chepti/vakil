@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\GameResult;
 use App\Models\GameStat;
 use App\Models\Person;
 use App\Models\Relationship;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class GameController extends Controller
@@ -45,7 +47,50 @@ class GameController extends Controller
                     : null,
             ] : null,
             'allPeople' => $peopleData,
+            'myStats'   => $this->myStats(Auth::id()),
         ]);
+    }
+
+    /**
+     * הניקוד האישי המצטבר של המשתמש + את מי כבר זיהה.
+     * מחושב מכל סבבי המשחק שהושלמו (game_results), לא מאיפוס בכל טעינת עמוד.
+     */
+    private function myStats(?int $userId): array
+    {
+        $empty = ['total_points' => 0, 'rounds' => 0, 'people_count' => 0, 'best_round' => 0, 'full_ids' => 0, 'people' => []];
+        if (! $userId) return $empty;
+
+        $results = GameResult::where('user_id', $userId)->get();
+        if ($results->isEmpty()) return $empty;
+
+        $byPerson = $results->filter(fn($r) => $r->person_id)->groupBy('person_id');
+        $names = Person::whereIn('id', $byPerson->keys())
+            ->get(['id', 'first_name', 'last_name', 'profile_photo'])
+            ->keyBy('id');
+
+        $people = $byPerson->map(function ($rows, $personId) use ($names) {
+            $p = $names[$personId] ?? null;
+            return [
+                'id'         => (int) $personId,
+                'name'       => $p?->full_name ?? 'דמות שנמחקה',
+                'photo_url'  => $p?->profile_photo_url,
+                'points'     => (int) $rows->sum('points'),
+                'times'      => $rows->count(),
+                // "זיהוי מלא" — סבב שבו זוהו גם השם הפרטי וגם שם המשפחה
+                'full_id'    => $rows->contains(fn($r) => $r->first_name_ok && $r->last_name_ok),
+                'links_ok'   => (int) $rows->max('links_ok'),
+                'links_total'=> (int) $rows->max('links_total'),
+            ];
+        })->sortByDesc('points')->values()->all();
+
+        return [
+            'total_points'  => (int) $results->sum('points'),
+            'rounds'        => $results->count(),
+            'people_count'  => count($people),
+            'best_round'    => (int) $results->max('points'),
+            'full_ids'      => count(array_filter($people, fn($p) => $p['full_id'])),
+            'people'        => $people,
+        ];
     }
 
     /**
@@ -191,20 +236,39 @@ class GameController extends Controller
     }
 
     /**
-     * רישום סבב שהושלם — צוברים לדמות המטרה ניחוש + נקודות (לתצוגת ניקוד על העץ).
+     * רישום סבב שהושלם — נשמר גם כתוצאה אישית של המשתמש (ניקוד מצטבר + מי זוהה),
+     * וגם נצבר לדמות המטרה עצמה (GameStat) לתצוגת הניקוד על העץ.
      */
     public function finish(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'person_id' => 'required|exists:people,id',
-            'points'    => 'required|integer|min:0|max:5000',
+            'person_id'     => 'required|exists:people,id',
+            'points'        => 'required|integer|min:0|max:5000',
+            'first_name_ok' => 'nullable|boolean',
+            'last_name_ok'  => 'nullable|boolean',
+            'links_total'   => 'nullable|integer|min:0|max:50',
+            'links_ok'      => 'nullable|integer|min:0|max:50',
+            'hints_used'    => 'nullable|integer|min:0|max:50',
         ]);
 
         $stat = GameStat::firstOrCreate(['person_id' => $data['person_id']]);
         $stat->increment('correct_guesses');
         $stat->increment('points', $data['points']);
 
-        return response()->json(['ok' => true]);
+        if ($userId = Auth::id()) {
+            GameResult::create([
+                'user_id'       => $userId,
+                'person_id'     => $data['person_id'],
+                'points'        => $data['points'],
+                'first_name_ok' => (bool) ($data['first_name_ok'] ?? false),
+                'last_name_ok'  => (bool) ($data['last_name_ok'] ?? false),
+                'links_total'   => $data['links_total'] ?? 0,
+                'links_ok'      => $data['links_ok'] ?? 0,
+                'hints_used'    => $data['hints_used'] ?? 0,
+            ]);
+        }
+
+        return response()->json(['ok' => true, 'myStats' => $this->myStats(Auth::id())]);
     }
 
     /**

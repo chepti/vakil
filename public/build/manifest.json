@@ -498,7 +498,7 @@
     ]
   },
   "resources/js/Pages/Game.vue": {
-    "file": "assets/Game-DIVV9YAz.js",
+    "file": "assets/Game-DINqpK9q.js",
     "name": "Game",
     "src": "resources/js/Pages/Game.vue",
     "isDynamicEntry": true,
@@ -510,7 +510,7 @@
       "_PhotoLightbox-Cmjl7uFS.js"
     ],
     "css": [
-      "assets/Game-D5sl6nmk.css"
+      "assets/Game-CZ_tfzUu.css"
     ]
   },
   "resources/js/Pages/Guide.vue": {
@@ -893,7 +893,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-Bnipiy2e.js",
+    "file": "assets/app-CFCOft_g.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

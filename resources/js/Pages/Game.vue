@@ -20,20 +20,51 @@
           >
             🔄 סבב חדש
           </button>
+          <button class="total-box" @click="statsOpen = !statsOpen" :title="`סה״כ ${stats.total_points} נק' · ${stats.people_count} דמויות שזיהית`">
+            <span class="total-label">סה״כ שלי</span>
+            <span class="total-value">{{ stats.total_points }}</span>
+          </button>
           <div class="score-box" :class="{ bump: scoreBump }">
-          <span class="score-label">ניקוד</span>
+          <span class="score-label">הסבב</span>
           <span class="score-value">{{ score }}</span>
           <span v-if="scoreDelta" class="score-delta">{{ scoreDelta }}</span>
           </div>
         </div>
       </header>
 
+      <!-- הישגים אישיים מצטברים -->
+      <Transition name="slide-down">
+        <div v-if="statsOpen" class="stats-panel">
+          <div class="stats-row">
+            <div class="stat-cell"><b>{{ stats.total_points }}</b><span>נקודות בסך הכל</span></div>
+            <div class="stat-cell"><b>{{ stats.people_count }}</b><span>דמויות שזיהית</span></div>
+            <div class="stat-cell"><b>{{ stats.full_ids }}</b><span>זיהוי שם מלא</span></div>
+            <div class="stat-cell"><b>{{ stats.rounds }}</b><span>סבבים</span></div>
+          </div>
+
+          <div v-if="stats.people.length" class="stats-people">
+            <div v-for="p in stats.people" :key="p.id" class="stat-person" :title="`${p.points} נק' · ${p.times} פעמים`">
+              <div class="stat-person-photo">
+                <img v-if="p.photo_url" :src="p.photo_url" :alt="p.name" loading="lazy" />
+                <span v-else>{{ initials(p.name) }}</span>
+                <span v-if="p.full_id" class="stat-person-badge" title="זיהית שם פרטי ומשפחה">✓</span>
+              </div>
+              <span class="stat-person-name">{{ p.name }}</span>
+              <span class="stat-person-pts">{{ p.points }}</span>
+            </div>
+          </div>
+          <p v-else class="stats-empty">עוד לא סיימת סבב — הניקוד יצטבר כאן 💛</p>
+        </div>
+      </Transition>
+
       <Transition name="slide-down">
         <div v-if="showHelp" class="help-panel">
-          מי הדמות בתמונה? בנו את שרשרת המשפחה כלפי מעלה — הורה, סבא/סבתא — עד
-          <strong>{{ mainPerson?.full_name }}</strong>.
-          ניחוש שם מלא בלי רמזים: <strong>+{{ TARGET_IDENTITY_BONUS[0] }}</strong>.
-          אפשר גם לנחש חלק — שם פרטי <strong>+{{ PART_BONUS.first }}</strong>, שם משפחה <strong>+{{ PART_BONUS.last }}</strong> — ואז להשלים לניקוד נוסף!
+          <p><strong>1. מי בתמונה?</strong> מקלידים מהזיכרון — שם פרטי <strong>+{{ PART_BONUS.first }}</strong>,
+          שם משפחה <strong>+{{ PART_BONUS.last }}</strong>, ושניהם בבת אחת <strong>+{{ TARGET_IDENTITY_BONUS[0] }}</strong>.</p>
+          <p><strong>2. ההקשר המשפחתי:</strong> מי ההורה? מי הסבא/סבתא? וכך עד
+          <strong>{{ mainPerson?.full_name }}</strong> — <strong>כל חוליה נכונה +{{ BASE_POINTS }}</strong>.</p>
+          <p class="help-note">אין רשימת שמות לבחור מתוכה — הכל מהזיכרון. תקועים? יש רמזים, אבל הם מורידים נקודות.
+          הניקוד נצבר לך אישית — לחצו על "סה״כ שלי" למעלה.</p>
         </div>
       </Transition>
 
@@ -156,38 +187,27 @@
               </div>
 
               <div class="mission-body">
-                <input
-                  v-model="query"
-                  type="text"
-                  class="search-input search-lg"
-                  placeholder="הקלידו שם…"
-                  @keydown.enter.prevent="placeFirstResult"
-                  autofocus
-                />
-
-                <div v-if="searchResults.length" class="results-grid">
-                  <button
-                    v-for="p in searchResults"
-                    :key="p.id"
-                    class="pick-card"
-                    :class="genderClass(p.id)"
-                    @click="attemptPlace(p.id)"
-                  >
-                    <div class="pick-photo" :class="{ zoomable: p.photo_url }" @click.stop="p.photo_url && openLightboxDirect(p.photo_url, p.original_photo_url, p.full_name)">
-                      <img v-if="p.photo_url" :src="p.photo_url" />
-                      <span v-else>{{ initials(p.full_name) }}</span>
-                    </div>
-                    <span class="pick-name">{{ p.full_name }}</span>
-                  </button>
+                <div class="input-row">
+                  <input
+                    v-model="query"
+                    type="text"
+                    class="search-input search-lg"
+                    placeholder="הקלידו את השם מהזיכרון…"
+                    @keydown.enter.prevent="submitChainGuess"
+                    autofocus
+                  />
+                  <button class="btn-guess" @click="submitChainGuess" :disabled="!query.trim()">בדקו</button>
                 </div>
-                <div v-else-if="query" class="no-results">לא נמצאו תוצאות</div>
+                <p class="chain-note">
+                  מתקבל שם פרטי או שם מלא · כל חוליה נכונה שווה <strong>+{{ BASE_POINTS }}</strong>
+                </p>
 
                 <button
                   v-if="!showOptions[currentIndex]"
                   class="btn-hint btn-hint-options"
                   @click="revealOptions"
                 >
-                  💡 תקועים? הציגו אפשרויות (−60)
+                  💡 תקועים? הציגו אפשרויות (−{{ OPTIONS_COST }})
                 </button>
 
                 <div v-if="showOptions[currentIndex]" class="hint-options">
@@ -221,29 +241,16 @@
               </button>
               <Transition name="expand">
                 <div v-if="!aheadCollapsed" class="mission-body">
-                  <input
-                    v-model="aheadQuery"
-                    type="text"
-                    class="search-input"
-                    :placeholder="`מי ${nextStep.label}? הקלידו שם…`"
-                    @keydown.enter.prevent="placeFirstAhead"
-                  />
-                  <div v-if="aheadResults.length" class="results-grid">
-                    <button
-                      v-for="p in aheadResults"
-                      :key="'ah-' + p.id"
-                      class="pick-card"
-                      :class="genderClass(p.id)"
-                      @click="attemptPlaceAhead(p.id)"
-                    >
-                      <div class="pick-photo">
-                        <img v-if="p.photo_url" :src="p.photo_url" />
-                        <span v-else>{{ initials(p.full_name) }}</span>
-                      </div>
-                      <span class="pick-name">{{ p.full_name }}</span>
-                    </button>
+                  <div class="input-row">
+                    <input
+                      v-model="aheadQuery"
+                      type="text"
+                      class="search-input"
+                      :placeholder="`מי ${nextStep.label}? הקלידו שם…`"
+                      @keydown.enter.prevent="submitAheadGuess"
+                    />
+                    <button class="btn-guess" @click="submitAheadGuess" :disabled="!aheadQuery.trim()">בדקו</button>
                   </div>
-                  <div v-else-if="aheadQuery" class="no-results">לא נמצאו תוצאות</div>
                 </div>
               </Transition>
             </div>
@@ -310,7 +317,12 @@ import PhotoLightbox from '@/Components/PhotoLightbox.vue'
 const props = defineProps({
   mainPerson: { type: Object, default: null },
   allPeople:  { type: Array,  default: () => [] },
+  myStats:    { type: Object, default: () => ({ total_points: 0, rounds: 0, people_count: 0, best_round: 0, full_ids: 0, people: [] }) },
 })
+
+// הניקוד המצטבר האישי — מגיע מהשרת ומתעדכן בסיום כל סבב, בלי צורך ברענון
+const stats = ref({ ...props.myStats })
+const statsOpen = ref(false)
 
 const BASE_POINTS = 150
 const OPTIONS_COST = 60
@@ -341,6 +353,7 @@ const identityPartsFound = ref({ first: false, last: false })
 const targetGuess = ref('')
 const showOptions = ref([])
 const wrongAttempts = ref([])
+const hintsUsed = ref(0)          // כמה רמזים נלקחו בסבב — נשמר בתוצאה האישית
 const score     = ref(0)
 const lastRoundScore = ref(0)
 const scoreBump = ref(false)
@@ -390,6 +403,7 @@ function onUnlockOriginal() {
   if (!entry?.locked) return
   const person = peopleById.value[entry.locked.personId]
   applyPenalty(ORIGINAL_REVEAL_COST)
+  hintsUsed.value++
   feedback.value = { type: 'info', text: `חשפתם את התמונה המקורית · −${ORIGINAL_REVEAL_COST} נק'` }
   entry.originalUrl = person?.original_photo_url || entry.url
   entry.locked = null
@@ -491,25 +505,29 @@ watch(currentIndex, async () => {
   active?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
 })
 
-const searchResults = computed(() => {
-  const q = query.value.trim().toLowerCase()
-  if (!q) return []
-  const used = new Set(placed.value.filter(Boolean))
-  return props.allPeople
-    .filter(p => p.id !== round.value?.target_id && !used.has(p.id))
-    .filter(p => p.full_name.toLowerCase().includes(q))
-    .slice(0, 6)
-})
+/**
+ * האם הטקסט שהוקלד מזהה את הדמות הזו? (בדיקת זיכרון — אין רשימת מועמדים לבחור מתוכה)
+ * מתקבל: שם פרטי בלבד, שם מלא, או שם מלא בסדר הפוך. שם משפחה בלבד לא מזהה אדם.
+ */
+function typedMatchesPerson(typed, personId) {
+  const p = peopleById.value[personId]
+  if (!p) return false
+  const g = normalizeName(typed)
+  if (!g) return false
 
-const aheadResults = computed(() => {
-  const q = aheadQuery.value.trim().toLowerCase()
-  if (!q) return []
-  const used = new Set(placed.value.filter(Boolean))
-  return props.allPeople
-    .filter(p => p.id !== round.value?.target_id && !used.has(p.id))
-    .filter(p => p.full_name.toLowerCase().includes(q))
-    .slice(0, 6)
-})
+  const full  = normalizeName(p.full_name)
+  const words = full.split(' ').filter(Boolean)
+  const first = words[0] || ''
+  const rest  = words.slice(1)
+
+  if (g === full || g === first) return true
+
+  // שם מלא בסדר/ניסוח אחר: צריך את השם הפרטי + לפחות מילה משם המשפחה
+  const gWords = g.split(' ').filter(Boolean)
+  if (gWords.length >= 2 && gWords.includes(first) && rest.some(w => gWords.includes(w))) return true
+
+  return false
+}
 
 const targetHintLines = computed(() => {
   const r = round.value
@@ -711,6 +729,7 @@ async function newRound() {
     wrongAttempts.value = quizSteps.value.map(() => 0)
     showOptions.value = quizSteps.value.map(() => false)
     targetHintLevel.value = 0
+    hintsUsed.value = 0
     targetIdentitySolved.value = false
     targetIdentityBonus.value = 0
     identityPartsFound.value = { first: false, last: false }
@@ -735,8 +754,51 @@ async function newRound() {
   }
 }
 
-function placeFirstResult() {
-  if (searchResults.value.length) attemptPlace(searchResults.value[0].id)
+// הגשת חוליה בשרשרת — מהזיכרון, בטקסט חופשי
+function submitChainGuess() {
+  const step = currentStep.value
+  if (!step || finished.value) return
+  const typed = query.value.trim()
+  if (!typed) return
+
+  if (typedMatchesPerson(typed, step.correct_id)) {
+    attemptPlace(step.correct_id)
+    return
+  }
+
+  // ניחוש ההורה שהתחתן לתוך המשפחה — נכון חלקית, מחזירים רמז ולא עונש
+  const marriedInId = (step.parent_ids || []).find(pid => pid !== step.correct_id && typedMatchesPerson(typed, pid))
+  if (marriedInId) {
+    attemptPlace(marriedInId)
+    return
+  }
+
+  wrongAttempts.value[currentIndex.value]++
+  feedback.value = { type: 'err', text: 'לא מדויק… נסו שם אחר, או בקשו רמז 💡' }
+  shakeIdx.value = currentIndex.value
+  setTimeout(() => { shakeIdx.value = null }, 500)
+}
+
+// הגשת ניחוש-קדימה (הדור שמעל) — גם הוא מהזיכרון
+function submitAheadGuess() {
+  const idx = currentIndex.value + 1
+  const step = quizSteps.value[idx]
+  if (!step || placed.value[idx] || finished.value) return
+  const typed = aheadQuery.value.trim()
+  if (!typed) return
+
+  if (typedMatchesPerson(typed, step.correct_id)) {
+    attemptPlaceAhead(step.correct_id)
+    return
+  }
+
+  const marriedInId = (step.parent_ids || []).find(pid => pid !== step.correct_id && typedMatchesPerson(typed, pid))
+  if (marriedInId) {
+    attemptPlaceAhead(marriedInId)
+    return
+  }
+
+  feedback.value = { type: 'err', text: 'לא מדויק… אולי קודם נפתור את השלב הנוכחי 🙂' }
 }
 
 function attemptPlace(personId) {
@@ -779,10 +841,6 @@ function attemptPlace(personId) {
 }
 
 // ניחוש קדימה — זיהוי הסבא/סבתא לפני שההורה נפתר; לפעמים זה מה שעוזר להבין מי ההורה
-function placeFirstAhead() {
-  if (aheadResults.value.length) attemptPlaceAhead(aheadResults.value[0].id)
-}
-
 function attemptPlaceAhead(personId) {
   if (finished.value) return
   const idx = currentIndex.value + 1
@@ -806,15 +864,30 @@ function attemptPlaceAhead(personId) {
   }
 }
 
-// דיווח סבב שהושלם — לניקוד הדמויות על העץ
-function reportRound() {
+// דיווח סבב שהושלם — נצבר לניקוד האישי של המשתמש וגם לניקוד הדמות על העץ
+async function reportRound() {
   if (!round.value) return
   const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
-  fetch('/api/game/finish', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
-    body: JSON.stringify({ person_id: round.value.target_id, points: Math.max(0, lastRoundScore.value) }),
-  }).catch(() => {})
+  try {
+    const res = await fetch('/api/game/finish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+      body: JSON.stringify({
+        person_id:     round.value.target_id,
+        points:        Math.max(0, lastRoundScore.value),
+        first_name_ok: identityPartsFound.value.first,
+        last_name_ok:  identityPartsFound.value.last,
+        links_total:   quizSteps.value.length,
+        links_ok:      placed.value.filter(Boolean).length,
+        hints_used:    hintsUsed.value,
+      }),
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    if (data?.myStats) stats.value = data.myStats   // הניקוד המצטבר מתעדכן מיד, בלי רענון
+  } catch {
+    // כישלון דיווח לא מפריע למשחק עצמו
+  }
 }
 
 function applyPenalty(n) {
@@ -824,13 +897,14 @@ function applyPenalty(n) {
 
 function useTargetHint() {
   const lvl = targetHintLevel.value
-  if (lvl === 0) { targetHintLevel.value = 1; applyPenalty(TARGET_HINT_COST[1]) }
-  else if (lvl === 1) { targetHintLevel.value = 2; applyPenalty(TARGET_HINT_COST[2]) }
-  else if (lvl === 2 && round.value?.target_hint) { targetHintLevel.value = 3; applyPenalty(TARGET_HINT_COST[3]) }
+  if (lvl === 0) { targetHintLevel.value = 1; applyPenalty(TARGET_HINT_COST[1]); hintsUsed.value++ }
+  else if (lvl === 1) { targetHintLevel.value = 2; applyPenalty(TARGET_HINT_COST[2]); hintsUsed.value++ }
+  else if (lvl === 2 && round.value?.target_hint) { targetHintLevel.value = 3; applyPenalty(TARGET_HINT_COST[3]); hintsUsed.value++ }
 }
 
 function revealOptions() {
   showOptions.value[currentIndex.value] = true
+  hintsUsed.value++
 }
 
 function burstFromActiveSlot() { fireConfetti(60, window.innerWidth / 2, window.innerHeight / 2) }
@@ -932,6 +1006,56 @@ onMounted(() => { if (props.mainPerson) newRound() })
   padding: 0.75rem 1rem; font-size: 0.88rem; color: #4a5568; line-height: 1.55;
   margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(45,107,228,.08);
 }
+.help-panel p { margin: 0 0 0.4rem; }
+.help-panel p:last-child { margin-bottom: 0; }
+.help-note { color: #8a9ab5; font-size: 0.82rem; }
+
+/* ── ניקוד מצטבר אישי ── */
+.total-box {
+  display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
+  background: #fdf6ec; border: 1.5px solid #f0d898; color: #a07830;
+  border-radius: 14px; padding: 0.35rem 0.8rem; min-width: 68px;
+  cursor: pointer; font-family: 'Rubik', sans-serif;
+  transition: background 0.15s;
+}
+.total-box:hover { background: #fbecd0; }
+.total-label { font-size: 0.63rem; opacity: 0.9; }
+.total-value { font-size: 1.25rem; font-weight: 800; }
+
+.stats-panel {
+  background: white; border: 1px solid #f0d898; border-radius: 14px;
+  padding: 1rem; margin-bottom: 1rem; box-shadow: 0 2px 10px rgba(200,164,90,.12);
+}
+.stats-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.9rem; }
+.stat-cell {
+  flex: 1 1 90px; background: #fdf6ec; border-radius: 10px; padding: 0.5rem;
+  text-align: center; display: flex; flex-direction: column;
+}
+.stat-cell b { font-size: 1.2rem; color: #a07830; }
+.stat-cell span { font-size: 0.7rem; color: #8a9ab5; }
+
+.stats-people { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.stat-person { width: 68px; display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+.stat-person-photo {
+  position: relative; width: 52px; height: 52px; border-radius: 50%; overflow: hidden;
+  background: #e8f0fe; display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700; color: #2d6be4; border: 2px solid #f0d898;
+}
+.stat-person-photo img { width: 100%; height: 100%; object-fit: cover; }
+.stat-person-badge {
+  position: absolute; bottom: -2px; left: -2px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #22c55e; color: white; font-size: 0.6rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; border: 1.5px solid white;
+}
+.stat-person-name {
+  font-size: 0.65rem; color: #2d4a7a; text-align: center; line-height: 1.15;
+  max-width: 68px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.stat-person-pts { font-size: 0.68rem; font-weight: 700; color: #a07830; }
+.stats-empty { color: #8a9ab5; font-size: 0.88rem; text-align: center; padding: 0.5rem; }
+
+.chain-note { font-size: 0.75rem; color: #8a9ab5; margin: 0.45rem 0 0; text-align: center; }
 
 .notice {
   background: white; border-radius: 14px; padding: 2rem; text-align: center;
