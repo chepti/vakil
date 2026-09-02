@@ -230,22 +230,32 @@ class Person extends Model
         return null;
     }
 
-    /** כל מזהי הצאצאים (רקורסיבי) — לקהל יעד מסוג "ענף: צאצאי X" */
+    /**
+     * כל מזהי הצאצאים (רקורסיבי) — לקהל יעד מסוג "ענף: צאצאי X".
+     *
+     * טוען את כל קשרי ההורות פעם אחת לכל הבקשה (static, לא בין בקשות) וחוצה אותם
+     * בזיכרון — במקום שאילתת DB נפרדת לכל דור/צומת (N+1 שהיה מאט משמעותית משפחות
+     * גדולות, בייחוד עכשיו שנקרא בכל קליק על דמות בעץ ולא רק במקומות נדירים).
+     */
     public function descendantIds(): array
     {
+        static $childrenMap = null;
+        if ($childrenMap === null) {
+            $childrenMap = [];
+            foreach (Relationship::where('type', 'parent_child')->get(['person1_id', 'person2_id']) as $r) {
+                $childrenMap[$r->person1_id][] = $r->person2_id;
+            }
+        }
+
         $collected = [];
-        $stack = $this->children()->pluck('people.id')->all();
+        $stack = $childrenMap[$this->id] ?? [];
 
         while ($stack) {
             $id = array_pop($stack);
             if (isset($collected[$id])) continue;
             $collected[$id] = true;
 
-            $childIds = Relationship::where('type', 'parent_child')
-                ->where('person1_id', $id)
-                ->pluck('person2_id')
-                ->all();
-            foreach ($childIds as $cid) $stack[] = $cid;
+            foreach ($childrenMap[$id] ?? [] as $cid) $stack[] = $cid;
         }
 
         return array_keys($collected);

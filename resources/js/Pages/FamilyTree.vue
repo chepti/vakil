@@ -380,7 +380,7 @@
             :style="{ '--rot': branchCardRotate(i) + 'deg' }"
             @click="openBranchLightbox(i)"
           >
-            <img :src="bp.url" loading="lazy" decoding="async" :alt="bp.label || ''" />
+            <img :src="bp.url" loading="lazy" decoding="async" fetchpriority="low" :alt="bp.label || ''" />
           </button>
         </template>
       </div>
@@ -2381,15 +2381,23 @@ watch([radialCenterId, isBranchFocused], () => {
   branchPhotos.value = []
   branchPhotosTimer = setTimeout(async () => {
     branchPhotosLoading.value = true
+    // timeout הגנתי — כך שבקשה תקועה (שרת איטי וכו') לעולם לא משאירה ספינר לנצח,
+    // ומשחררת את חיבור הרשת מהר יחסית כדי לא לתחרות עם ניווט רגיל (העלאת כרטיס וכו')
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
     try {
-      const res = await fetch(`/api/family-tree/branch-photos/${id}`)
+      const res = await fetch(`/api/family-tree/branch-photos/${id}`, {
+        signal: controller.signal,
+        priority: 'low',   // לא לתחרות על חיבור/עדיפות עם פעולות שהמשתמש מחכה להן
+      })
       if (!res.ok) throw new Error()
       const data = await res.json()
       branchPhotosCache.set(id, data)
       if (radialCenterId.value === id) branchPhotos.value = data
     } catch {
-      // שגיאת רשת — המסדרון פשוט לא יופיע
+      // שגיאת רשת/timeout — המסדרון פשוט לא יופיע, בלי להשפיע על שאר האתר
     } finally {
+      clearTimeout(timeoutId)
       branchPhotosLoading.value = false
     }
   }, 500)
