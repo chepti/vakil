@@ -1,0 +1,34 @@
+name: Monthly Digest Cron
+
+# מריץ כל יום קריאת HTTP ל-endpoint המוגן בסוד שמפעיל את digest:monthly.
+# הפקודה עצמה בודקת בפנים אם היום ראש חודש, אז קריאה יומית בטוחה.
+#
+# למה כאן ולא ב-Hostinger cron: ה-cron של hPanel לא פועל בפועל (אומת: משימת
+# בדיקה שהוגדרה לרוץ כל 5 דקות לא הפיקה שום פלט תוך 3+ ימים).
+# למה כאן ולא ב-RemoteTrigger (Claude Code scheduled routine): הסביבה שם
+# חוסמת גישת רשת יוצאת ל-vakil.chepti.com ברמת ה-egress proxy (403 על
+# CONNECT) — לא בשליטתנו לתקן. GitHub-hosted runners לא כפופים להגבלה הזו.
+on:
+  schedule:
+    - cron: '0 6 * * *' # כל יום 06:00 UTC
+  workflow_dispatch: # הרצה ידנית לבדיקה: Actions -> Monthly Digest Cron -> Run workflow
+
+jobs:
+  trigger-digest:
+    runs-on: ubuntu-latest
+    if: github.repository == 'chepti/vakil'
+
+    steps:
+      - name: Call digest endpoint
+        run: |
+          set -e
+          RESPONSE=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" --max-time 60 \
+            "https://vakil.chepti.com/internal/cron/digest?token=${{ secrets.VAKIL_CRON_SECRET }}")
+          echo "$RESPONSE"
+          STATUS=$(echo "$RESPONSE" | grep -oP 'HTTP_STATUS:\K[0-9]+')
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Digest endpoint returned HTTP $STATUS"
+            curl -sS --max-time 30 \
+              "https://vakil.chepti.com/internal/cron/alert?token=${{ secrets.VAKIL_CRON_SECRET }}&message=GitHub%20Actions%20digest-cron%20got%20HTTP%20$STATUS" || true
+            exit 1
+          fi
