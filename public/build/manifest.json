@@ -808,7 +808,7 @@
     ]
   },
   "resources/js/Pages/Recipes/Form.vue": {
-    "file": "assets/Form-CbR0XV6U.js",
+    "file": "assets/Form-CFIlys5f.js",
     "name": "Form",
     "src": "resources/js/Pages/Recipes/Form.vue",
     "isDynamicEntry": true,
@@ -819,7 +819,7 @@
       "_AppLayout-CX1YdrEx.js"
     ],
     "css": [
-      "assets/Form-_8CYdELQ.css"
+      "assets/Form-CNLYUoD_.css"
     ]
   },
   "resources/js/Pages/Recipes/Index.vue": {
@@ -893,7 +893,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-BLgzI-Gb.js",
+    "file": "assets/app-DjgtxMrs.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
