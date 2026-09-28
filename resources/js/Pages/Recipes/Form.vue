@@ -91,6 +91,23 @@
               placeholder="תאר את שלבי ההכנה..."
               required
             ></textarea>
+            <span class="field-hint">שורה קצרה שמסתיימת בנקודתיים (למשל "רוטב:") תוצג ככותרת-משנה</span>
+          </div>
+
+          <!-- טיפים וסיפורים -->
+          <div class="form-field">
+            <label>טיפים וסיפורים</label>
+            <textarea
+              v-model="form.notes"
+              rows="5"
+              placeholder="טיפים, זכרונות וסיפורים שמלווים את המתכון — כל אחד בשורה נפרדת"
+            ></textarea>
+          </div>
+
+          <!-- מקור -->
+          <div class="form-field">
+            <label>מקור המתכון</label>
+            <input v-model="form.source" type="text" placeholder="למשל: מתוך המחברת של סבתא" />
           </div>
 
           <!-- שדות נוספים -->
@@ -169,6 +186,8 @@ const form = reactive({
   quantity:       props.recipe?.quantity ?? '',
   ingredients:    props.recipe?.ingredients ?? '',
   preparation:    props.recipe?.preparation ?? '',
+  notes:          props.recipe?.notes ?? '',
+  source:         props.recipe?.source ?? '',
   is_favorite:    props.recipe?.is_favorite ?? false,
   is_gluten_free: props.recipe?.is_gluten_free ?? false,
   person_id:      props.recipe?.person_id ?? null,

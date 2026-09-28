@@ -10,7 +10,7 @@ class Recipe extends Model
 {
     protected $fillable = [
         'title', 'person_id', 'owner_text', 'created_by', 'category',
-        'quantity', 'ingredients', 'preparation',
+        'quantity', 'ingredients', 'preparation', 'notes', 'source',
         'is_favorite', 'is_gluten_free', 'image',
     ];
 

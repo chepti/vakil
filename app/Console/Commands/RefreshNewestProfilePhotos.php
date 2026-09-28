@@ -122,9 +122,11 @@ class RefreshNewestProfilePhotos extends Command
         $sw = max(1, min($sw, $width - $sx));
         $sh = max(1, min($sh, $height - $sy));
 
-        $size = 400; // גודל ריבוע האווטאר הפלט — עקבי עם חיתוכים אחרים באתר
-        $dst = imagecreatetruecolor($size, $size);
-        imagecopyresampled($dst, $src, 0, 0, $sx, $sy, $size, $size, $sw, $sh);
+        // שומרים על הפרופורציה של ריבוע התיוג — מלבן תיוג לאורך שנדחס לריבוע
+        // מוציא פנים "רחבות". הצלע הארוכה מוגבלת ל-400 והשנייה נגזרת ממנה.
+        [$dw, $dh] = self::fitBox($sw, $sh, 400);
+        $dst = imagecreatetruecolor($dw, $dh);
+        imagecopyresampled($dst, $src, 0, 0, $sx, $sy, $dw, $dh, $sw, $sh);
         imagedestroy($src);
 
         $filename = 'avatars/' . uniqid('auto_', true) . '.jpg';
@@ -132,5 +134,13 @@ class RefreshNewestProfilePhotos extends Command
         imagedestroy($dst);
 
         return $ok ? $filename : null;
+    }
+
+    /** ממדי פלט ששומרים על יחס הגובה-רוחב של המקור, כשהצלע הארוכה מוגבלת ל-$max. */
+    public static function fitBox(int $sw, int $sh, int $max = 400): array
+    {
+        $scale = min(1.0, $max / max($sw, $sh));
+
+        return [max(1, (int) round($sw * $scale)), max(1, (int) round($sh * $scale))];
     }
 }

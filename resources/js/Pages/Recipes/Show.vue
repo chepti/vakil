@@ -30,6 +30,10 @@
               <div v-else-if="recipe.owner_text" class="recipe-owner-plain">
                 🧑‍🍳 {{ recipe.owner_text }}
               </div>
+              <div v-if="recipe.source" class="recipe-source">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                {{ recipe.source }}
+              </div>
             </div>
 
             <div class="hero-image" v-if="recipe.image_url">
@@ -69,9 +73,10 @@
               <button v-if="checkedIngredients.size > 0" class="btn-reset-checks" @click="checkedIngredients = new Set()">נקה סימונים</button>
             </div>
             <ul class="ingredients-list">
+              <template v-for="(line, i) in ingredientLines" :key="i">
+              <li v-if="isHeading(line)" class="list-heading">{{ headingText(line) }}</li>
               <li
-                v-for="(line, i) in ingredientLines"
-                :key="i"
+                v-else
                 :class="{ 'item-checked': checkedIngredients.has(i) }"
                 @click="toggleIngredient(i)"
               >
@@ -80,6 +85,7 @@
                 </span>
                 <span>{{ line }}</span>
               </li>
+              </template>
             </ul>
           </div>
 
@@ -89,17 +95,35 @@
               <button v-if="checkedSteps.size > 0" class="btn-reset-checks" @click="checkedSteps = new Set()">נקה סימונים</button>
             </div>
             <ol class="steps-list">
+              <template v-for="(step, i) in preparationSteps" :key="i">
+              <li v-if="isHeading(step)" class="list-heading">{{ headingText(step) }}</li>
               <li
-                v-for="(step, i) in preparationSteps"
-                :key="i"
+                v-else
                 :class="{ 'item-checked': checkedSteps.has(i) }"
                 @click="toggleStep(i)"
               >
-                <span class="step-num">{{ checkedSteps.has(i) ? '✓' : i + 1 }}</span>
+                <span class="step-num">{{ checkedSteps.has(i) ? '✓' : stepNumbers[i] }}</span>
                 <span class="step-text">{{ step }}</span>
               </li>
+              </template>
             </ol>
           </div>
+        </div>
+
+        <!-- טיפים וסיפורים -->
+        <div v-if="noteLines.length" class="recipe-section notes-section">
+          <div class="section-title-row">
+            <h2>
+              <svg class="notes-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+              טיפים וסיפורים
+            </h2>
+          </div>
+          <ul class="notes-list">
+            <template v-for="(line, i) in noteLines" :key="i">
+              <li v-if="isHeading(line)" class="list-heading">{{ headingText(line) }}</li>
+              <li v-else class="note-item">{{ line }}</li>
+            </template>
+          </ul>
         </div>
 
         <!-- התאמות אישיות -->
@@ -302,6 +326,24 @@ const preparationSteps = computed(() =>
   props.recipe.preparation.split('\n').map(l => l.trim()).filter(Boolean)
 )
 
+const noteLines = computed(() =>
+  (props.recipe.notes || '').split('\n').map(l => l.trim()).filter(Boolean)
+)
+
+// שורה קצרה שמסתיימת בנקודתיים ("מרק לקוסקוס:") היא כותרת-משנה, לא חומר/שלב
+function isHeading(line) {
+  return line.endsWith(':') && line.length <= 40
+}
+function headingText(line) {
+  return line.slice(0, -1).trim()
+}
+
+// מספור שלבים שמדלג על כותרות-משנה
+const stepNumbers = computed(() => {
+  let n = 0
+  return preparationSteps.value.map(s => (isHeading(s) ? null : ++n))
+})
+
 const totalCommentCount = computed(() =>
   props.recipe.comments.reduce((acc, c) => acc + 1 + (c.replies?.length || 0), 0)
 )
@@ -317,14 +359,16 @@ function copyRecipe() {
     `🍽️ ${props.recipe.title}`,
     categoryList.value.length ? `קטגוריה: ${categoryList.value.join(', ')}` : '',
     ownerLine,
+    props.recipe.source ? `מקור: ${props.recipe.source}` : '',
     props.recipe.quantity ? `כמות: ${props.recipe.quantity}` : '',
     props.recipe.is_gluten_free ? '🌾 ללא גלוטן' : '',
     '',
     '🥕 חומרים:',
-    ...ingredientLines.value.map(l => `• ${l}`),
+    ...ingredientLines.value.map(l => (isHeading(l) ? `\n${l}` : `• ${l}`)),
     '',
     '👩‍🍳 הכנה:',
-    ...preparationSteps.value.map((s, i) => `${i + 1}. ${s}`),
+    ...preparationSteps.value.map((s, i) => (isHeading(s) ? `\n${s}` : `${stepNumbers.value[i]}. ${s}`)),
+    ...(noteLines.value.length ? ['', '💡 טיפים וסיפורים:', ...noteLines.value.map(l => `• ${l}`)] : []),
   ].filter(l => l !== undefined && l !== null && l !== '').join('\n')
 
   navigator.clipboard.writeText(text).then(() => {
@@ -474,6 +518,72 @@ h1 {
 .recipe-owner-plain {
   color: #5a6d8a;
   font-size: 0.9rem;
+}
+
+.recipe-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  color: #8a5a2b;
+  background: #fff6e8;
+  border: 1px solid #f5dcb8;
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.85rem;
+}
+.recipe-source svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* כותרות-משנה בתוך רשימות */
+.ingredients-list li.list-heading,
+.steps-list li.list-heading,
+.notes-list li.list-heading {
+  background: none;
+  border: none;
+  padding: 0.6rem 0 0.1rem;
+  font-weight: 700;
+  color: #c05621;
+  font-size: 0.95rem;
+  cursor: default;
+}
+.ingredients-list li.list-heading:hover,
+.steps-list li.list-heading:hover { background: none; }
+
+/* טיפים וסיפורים */
+.notes-section {
+  background: #fffaf2;
+  border-color: #f5e3c8;
+}
+.notes-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.notes-icon { width: 20px; height: 20px; color: #d97706; }
+.notes-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.note-item {
+  position: relative;
+  padding-right: 1.1rem;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: #3d3a35;
+}
+.note-item::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0.65em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e8a25c;
 }
 
 .hero-image {

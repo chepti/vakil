@@ -195,7 +195,7 @@
               :x="node.tlFacePrev.x" :y="node.tlFacePrev.y"
               :width="node.tlFacePrev.w" :height="node.tlFacePrev.h"
               :clip-path="`url(#rclip-${node.id})`"
-              preserveAspectRatio="none"
+              preserveAspectRatio="xMidYMid slice"
               class="tl-face-out"
             />
             <image
@@ -204,7 +204,7 @@
               :x="node.tlFace.x" :y="node.tlFace.y"
               :width="node.tlFace.w" :height="node.tlFace.h"
               :clip-path="`url(#rclip-${node.id})`"
-              preserveAspectRatio="none"
+              preserveAspectRatio="xMidYMid slice"
               :class="{ 'tl-face-in': node.tlFacePrev }"
             />
             <image
