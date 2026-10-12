@@ -396,50 +396,20 @@ class AdminController extends Controller
         return back()->with('digest_success', 'תצוגה מקדימה נשלחה לכתובת ' . $request->user()->email);
     }
 
-    /** שליחת העדכון החודשי לכל המשתמשים הרשומים. */
-    public function digestSendAll(Request $request, DigestBuilder $builder)
+    /**
+     * שליחת העדכון החודשי — בקבוצות (Hostinger חוסם שליחה המונית). כל לחיצה שולחת קבוצה
+     * ומסמנת מי קיבל; לחיצה נוספת ממשיכה רק עם מי שנשאר.
+     */
+    public function digestSendAll(Request $request)
     {
         $this->ensureAdmin();
 
-        $when   = Carbon::today();
-        $data   = $builder->build($when);
+        \Illuminate\Support\Facades\Artisan::call('digest:monthly', ['--force' => true]);
+        $out = trim(\Illuminate\Support\Facades\Artisan::output());
+        $lines = array_values(array_filter(explode("\n", $out), fn ($l) => str_contains($l, 'נשלחו') || str_contains($l, 'נותרו')));
 
-        $recipients = User::where('notify_monthly_digest', true)
-            ->where('status', 'active')
-            ->whereNotNull('email')
-            ->get();
-
-        $branchCache = [];
-        $sent = $failed = 0;
-
-        foreach ($recipients as $user) {
-            try {
-                $branch = null;
-                if ($user->digest_branch_person_id) {
-                    $bid = $user->digest_branch_person_id;
-                    if (! array_key_exists($bid, $branchCache)) {
-                        $root = Person::find($bid);
-                        $branchCache[$bid] = $root ? $builder->branchSection($root, $when) : null;
-                    }
-                    $branch = $branchCache[$bid];
-                }
-                Mail::to($user->email)->send(new MonthlyDigestMail($data, $user->name, $branch));
-                $sent++;
-            } catch (\Throwable $e) {
-                $failed++;
-                report($e);
-            }
-        }
-
-        // סימון "נשלח היום" — כדי שהמשימה האוטומטית של ראש חודש לא תשלח שוב
-        if ($sent > 0) {
-            \Illuminate\Support\Facades\Cache::put('digest_sent:' . Carbon::today()->toDateString(), now()->toDateTimeString(), now()->addDays(3));
-        }
-
-        $msg = "נשלחו {$sent} מיילים" . ($failed ? " ({$failed} נכשלו)" : '') . '.';
-        return back()->with('digest_success', $msg);
+        return back()->with('digest_success', $lines ? implode(' · ', $lines) : 'הושלם.');
     }
-
     /** שליחת הודעה מותאמת (נושא + גוף חופשי) לקבוצת יעד. */
     public function sendCustom(Request $request)
     {

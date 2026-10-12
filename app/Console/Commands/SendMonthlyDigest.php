@@ -17,7 +17,8 @@ class SendMonthlyDigest extends Command
         {--force : שליחה גם אם היום אינו ראש חודש}
         {--date= : תאריך לועזי לבדיקה (YYYY-MM-DD) במקום היום}
         {--dry : בנייה והצגה בלבד, ללא שליחת מיילים}
-        {--to= : שליחה לכתובת מייל ספציפית (לבדיקה) במקום לכל הרשומים}';
+        {--to= : שליחה לכתובת מייל ספציפית (לבדיקה) במקום לכל הרשומים}
+        {--batch=40 : כמה מיילים לשלוח לכל היותר בהפעלה אחת}';
 
     protected $description = 'שולח את המייל החודשי (ראש חודש) לכל הרשומים שבחרו לקבלו';
 
@@ -77,12 +78,23 @@ class SendMonthlyDigest extends Command
             ->whereNotNull('email')
             ->get();
 
+        // שליחה בקבוצות: Hostinger חוסם שליחה המונית (451 Ratelimit), לכן בכל הפעלה נשלחת
+        // קבוצה מוגבלת, נרשם מי כבר קיבל, וההפעלה הבאה ממשיכה רק עם מי שנשאר.
+        $listKey = 'digest_to:' . Carbon::today()->toDateString();
+        $already = $realRun ? (array) Cache::get($listKey, []) : [];
+        $pending = $recipients->reject(fn ($u) => in_array($u->id, $already, true))->values();
+        $batch   = (int) $this->option('batch');
+
         // סעיף הענף מחושב פעם אחת לכל דמות-ענף נבחרת (משותף בין משתמשים שבחרו אותה דמות)
         $branchCache = [];
 
         $sent = 0;
         $failed = 0;
-        foreach ($recipients as $user) {
+        $rateLimited = false;
+        foreach ($pending as $user) {
+            if ($sent >= $batch) {
+                break;
+            }
             try {
                 $branch = null;
                 if ($user->digest_branch_person_id) {
@@ -96,17 +108,30 @@ class SendMonthlyDigest extends Command
 
                 Mail::to($user->email)->send(new MonthlyDigestMail($data, $user->name, $branch));
                 $sent++;
+                $already[] = $user->id;
+                usleep(700000);
             } catch (\Throwable $e) {
                 $failed++;
                 $this->error("נכשל ל-{$user->email}: {$e->getMessage()}");
                 report($e);
+                // חסימת קצב — ממשיכים בהפעלה הבאה במקום "לשרוף" את כל הרשימה
+                if (stripos($e->getMessage(), 'ratelimit') !== false || str_contains($e->getMessage(), '"451"') || str_contains($e->getMessage(), '"450"')) {
+                    $rateLimited = true;
+                    break;
+                }
             }
         }
 
-        if ($realRun && $sent > 0) {
-            Cache::put($sentKey, now()->toDateTimeString(), now()->addDays(3));
+        $remaining = $pending->count() - $sent;
+        if ($realRun) {
+            Cache::put($listKey, $already, now()->addDays(3));
+            if ($remaining <= 0 && $failed === 0) {
+                Cache::put($sentKey, now()->toDateTimeString(), now()->addDays(3));
+            }
         }
-
+        if ($remaining > 0) {
+            $this->warn("נותרו {$remaining} נמענים" . ($rateLimited ? ' (נעצר בגלל מגבלת שליחה)' : '') . ' — ימשיכו בהפעלה הבאה.');
+        }
         $this->info("נשלחו {$sent} מיילים" . ($failed ? " ({$failed} נכשלו)" : '') . '.');
 
         return self::SUCCESS;

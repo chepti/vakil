@@ -10,7 +10,9 @@ name: Monthly Digest Cron
 # CONNECT) — לא בשליטתנו לתקן. GitHub-hosted runners לא כפופים להגבלה הזו.
 on:
   schedule:
-    - cron: '0 6 * * *' # כל יום 06:00 UTC
+    - cron: '23 3 * * *'
+    - cron: '23 4 * * *'
+    - cron: '23 5 * * *' # כל יום 06:00 UTC
   workflow_dispatch: # הרצה ידנית לבדיקה: Actions -> Monthly Digest Cron -> Run workflow
 
 jobs:
