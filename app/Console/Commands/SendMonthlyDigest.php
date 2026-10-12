@@ -8,6 +8,7 @@ use App\Services\DigestBuilder;
 use App\Support\HebrewDate;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 
 class SendMonthlyDigest extends Command
@@ -30,6 +31,15 @@ class SendMonthlyDigest extends Command
 
         if (! $this->option('force') && ! $sendToday) {
             $this->info('היום אינו ראש חודש (' . HebrewDate::format($when) . ') — לא נשלח דבר. להרצה כפויה: --force');
+
+            return self::SUCCESS;
+        }
+
+        // מניעת שליחה כפולה באותו יום (שליחה ידנית מהניהול + המשימה האוטומטית, או כמה הפעלות מתוזמנות)
+        $sentKey = 'digest_sent:' . Carbon::today()->toDateString();
+        $realRun = ! $this->option('dry') && ! $this->option('to') && ! $this->option('date');
+        if ($realRun && ! $this->option('force') && Cache::has($sentKey)) {
+            $this->info('המייל החודשי כבר נשלח היום — לא נשלח שוב.');
 
             return self::SUCCESS;
         }
@@ -91,6 +101,10 @@ class SendMonthlyDigest extends Command
                 $this->error("נכשל ל-{$user->email}: {$e->getMessage()}");
                 report($e);
             }
+        }
+
+        if ($realRun && $sent > 0) {
+            Cache::put($sentKey, now()->toDateTimeString(), now()->addDays(3));
         }
 
         $this->info("נשלחו {$sent} מיילים" . ($failed ? " ({$failed} נכשלו)" : '') . '.');

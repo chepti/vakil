@@ -431,6 +431,11 @@ class AdminController extends Controller
             }
         }
 
+        // סימון "נשלח היום" — כדי שהמשימה האוטומטית של ראש חודש לא תשלח שוב
+        if ($sent > 0) {
+            \Illuminate\Support\Facades\Cache::put('digest_sent:' . Carbon::today()->toDateString(), now()->toDateTimeString(), now()->addDays(3));
+        }
+
         $msg = "נשלחו {$sent} מיילים" . ($failed ? " ({$failed} נכשלו)" : '') . '.';
         return back()->with('digest_success', $msg);
     }
