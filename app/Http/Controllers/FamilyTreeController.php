@@ -55,8 +55,11 @@ class FamilyTreeController extends Controller
         if (Auth::user()->role !== 'admin') {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
+        $previousId = Person::where('is_main_person', true)->value('id');
         Person::where('is_main_person', true)->update(['is_main_person' => false]);
         Person::where('id', $id)->update(['is_main_person' => true]);
+        // תיעוד — כדי שאפשר יהיה לדעת מי ומתי החליף את דמות השורש
+        \Illuminate\Support\Facades\Log::info("main person changed {$previousId} → {$id} by user " . Auth::id());
         return response()->json(['success' => true, 'main_person_id' => $id]);
     }
 

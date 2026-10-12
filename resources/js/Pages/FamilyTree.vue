@@ -1202,6 +1202,11 @@ function changeDepth(delta) {
 }
 
 async function setAsDefault(personId) {
+  // שינוי דמות השורש משפיע על כל המשתמשים (מרכז העץ, המשחק, "של X של Y" במיילים) — לא לבצע בלחיצה בטעות
+  if (currentDefaultId.value === String(personId)) return
+  const node = localNodes.value.find(n => String(n.id) === String(personId))
+  const name = node ? personName(node) : 'הדמות'
+  if (!confirm(`להגדיר את ${name} כדמות השורש לכולם?\nזה משנה את מרכז העץ, את המשחק ואת ההקשר ("של X של Y") ברשימות ובמיילים.`)) return
   try {
     await apiPost(`/api/family-tree/set-main/${personId}`, null)
     currentDefaultId.value = String(personId)
