@@ -91,6 +91,9 @@ class DigestBuilder
                     'name'     => $p->full_name,
                     // הגיל מסגיר את שנת הלידה — לכן הוא נופל יחד איתה
                     'age'      => DateVisibility::birthYearHidden($p->id) ? null : $age,
+                    'pid'      => $p->id,
+                    'occasion' => 'birthday',
+                    'year'     => $currentHebrewYear,
                     'dayMonth' => HebrewDate::dayMonth(Carbon::parse($p->birth_date_gregorian)),
                     'dateGreg' => DateVisibility::hideGregorian()
                         ? null
@@ -125,6 +128,9 @@ class DigestBuilder
                 }
                 $anniversaries[] = [
                     'names'    => "{$p1->full_name} ו{$p2->full_name}",
+                    'pid'      => $p1->id,
+                    'occasion' => 'anniversary',
+                    'year'     => $currentHebrewYear,
                     'years'    => $years,
                     'dayMonth' => HebrewDate::dayMonth(Carbon::parse($r->marriage_date_gregorian)),
                     'dateGreg' => DateVisibility::hideGregorian()
@@ -157,6 +163,9 @@ class DigestBuilder
             ->get()
             ->map(fn (Person $p) => [
                 'name'        => $p->full_name,
+                'pid'         => $p->id,
+                'occasion'    => 'birth',
+                'year'        => Carbon::parse($p->birth_date_gregorian)->year,
                 'url'         => route('people.show', $p->id),
                 'hebrewBirth' => HebrewDate::format(Carbon::parse($p->birth_date_gregorian)),
                 'dateGreg'    => DateVisibility::hideGregorian()
@@ -221,6 +230,9 @@ class DigestBuilder
                 }
                 $out[] = [
                     'name'     => $p->full_name,
+                    'pid'      => $p->id,
+                    'occasion' => 'birthday',
+                    'year'     => $currentHebrewYear,
                     'age'      => $age,
                     'dayMonth' => HebrewDate::dayMonth(Carbon::parse($p->birth_date_gregorian)),
                     'dateGreg' => DateVisibility::hideGregorian()
@@ -263,6 +275,9 @@ class DigestBuilder
 
                 $out[] = [
                     'names'    => "{$p1->full_name} ו{$p2->full_name}",
+                    'pid'      => $p1->id,
+                    'occasion' => 'anniversary',
+                    'year'     => $currentHebrewYear,
                     'years'    => $years,
                     'dayMonth' => HebrewDate::dayMonth(Carbon::parse($r->marriage_date_gregorian)),
                     'dateGreg' => DateVisibility::hideGregorian()

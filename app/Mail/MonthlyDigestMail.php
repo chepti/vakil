@@ -19,6 +19,7 @@ class MonthlyDigestMail extends Mailable
         public array $data,
         public ?string $recipientName = null,
         public ?array $branch = null,
+        public ?int $recipientId = null,
     ) {
     }
 
@@ -39,6 +40,7 @@ class MonthlyDigestMail extends Mailable
                 'branch'        => $this->branch,
                 'profileUrl'    => route('profile.edit'),
                 'treeUrl'       => route('family-tree'),
+                'recipientId'   => $this->recipientId,
             ],
         );
     }

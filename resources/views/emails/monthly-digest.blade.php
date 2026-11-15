@@ -78,6 +78,7 @@
                             </td>
                             <td valign="middle">
                                 <div><a href="{{ $baby['url'] }}">{{ $baby['name'] }}</a>@if ($baby['context'] ?? '') <span class="meta"> {{ $baby['context'] }}</span>@endif</div>
+                                @include('emails.partials.occasion-bless', ['it' => $baby, 'uid' => $recipientId])
                                 <div class="meta">@php echo match($baby['gender'] ?? null) { 'male' => 'נולד', 'female' => 'נולדה', default => 'נולד/ה' }; @endphp</div>
                             </td>
                         </tr>
@@ -154,6 +155,7 @@
                             </td>
                             <td valign="middle">
                                 <div><a href="{{ $bd['url'] }}">{{ $bd['name'] }}</a>@if ($bd['context'] ?? '') <span class="meta"> {{ $bd['context'] }}</span>@endif</div>
+                                @include('emails.partials.occasion-bless', ['it' => $bd, 'uid' => $recipientId])
                                 {{-- כשהגיל מוסתר (שנת לידה מקופלת) מברכים בלי מספר --}}
                                 <div class="meta">{{ ($bd['age'] ?? null) ? "חוגג/ת {$bd['age']}" : 'חוגג/ת יום הולדת' }}</div>
                             </td>
@@ -183,6 +185,7 @@
                             </td>
                             <td valign="middle">
                                 <div><a href="{{ $an['url'] }}">{{ $an['names'] }}</a></div>
+                                @include('emails.partials.occasion-bless', ['it' => $an, 'uid' => $recipientId])
                                 <div class="meta">{{ $an['years'] }} שנות נישואין</div>
                             </td>
                         </tr>
@@ -216,6 +219,7 @@
                             </td>
                             <td valign="middle">
                                 <div><a href="{{ $bd['url'] }}">{{ $bd['name'] }}</a>@if ($bd['context'] ?? '') <span class="meta"> {{ $bd['context'] }}</span>@endif</div>
+                                @include('emails.partials.occasion-bless', ['it' => $bd, 'uid' => $recipientId])
                                 <div class="meta">יום הולדת {{ $bd['age'] }}</div>
                             </td>
                         </tr>
@@ -237,6 +241,7 @@
                             </td>
                             <td valign="middle">
                                 <div><a href="{{ $an['url'] }}">{{ $an['names'] }}</a></div>
+                                @include('emails.partials.occasion-bless', ['it' => $an, 'uid' => $recipientId])
                                 <div class="meta">{{ $an['years'] }} שנות נישואין</div>
                             </td>
                         </tr>

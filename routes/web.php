@@ -35,6 +35,12 @@ Route::get('/events/{event}/quick-blessing/{user}/{kind}', [EventController::cla
     ->middleware('signed')
     ->name('events.quick-blessing');
 
+Route::get('/blessing/{person}/{user}/{occasion}/{year}/{kind}', [PersonController::class, 'occasionBless'])
+    ->whereIn('occasion', ['birth', 'birthday', 'anniversary'])
+    ->whereIn('kind', ['mazal_tov', 'shefa'])
+    ->middleware('signed')
+    ->name('occasion.bless');
+
 // מדריך הקמה — לא דורש התחברות, כדי שגם מי ששוקל להעתיק יוכל לצפות
 Route::get('/guide', function () {
     return Inertia::render('Guide', [

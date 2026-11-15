@@ -54,6 +54,12 @@
         </div>
       </div>
 
+      <div v-if="occasionBlessings.total" class="bless-card" :title="occasionBlessings.people.join('، ')">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+        <strong>{{ occasionBlessings.total }}</strong> ברכות נשלחו
+        <span v-if="occasionBlessings.people.length" class="bless-who">· מ{{ occasionBlessings.people.slice(0, 3).join(', ') }}<template v-if="occasionBlessings.total > 3"> ועוד</template></span>
+      </div>
+
       <!-- ─── סיפור השם — "למה קראו לי בשמי" ─── -->
       <div class="name-story-section">
         <div class="ns-header">
@@ -764,6 +770,7 @@ const props = defineProps({
   siblings:     { type: Array,  default: () => [] },
   photosTagged: { type: Array,  default: () => [] },
   profilePhotos:{ type: Array,  default: () => [] },
+  occasionBlessings: { type: Object, default: () => ({ total: 0, people: [] }) },
   allPeople:    { type: Array,  default: () => [] },
   parentIds:    { type: Array,  default: () => [] },
   spouseId:     { type: [Number, null], default: null },
@@ -1740,4 +1747,7 @@ textarea { resize: vertical; }
 }
 .btn-choose-photo:hover { background: #dbeafe; }
 .photo-hint { font-size: 0.78rem; color: #94a3b8; margin: 0; }
+.bless-card { display:flex; align-items:center; gap:.5rem; background:#fdecef; color:#d6336c; border-radius:999px; padding:.45rem 1.1rem; margin:0 0 1rem; width:fit-content; font-size:.92rem; animation: bless-pop .5s ease; }
+.bless-who { color:#9a4a63; font-size:.85rem; }
+@keyframes bless-pop { 0%{transform:scale(.6);opacity:0} 70%{transform:scale(1.08)} 100%{transform:scale(1);opacity:1} }
 </style>

@@ -67,7 +67,7 @@ class SendMonthlyDigest extends Command
                 $root   = \App\Models\Person::find($user->digest_branch_person_id);
                 $branch = $root ? $builder->branchSection($root, $when) : null;
             }
-            Mail::to($toEmail)->send(new MonthlyDigestMail($data, $user?->name, $branch));
+            Mail::to($toEmail)->send(new MonthlyDigestMail($data, $user?->name, $branch, $user?->id));
             $this->info("נשלח בדיקה אל {$toEmail}.");
             return self::SUCCESS;
         }
@@ -106,7 +106,7 @@ class SendMonthlyDigest extends Command
                     $branch = $branchCache[$bid];
                 }
 
-                Mail::to($user->email)->send(new MonthlyDigestMail($data, $user->name, $branch));
+                Mail::to($user->email)->send(new MonthlyDigestMail($data, $user->name, $branch, $user->id));
                 $sent++;
                 $already[] = $user->id;
                 usleep(700000);

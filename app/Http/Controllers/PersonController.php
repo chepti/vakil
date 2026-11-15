@@ -79,6 +79,24 @@ class PersonController extends Controller
         ]);
     }
 
+    /** ברכה בלחיצה אחת מהמייל החודשי (קישור חתום) — לידה / יום הולדת / יום נישואין */
+    public function occasionBless(Person $person, \App\Models\User $user, string $occasion, int $year, string $kind)
+    {
+        $labels = ['mazal_tov' => 'מזל טוב', 'shefa' => 'שפע ברכות'];
+        \App\Models\OccasionBlessing::firstOrCreate([
+            'person_id' => $person->id, 'user_id' => $user->id,
+            'occasion' => $occasion, 'year' => $year, 'kind' => $kind,
+        ]);
+        $count = \App\Models\OccasionBlessing::where(['person_id' => $person->id, 'occasion' => $occasion, 'year' => $year])->count();
+
+        return view('events.quick-blessing-thanks', [
+            'event' => (object) ['title' => $person->full_name],
+            'label' => $labels[$kind],
+            'count' => $count,
+            'url'   => route('people.show', $person->id),
+        ]);
+    }
+
     public function create()
     {
         $people = Person::select('id', 'first_name', 'last_name')->orderBy('first_name')->get()
@@ -278,7 +296,15 @@ class PersonController extends Controller
             ->get()
             ->map(fn($p) => ['id' => $p->id, 'label' => $p->full_name]);
 
+        // ברכות שנשלחו על הדמות מהמייל החודשי (לידה/יום הולדת/נישואין)
+        $occ = \App\Models\OccasionBlessing::where('person_id', $person->id)->with('user:id,name')->latest()->get();
+        $occasionBlessings = [
+            'total'  => $occ->count(),
+            'people' => $occ->pluck('user.name')->filter()->unique()->values()->take(12),
+        ];
+
         return Inertia::render('People/Show', [
+            'occasionBlessings' => $occasionBlessings,
             'person'        => $this->formatPerson($person),
             'profilePhotos' => $profilePhotos,
             'parents'      => $person->parents->map(fn($p) => $this->formatMini($p)),
