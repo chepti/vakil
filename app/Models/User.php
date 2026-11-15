@@ -34,6 +34,23 @@ class User extends Authenticatable
         ];
     }
 
+    protected static function booted(): void
+    {
+        // ברירת מחדל: "הענף שלי" = הדמות המקושרת למשתמש. מושלם ברגע שהקישור נוצר
+        // (בהרשמה או בהזמנה), רק אם עוד לא נבחר ענף — כך ניקוי ידני לא יתבטל.
+        $fill = function (User $u) {
+            if ($u->person_id && ! $u->digest_branch_person_id) {
+                $u->digest_branch_person_id = $u->person_id;
+            }
+        };
+        static::creating($fill);
+        static::updating(function (User $u) use ($fill) {
+            if ($u->isDirty('person_id') && $u->getOriginal('person_id') === null) {
+                $fill($u);
+            }
+        });
+    }
+
     // ─── Helpers ──────────────────────────────────────────────────
 
     public function isAdmin(): bool

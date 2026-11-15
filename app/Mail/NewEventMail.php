@@ -20,6 +20,7 @@ class NewEventMail extends Mailable
     public function __construct(
         public Event $event,
         public ?string $recipientName = null,
+        public ?int $recipientId = null,
     ) {
     }
 
@@ -47,9 +48,20 @@ class NewEventMail extends Mailable
                 'addedBy'     => $this->event->creator?->name,
                 'hebrewDate'  => $hebrewDate,
                 'gregDate'    => $this->event->event_date ? Carbon::parse($this->event->event_date)->format('d/m/Y') : null,
+                'blessUrls'   => $this->blessUrls(),
                 'profileUrl'  => route('profile.edit'),
             ],
         );
+    }
+
+    /** קישורים חתומים לברכה בלחיצה אחת (ללא התחברות); ריק אם אין נמען מזוהה */
+    private function blessUrls(): array
+    {
+        if (! $this->recipientId) return [];
+        $make = fn ($kind) => \Illuminate\Support\Facades\URL::signedRoute(
+            'events.quick-blessing', ['event' => $this->event->id, 'user' => $this->recipientId, 'kind' => $kind]
+        );
+        return ['mazal_tov' => $make('mazal_tov'), 'shefa' => $make('shefa')];
     }
 
     /** מצרפת את תמונת ההזמנה כקובץ ממשי (בנוסף להטמעה בגוף המייל). */

@@ -64,6 +64,14 @@
             <p class="text" style="text-align:center; font-size:13px; color:#9ca3af;">💡 ההזמנה מצורפת גם כקובץ למייל הזה</p>
             @endif
 
+                        @if (!empty($blessUrls))
+            <div style="text-align:center; margin: 8px 0 4px;">
+                <a href="{{ $blessUrls['mazal_tov'] }}" style="display:inline-block; background:#fff; color:#2563eb; border:2px solid #93c5fd; text-decoration:none; font-weight:700; font-size:15px; padding:10px 26px; border-radius:50px; margin:4px;">מזל טוב</a>
+                <a href="{{ $blessUrls['shefa'] }}" style="display:inline-block; background:#fff; color:#a07830; border:2px solid #f0d898; text-decoration:none; font-weight:700; font-size:15px; padding:10px 26px; border-radius:50px; margin:4px;">שפע ברכות</a>
+                <div style="font-size:12px; color:#9ca3af; margin-top:6px;">לחיצה אחת שולחת ברכה, בלי להיכנס לאתר</div>
+            </div>
+            @endif
+
             <div class="btn-wrap">
                 <a href="{{ $eventUrl }}" class="btn">כניסה לאירוע וכתיבת ברכה 💬</a>
             </div>

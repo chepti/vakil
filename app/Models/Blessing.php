@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Blessing extends Model
 {
-    protected $fillable = ['event_id', 'user_id', 'message'];
+    protected $fillable = ['event_id', 'user_id', 'message', 'kind'];
 
     public function event(): BelongsTo
     {

@@ -142,6 +142,7 @@ class EventController extends Controller
                 'date'    => $b->created_at->format('d/m/Y'),
             ]),
             'reactions' => $reactions,
+            'blessingsCount' => $event->blessings->count(),
         ]);
     }
 
@@ -265,7 +266,7 @@ class EventController extends Controller
 
         foreach ($recipients as $user) {
             try {
-                Mail::to($user->email)->send(new EventInvitationMail($event, $user->name, $user->person?->gender));
+                Mail::to($user->email)->send(new EventInvitationMail($event, $user->name, $user->person?->gender, $user->id));
                 $sent++;
             } catch (\Throwable $e) {
                 $failed++;
@@ -275,6 +276,25 @@ class EventController extends Controller
 
         $msg = "ההזמנה נשלחה ל-{$sent} אנשים ({$audienceLabel})" . ($failed ? " · {$failed} נכשלו" : '') . '.';
         return redirect()->route('events.show', $event)->with('success', $msg);
+    }
+
+    /** ברכה בלחיצה אחת מתוך המייל (קישור חתום). לחיצה חוזרת לא מכפילה. */
+    public function quickBlessing(Event $event, User $user, string $kind)
+    {
+        $messages = ['mazal_tov' => 'מזל טוב', 'shefa' => 'שפע ברכות'];
+        abort_unless(isset($messages[$kind]), 404);
+
+        Blessing::firstOrCreate(
+            ['event_id' => $event->id, 'user_id' => $user->id, 'kind' => $kind],
+            ['message' => $messages[$kind]],
+        );
+
+        return view('events.quick-blessing-thanks', [
+            'event' => $event,
+            'label' => $messages[$kind],
+            'count' => $event->blessings()->count(),
+            'url'   => route('events.show', $event->id),
+        ]);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────

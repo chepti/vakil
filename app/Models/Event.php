@@ -30,7 +30,7 @@ class Event extends Model
                     ->get();
 
                 foreach ($recipients as $user) {
-                    Mail::to($user->email)->send(new \App\Mail\NewEventMail($event, $user->name));
+                    Mail::to($user->email)->send(new \App\Mail\NewEventMail($event, $user->name, $user->id));
                 }
             } catch (\Throwable $e) {
                 report($e);

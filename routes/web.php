@@ -29,6 +29,12 @@ Route::get('/', function () {
     ]);
 });
 
+// ברכה מהירה מתוך מייל — קישור חתום, בלי התחברות
+Route::get('/events/{event}/quick-blessing/{user}/{kind}', [EventController::class, 'quickBlessing'])
+    ->whereIn('kind', ['mazal_tov', 'shefa'])
+    ->middleware('signed')
+    ->name('events.quick-blessing');
+
 // מדריך הקמה — לא דורש התחברות, כדי שגם מי ששוקל להעתיק יוכל לצפות
 Route::get('/guide', function () {
     return Inertia::render('Guide', [

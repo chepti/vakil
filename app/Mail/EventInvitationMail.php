@@ -25,6 +25,7 @@ class EventInvitationMail extends Mailable
         public Event $event,
         public ?string $recipientName = null,
         public ?string $recipientGender = null,
+        public ?int $recipientId = null,
     ) {
     }
 
@@ -70,10 +71,21 @@ class EventInvitationMail extends Mailable
                 'addedBy'         => $this->event->creator?->name,
                 'hebrewDate'      => $hebrewDate,
                 'gregDate'        => $this->event->event_date ? Carbon::parse($this->event->event_date)->format('d/m/Y') : null,
+                'blessUrls'       => $this->blessUrls(),
                 'profileUrl'      => route('profile.edit'),
                 'audienceParts'   => $audienceParts,
             ],
         );
+    }
+
+    /** קישורים חתומים לברכה בלחיצה אחת (ללא התחברות); ריק אם אין נמען מזוהה */
+    private function blessUrls(): array
+    {
+        if (! $this->recipientId) return [];
+        $make = fn ($kind) => \Illuminate\Support\Facades\URL::signedRoute(
+            'events.quick-blessing', ['event' => $this->event->id, 'user' => $this->recipientId, 'kind' => $kind]
+        );
+        return ['mazal_tov' => $make('mazal_tov'), 'shefa' => $make('shefa')];
     }
 
     /** מצרפת את תמונת ההזמנה כקובץ ממשי (בנוסף להטמעה בגוף המייל) — כדי שיהיה מה "לשמור/להעביר". */

@@ -89,6 +89,7 @@
       <div class="reactions-card">
         <div class="reactions-header">
           <h2>תגובות וברכות</h2>
+          <span v-if="blessingsCount" class="bless-counter" :title="`${blessingsCount} ברכות נשלחו לאירוע`"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>{{ blessingsCount }}</span>
           <span class="privacy-note">🔒 נראה רק כאן, למי שפותח את האירוע</span>
         </div>
 
@@ -140,6 +141,7 @@ const props = defineProps({
   event: { type: Object, required: true },
   blessings: { type: Array, default: () => [] },
   reactions: { type: Array, default: () => [] },
+  blessingsCount: { type: Number, default: 0 },
 })
 
 const TYPE_LABELS = {
@@ -314,6 +316,8 @@ h1 { font-size: 1.6rem; color: #1a3a6b; margin: 0.6rem 0 0.5rem; }
 }
 .reactions-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; }
 .reactions-header h2 { font-size: 1.15rem; color: #1a3a6b; margin: 0; }
+.bless-counter { display: inline-flex; align-items: center; gap: 0.35rem; background: #fdecef; color: #d6336c; font-weight: 700; font-size: 0.9rem; padding: 0.2rem 0.75rem; border-radius: 999px; animation: bless-pop 0.5s ease; }
+@keyframes bless-pop { 0% { transform: scale(0.6); opacity: 0 } 70% { transform: scale(1.12) } 100% { transform: scale(1); opacity: 1 } }
 .privacy-note { font-size: 0.78rem; color: #8a9ab5; }
 
 .emoji-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0 1.5rem; }
