@@ -244,6 +244,10 @@ GOOGLE_REDIRECT_URI=https://your-domain.com/auth/google/callback
 3. מתחבר לשרת ב-SSH: `git pull`, סנכרון תיקיות, הרצת migrations, ניקוי cache
 4. בודק שהאתר עלה תקין (HTTP check)
 
+### פריסה אוטומטית מ-GitHub (גם מהנייד)
+
+כל דחיפה ל-`main` (מהמחשב, מ-Claude Code בנייד, מ-github.com) מפעילה את `.github/workflows/deploy.yml`: אם נגעו בקוד פרונט הוא בונה `public/build` ומקבע בקומיט נפרד, ואז קורא ב-HTTPS ל-`public/deploy.php`, והשרת מוריד zip מ-GitHub ומעתיק רק קבצים ששונו (לאתר הראשי, ל-demo ול-benartzi), מריץ מיגרציות וינקה קאש דרך `/internal/deploy/migrate`. הסוד `DEPLOY_TOKEN` נמצא ב-GitHub Secrets וב-`.env` בכל אתר. **לפני עבודה במחשב: `git pull`.** שינוי ב-composer.json לא מתעדכן אוטומטית (ה-vendor לא ב-git) — לפרוס ב-`.deploy.ps1` ולהריץ composer בשרת.
+
 **שרת ייצור — נקודות חשובות:**
 
 - `public/build` עוקב ב-git — אסור ל-SCP בנפרד
