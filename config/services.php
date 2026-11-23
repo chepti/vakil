@@ -45,4 +45,9 @@ return [
         'secret' => env('CRON_SECRET'),
     ],
 
+    // סוד לפריסה אוטומטית מ-GitHub (public/deploy.php + /internal/deploy/migrate)
+    'deploy' => [
+        'token' => env('DEPLOY_TOKEN'),
+    ],
+
 ];

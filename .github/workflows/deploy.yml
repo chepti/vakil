@@ -1,35 +1,81 @@
 name: Deploy to Hostinger
 
-# הפעלה ידנית בלבד — Hostinger חוסם את כתובות ה-IP של GitHub Actions,
-# כך שה-SSH נכשל ב-timeout. הפריסה היומיומית נעשית מקומית עם deploy.ps1.
-# מי שרוצה לנסות פריסה דרך GitHub: Actions -> Deploy to Hostinger -> Run workflow.
+# כל דחיפה ל-main (מהמחשב, מהסלולרי, מכל מקום) מפרסמת אוטומטית לשרת. אפשר גם ידנית: Actions -> Run workflow.
+#
+# Hostinger חוסם SSH מכתובות של GitHub Actions (timeout) ו-exec ב-PHP, לכן ה-workflow רק קורא ב-HTTPS
+# ל-public/deploy.php באתר, והשרת מושך את הקוד בעצמו מ-GitHub (ראו הסבר בראש deploy.php).
+# הסוד DEPLOY_TOKEN (Settings -> Secrets and variables -> Actions) חייב להתאים ל-DEPLOY_TOKEN ב-.env בשרת.
+#
+# public/build מנוהל ב-git. מהסלולרי אי אפשר להריץ npm run build, לכן אם נגעו בקוד פרונט (resources/, package*.json,
+# vite/tailwind/postcss) ה-workflow בונה בעצמו, מקבע את ה-build בקומיט נפרד, ופורס את הקומיט הזה.
+# קומיט שנדחף עם GITHUB_TOKEN לא מפעיל workflow נוסף, אז אין לולאה.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # הגנה: רק המאגר המקורי יכול לפרוס. fork של הפרויקט לא יוכל לדחוף לשרת שלי,
-    # גם אם הפעילו את ה-workflow ידנית — התנאי נכשל וה-job לא רץ.
+    # הגנה: רק הריפו המקורי יפרוס לשרת (fork לא יגיע לשרת שלי)
     if: github.repository == 'chepti/vakil'
-
     steps:
-      # public/build מנוהל ב-git, לכן git pull מביא גם את הקוד וגם את ה-assets הבנויים.
-      # אין צורך ב-npm build / scp — רק משיכה בשרת וסנכרון ל-public_html.
-      - name: Deploy via SSH (pull code + assets, sync, clear caches)
-        uses: appleboy/ssh-action@v1.0.3
+      - uses: actions/checkout@v4
         with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            cd ~/domains/vakil.chepti.com
-            git checkout -- public/build 2>/dev/null || true
-            git clean -fd public/build
-            git pull origin main
-            cp -rf public/. public_html/
-            /opt/alt/php83/usr/bin/php artisan migrate --force
-            /opt/alt/php83/usr/bin/php artisan config:clear
-            /opt/alt/php83/usr/bin/php artisan route:clear
-            /opt/alt/php83/usr/bin/php artisan view:clear
+          fetch-depth: 2
+
+      - name: Did frontend sources change?
+        id: fe
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "build=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if git diff --name-only HEAD~1 HEAD | grep -qE '^(resources/|package(-lock)?\.json|vite\.config\.js|tailwind\.config\.js|postcss\.config\.js)'; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.fe.outputs.build == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build assets and commit them if they changed
+        if: steps.fe.outputs.build == 'true'
+        run: |
+          npm ci
+          npm run build
+          if [ -n "$(git status --porcelain public/build)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A public/build
+            git commit -m "build: compiled assets (auto, from GitHub Actions)"
+            git push origin HEAD:main
+          else
+            echo "public/build already up to date"
+          fi
+
+      - name: Call deploy endpoint
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          set -u
+          SHA=$(git rev-parse HEAD)
+          for i in 1 2 3; do
+            code=$(curl -sS -o resp.json -w '%{http_code}' --max-time 280 -X POST \
+              -H "X-Deploy-Token: ${DEPLOY_TOKEN}" \
+              --data-urlencode "sha=${SHA}" \
+              https://vakil.chepti.com/deploy.php) || code=000
+            cat resp.json || true; echo
+            if [ "$code" = "200" ]; then exit 0; fi
+            echo "attempt $i failed (HTTP $code)"; sleep 10
+          done
+          echo "::error::deploy failed (last HTTP $code)"
+          exit 1

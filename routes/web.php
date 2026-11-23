@@ -217,4 +217,22 @@ Route::get('/internal/cron/alert', function (\Illuminate\Http\Request $request) 
     return response('alerted', 200);
 })->name('cron.alert');
 
+// נקרא ע"י public/deploy.php אחרי שהקבצים הועתקו: מיגרציות + ניקוי קאש (exec חסום בשרת, לכן דרך האפליקציה).
+Route::post('/internal/deploy/migrate', function (\Illuminate\Http\Request $request) {
+    $token = (string) config('services.deploy.token');
+    if (strlen($token) < 24 || ! hash_equals($token, (string) $request->header('X-Deploy-Token'))) {
+        abort(404);
+    }
+
+    Artisan::call('migrate', ['--force' => true]);
+    $out = Artisan::output();
+    if ($request->input('seed') === '1') {
+        Artisan::call('db:seed', ['--class' => 'RecipesSeeder', '--force' => true]);
+        $out .= Artisan::output();
+    }
+    Artisan::call('optimize:clear');
+
+    return response($out, 200)->header('Content-Type', 'text/plain; charset=UTF-8');
+})->name('deploy.migrate');
+
 require __DIR__.'/auth.php';

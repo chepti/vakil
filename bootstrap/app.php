@@ -17,7 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        //
+        // נקודת הפריסה מאומתת בטוקן בכותרת, לא בקוקי/CSRF
+        $middleware->validateCsrfTokens(except: ['internal/deploy/migrate']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
