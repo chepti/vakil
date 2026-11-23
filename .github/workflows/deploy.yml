@@ -47,9 +47,17 @@ jobs:
           node-version: 22
           cache: npm
 
+      # app.js מייבא את vendor/tightenco/ziggy, לכן הבנייה צריכה גם את חבילות ה-PHP
+      - uses: shivammathur/setup-php@v2
+        if: steps.fe.outputs.build == 'true'
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+
       - name: Build assets and commit them if they changed
         if: steps.fe.outputs.build == 'true'
         run: |
+          composer install --no-interaction --no-progress --no-scripts --prefer-dist
           npm ci
           npm run build
           if [ -n "$(git status --porcelain public/build)" ]; then
